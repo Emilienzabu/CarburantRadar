@@ -785,10 +785,21 @@ function fmtTime(sec){if(sec<60)return sec+'s';var m=Math.round(sec/60);if(m<60)
 
 function locate(){
   var btn=document.getElementById('locBtn');btn.disabled=true;btn.textContent='Localisation...';sstat('Acces a ta position...');
-  if(!navigator.geolocation){sstat('Erreur geolocalisation');btn.disabled=false;btn.textContent='Me localiser';return;}
+  obtenirPosition(function(){
+    btn.textContent='Actualiser';btn.disabled=false;if(map){map.setView([la,lo],13);addUserMarker();}load();
+  },function(){
+    sstat('Erreur - verifie les permissions');btn.disabled=false;btn.textContent='Me localiser';
+  },true);
+}
+// Récupère la position actuelle. Par défaut réutilise la position déjà connue si elle existe
+// (utile pour le mode Trajet) ; passer forcer=true pour toujours redemander une position fraîche
+// (utilisé par le bouton "Actualiser" du Radar).
+function obtenirPosition(succes,erreur,forcer){
+  if(la!==null&&!forcer){succes();return;}
+  if(!navigator.geolocation){if(erreur)erreur();return;}
   navigator.geolocation.getCurrentPosition(
-    function(p){la=p.coords.latitude;lo=p.coords.longitude;btn.textContent='Actualiser';btn.disabled=false;if(map){map.setView([la,lo],13);addUserMarker();}load();},
-    function(){sstat('Erreur - verifie les permissions');btn.disabled=false;btn.textContent='Me localiser';},
+    function(p){la=p.coords.latitude;lo=p.coords.longitude;succes();},
+    function(){if(erreur)erreur();},
     {enableHighAccuracy:true,timeout:30000}
   );
 }
@@ -889,9 +900,21 @@ function initTrajetPage(){
   document.getElementById('trajetCarb').value=(info&&info.carburant)?info.carburant:fu;
 }
 function lancerTrajet(){
-  if(la===null){alert('Localise-toi d\'abord dans l\'onglet Radar !');return;}
   var dest=document.getElementById('trajetDest').value.trim();
   if(!dest){alert('Entre une destination !');return;}
+  var btn=document.getElementById('trajetBtn'),res=document.getElementById('trajetResult');
+  if(la===null){
+    btn.textContent='Localisation...';btn.disabled=true;
+    res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:#e8e8f0">Localisation en cours...</div></div>';
+    obtenirPosition(function(){lancerTrajetSuite(dest);},function(){
+      alert('Impossible de te localiser. Vérifie que tu as autorisé la géolocalisation.');
+      btn.textContent='Trouver la meilleure station';btn.disabled=false;res.innerHTML='';
+    });
+    return;
+  }
+  lancerTrajetSuite(dest);
+}
+function lancerTrajetSuite(dest){
   var carb=document.getElementById('trajetCarb').value,champPrix=PK[carb];
   var btn=document.getElementById('trajetBtn'),res=document.getElementById('trajetResult');
   btn.textContent='Recherche en cours...';btn.disabled=true;
@@ -1101,12 +1124,13 @@ function chargerAnalyseItem(id){
   var etat=analyseItems[id];if(!etat)return;
   var reqId=++analyseReqId;
   if(id==='ZONE'){
-    if(la===null){
+    obtenirPosition(function(){
+      if(reqId!==analyseReqId)return; // l'utilisateur a peut-être changé d'onglet/item entre temps
+      chargerSerieZone(la,lo,etat.rayon,etat.periode,etat.carburant,reqId);
+    },function(){
       var c=document.getElementById('analyseLoading');
-      if(c)c.outerHTML='<div style="text-align:center;padding:20px 0;font-size:12px;color:#6b6b8a">Localise-toi dans l\'onglet Radar pour voir la moyenne de ta zone.</div>';
-      return;
-    }
-    chargerSerieZone(la,lo,etat.rayon,etat.periode,etat.carburant,reqId);
+      if(c)c.outerHTML='<div style="text-align:center;padding:20px 0;font-size:12px;color:#ff6b35">Impossible de te localiser. Vérifie que tu as autorisé la géolocalisation.</div>';
+    });
     return;
   }
   var s=st.find(function(x){return String(x.id)===String(id);});
@@ -1467,24 +1491,3 @@ function dessinerGraphique(dates,serieStation,serieMoy,periode,labelMain,labelRe
       var d=distanceTouches(e.touches);
       if(pinchDistPrec){
         var midX=(e.touches[0].clientX+e.touches[1].clientX)/2;
-        zoomVers(midX,pinchDistPrec/d);
-      }
-      pinchDistPrec=d;
-    }else if(e.touches[0]&&glisseDepartX!==null){
-      // Glissement à un doigt : déplace la fenêtre visible quand on est zoomé (pan),
-      // et affiche quand même l'infobulle sur le jour survolé.
-      var deltaPix=e.touches[0].clientX-glisseDepartX;
-      var span=glisseVueMaxDep-glisseVueMinDep;
-      var deltaIdx=-(deltaPix/gW)*span;
-      if(span<n-1-0.5)deplacerVue(deltaIdx);
-      afficherSurvol(e.touches[0].clientX,e.touches[0].clientY);
-    }
-  };
-  canvas.ontouchend=function(e){
-    if(e.touches.length<2)pinchDistPrec=null;
-    if(e.touches.length===0){glisseDepartX=null;cacherSurvol();}
-  };
-}
-</script>
-</body>
-</html>
