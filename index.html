@@ -434,12 +434,22 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     </div>
     <div id="compteFormulaire">
       <div style="font-size:11px;color:#6b6b8a;margin-bottom:10px">Crée un compte pour retrouver tes favoris, repères et noms personnalisés sur un autre appareil.</div>
+      <div style="display:flex;gap:4px;background:#0f0f16;border:1px solid #252535;border-radius:10px;padding:4px;margin-bottom:10px">
+        <button class="rb a" id="ongletConnexion" style="flex:1" onclick="basculerModeCompte('login')">Se connecter</button>
+        <button class="rb" id="ongletCreation" style="flex:1" onclick="basculerModeCompte('creer')">Créer un compte</button>
+      </div>
       <input class="modal-input" id="compteEmail" type="email" placeholder="Email" autocomplete="username">
-      <input class="modal-input" id="compteMdp" type="password" placeholder="Mot de passe (8 caractères min)" autocomplete="current-password">
+      <div style="position:relative">
+        <input class="modal-input" id="compteMdp" type="password" placeholder="Mot de passe (8 caractères min)" autocomplete="current-password" style="padding-right:42px">
+        <button type="button" onclick="basculerVisibiliteMdp('compteMdp',this)" style="position:absolute;right:2px;top:2px;width:38px;height:38px;background:none;color:#6b6b8a;border:none;margin:0;padding:0"><span data-icon="eye" data-icon-taille="18px"></span></button>
+      </div>
+      <div style="position:relative;display:none" id="compteMdpConfirmWrap">
+        <input class="modal-input" id="compteMdpConfirm" type="password" placeholder="Confirmer le mot de passe" autocomplete="new-password" style="padding-right:42px">
+        <button type="button" onclick="basculerVisibiliteMdp('compteMdpConfirm',this)" style="position:absolute;right:2px;top:2px;width:38px;height:38px;background:none;color:#6b6b8a;border:none;margin:0;padding:0"><span data-icon="eye" data-icon-taille="18px"></span></button>
+      </div>
       <div id="compteErreur" style="display:none;font-size:12px;color:#ff6b35;margin-bottom:10px"></div>
-      <button class="add-btn" style="background:#f5a623;color:#000" onclick="seConnecter()" id="btnSeConnecter">Se connecter</button>
-      <button class="add-btn" onclick="creerCompte()" id="btnCreerCompte">Créer un compte</button>
-      <div style="font-size:10px;color:#4a4a5e;margin-top:6px">Pas d'email de récupération : garde bien ton mot de passe, il ne peut pas être réinitialisé.</div>
+      <button class="add-btn" style="background:#f5a623;color:#000;margin-bottom:6px" onclick="validerFormulaireCompte()" id="btnActionCompte">Se connecter</button>
+      <div id="compteAvertRecup" style="font-size:10px;color:#4a4a5e;display:none">Pas d'email de récupération : garde bien ton mot de passe, il ne peut pas être réinitialisé.</div>
     </div>
   </div>
   <div class="acc-header" onclick="toggleAcc('favAcc')"><div class="acc-title"><span data-icon="star" data-icon-taille="14px"></span> Stations favorites</div><div class="acc-arrow" id="favAccArrow">▼</div></div>
@@ -504,6 +514,20 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
   </div>
 </div>
 
+<div class="modal" id="onboardingModal">
+  <div class="modal-box" style="max-width:360px">
+    <div style="text-align:center;margin-bottom:6px">
+      <img src="icons/icon-96.png" alt="" width="64" height="64" style="border-radius:16px" onerror="this.style.display='none'">
+    </div>
+    <div class="modal-title" style="text-align:center;margin-bottom:6px">Bienvenue sur CarburantRadar</div>
+    <div style="font-size:12px;color:#6b6b8a;text-align:center;margin-bottom:18px">Crée un compte pour retrouver tes favoris et repères sur tous tes appareils — ou continue sans compte, tu pourras le faire plus tard.</div>
+    <button style="background:#f5a623;color:#000;margin-bottom:8px" onclick="onboardingOuvrirCompte('creer')"><span data-icon="user" data-icon-taille="15px"></span> Créer un compte</button>
+    <button style="background:#252535;color:#e8e8f0;margin-bottom:8px" onclick="onboardingOuvrirCompte('login')">J'ai déjà un compte</button>
+    <button id="btnOnboardingInstall" style="background:#252535;color:#e8e8f0;margin-bottom:12px;display:none" onclick="installerApp()"><span data-icon="download" data-icon-taille="15px"></span> Installer l'application</button>
+    <button style="background:none;color:#6b6b8a;font-weight:600;font-size:13px;padding:6px" onclick="fermerOnboarding()">Continuer sans compte</button>
+  </div>
+</div>
+
 <script>
 var la=null,lo=null,fu=localStorage.getItem('cr_fu')||'Gazole',ra=parseInt(localStorage.getItem('cr_ra')||'5'),st=[];
 var PK={Gazole:'gazole_prix',SP95:'sp95_prix',SP98:'sp98_prix',E10:'e10_prix',E85:'e85_prix',GPLc:'gplc_prix'};
@@ -535,7 +559,11 @@ window.addEventListener('load',function(){
   document.querySelectorAll('.rb').forEach(function(b){b.classList.remove('a');if(parseInt(b.dataset.k)===ra)b.classList.add('a');});
   setTimeout(function(){
     document.getElementById('splash').classList.add('hide');
-    setTimeout(function(){document.getElementById('splash').style.display='none';},500);
+    setTimeout(function(){
+      document.getElementById('splash').style.display='none';
+      // Écran de bienvenue au tout premier lancement (une seule fois), sauf si déjà connecté
+      if(!getLs('cr_onboarding_vu')&&!estConnecte()){document.getElementById('onboardingModal').classList.add('on');}
+    },500);
   },800);
   // Si déjà connecté sur cet appareil, récupère les dernières données synchronisées depuis un autre appareil
   if(estConnecte()){
@@ -546,6 +574,33 @@ window.addEventListener('load',function(){
     }).catch(function(){});
   }
 });
+
+// ===== Écran d'accueil (onboarding) + installation PWA =====
+var evenementInstallDiffere=null;
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault();evenementInstallDiffere=e;
+  var btn=document.getElementById('btnOnboardingInstall');if(btn)btn.style.display='block';
+});
+function installerApp(){
+  if(evenementInstallDiffere){
+    evenementInstallDiffere.prompt();
+    evenementInstallDiffere.userChoice.then(function(){evenementInstallDiffere=null;});
+  }else{
+    alert('Pour installer l\'app : ouvre le menu de ton navigateur (⋮) puis "Ajouter à l\'écran d\'accueil" (ou l\'icône Partager puis "Sur l\'écran d\'accueil" sur iPhone).');
+  }
+}
+function fermerOnboarding(){
+  setLs('cr_onboarding_vu',true);
+  document.getElementById('onboardingModal').classList.remove('on');
+}
+function onboardingOuvrirCompte(mode){
+  fermerOnboarding();
+  openMenu();
+  document.getElementById('compteAcc').classList.add('open');
+  document.getElementById('compteAccArrow').classList.add('open');
+  basculerModeCompte(mode);
+  setTimeout(function(){document.getElementById('compteEmail').focus();},300);
+}
 
 function showPage(name){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -633,7 +688,10 @@ function ic(nom,taille){
     close:'<line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/>',
     menu:'<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>',
     dots:'<circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/>',
-    user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/>'
+    user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/>',
+    eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+    eyeOff:'<path d="M3 3l18 18"/><path d="M10.6 5.2A10.6 10.6 0 0 1 12 5c6 0 10 7 10 7a17.6 17.6 0 0 1-3.4 4.2M6.6 6.6C3.6 8.5 2 12 2 12s4 7 10 7a9.6 9.6 0 0 0 4-1"/><path d="M9.5 9.8a3 3 0 0 0 4.2 4.2"/>',
+    download:'<path d="M12 3v13"/><polyline points="7 11 12 16 17 11"/><line x1="4" y1="20" x2="20" y2="20"/>'
   };
   return '<svg width="'+taille+'" height="'+taille+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;flex-shrink:0">'+(chemins[nom]||'')+'</svg>';
 }
@@ -746,32 +804,58 @@ function updateCompteUI(){
   document.getElementById('compteConnecte').style.display=connecte?'block':'none';
   document.getElementById('compteFormulaire').style.display=connecte?'none':'block';
   if(connecte)document.getElementById('compteEmailAffiche').textContent=localStorage.getItem(CR_EMAIL_KEY)||'';
+  else basculerModeCompte('login');
 }
 function afficherErreurCompte(msg){
   var el=document.getElementById('compteErreur');el.textContent=msg;el.style.display='block';
 }
 function masquerErreurCompte(){document.getElementById('compteErreur').style.display='none';}
-function creerCompte(){
+var modeCompte='login';
+function basculerModeCompte(mode){
+  modeCompte=mode;
+  masquerErreurCompte();
+  document.getElementById('ongletConnexion').classList.toggle('a',mode==='login');
+  document.getElementById('ongletCreation').classList.toggle('a',mode==='creer');
+  document.getElementById('compteMdpConfirmWrap').style.display=mode==='creer'?'block':'none';
+  document.getElementById('compteAvertRecup').style.display=mode==='creer'?'block':'none';
+  var btn=document.getElementById('btnActionCompte');
+  btn.textContent=mode==='creer'?'Créer un compte':'Se connecter';
+  document.getElementById('compteMdp').setAttribute('autocomplete',mode==='creer'?'new-password':'current-password');
+}
+function basculerVisibiliteMdp(idChamp,bouton){
+  var champ=document.getElementById(idChamp);
+  var visible=champ.type==='text';
+  champ.type=visible?'password':'text';
+  bouton.innerHTML=ic(visible?'eye':'eyeOff','18px');
+}
+function validerFormulaireCompte(){
   var email=document.getElementById('compteEmail').value.trim(),mdp=document.getElementById('compteMdp').value;
   masquerErreurCompte();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){afficherErreurCompte('Email invalide.');return;}
-  if(mdp.length<8){afficherErreurCompte('Le mot de passe doit faire au moins 8 caractères.');return;}
-  var btn=document.getElementById('btnCreerCompte');btn.disabled=true;btn.textContent='Création...';
+  if(modeCompte==='login'){
+    if(!mdp){afficherErreurCompte('Renseigne ton mot de passe.');return;}
+    seConnecter(email,mdp);
+  } else {
+    var mdpConfirm=document.getElementById('compteMdpConfirm').value;
+    if(mdp.length<8){afficherErreurCompte('Le mot de passe doit faire au moins 8 caractères.');return;}
+    if(mdp!==mdpConfirm){afficherErreurCompte('Les deux mots de passe ne correspondent pas.');return;}
+    creerCompte(email,mdp);
+  }
+}
+function creerCompte(email,mdp){
+  var btn=document.getElementById('btnActionCompte');btn.disabled=true;btn.textContent='Création...';
   fetch(PROXY+'/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:mdp,data:collecterDonneesLocales()})})
   .then(function(r){return r.json().then(function(d){return {status:r.status,body:d};});})
   .then(function(res){
     btn.disabled=false;btn.textContent='Créer un compte';
     if(!res.body.ok){afficherErreurCompte(res.body.error||'Erreur lors de la création du compte.');return;}
     localStorage.setItem(CR_TOKEN_KEY,res.body.token);localStorage.setItem(CR_EMAIL_KEY,email);
-    document.getElementById('compteEmail').value='';document.getElementById('compteMdp').value='';
-    updateCompteUI();
+    document.getElementById('compteEmail').value='';document.getElementById('compteMdp').value='';document.getElementById('compteMdpConfirm').value='';
+    updateCompteUI();fermerOnboarding();
   }).catch(function(){btn.disabled=false;btn.textContent='Créer un compte';afficherErreurCompte('Erreur réseau, réessaie.');});
 }
-function seConnecter(){
-  var email=document.getElementById('compteEmail').value.trim(),mdp=document.getElementById('compteMdp').value;
-  masquerErreurCompte();
-  if(!email||!mdp){afficherErreurCompte('Renseigne ton email et ton mot de passe.');return;}
-  var btn=document.getElementById('btnSeConnecter');btn.disabled=true;btn.textContent='Connexion...';
+function seConnecter(email,mdp){
+  var btn=document.getElementById('btnActionCompte');btn.disabled=true;btn.textContent='Connexion...';
   fetch(PROXY+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:mdp})})
   .then(function(r){return r.json().then(function(d){return {status:r.status,body:d};});})
   .then(function(res){
@@ -780,7 +864,7 @@ function seConnecter(){
     localStorage.setItem(CR_TOKEN_KEY,res.body.token);localStorage.setItem(CR_EMAIL_KEY,email);
     appliquerDonneesServeur(res.body.data);
     document.getElementById('compteEmail').value='';document.getElementById('compteMdp').value='';
-    updateCompteUI();rafraichirApresSync();
+    updateCompteUI();rafraichirApresSync();fermerOnboarding();
   }).catch(function(){btn.disabled=false;btn.textContent='Se connecter';afficherErreurCompte('Erreur réseau, réessaie.');});
 }
 function seDeconnecter(){
