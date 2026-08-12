@@ -422,6 +422,26 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 <div class="overlay" id="overlay" onclick="closeMenu()"></div>
 <div class="side-menu" id="sideMenu">
   <div class="side-header"><div class="side-title">Menu</div><button class="close-btn" onclick="closeMenu()"><span data-icon="close" data-icon-taille="16px"></span></button></div>
+  <div class="acc-header" onclick="toggleAcc('compteAcc')"><div class="acc-title"><span data-icon="user" data-icon-taille="14px"></span> Compte</div><div class="acc-arrow" id="compteAccArrow">▼</div></div>
+  <div class="acc-body" id="compteAcc">
+    <div id="compteConnecte" style="display:none">
+      <div class="side-item">
+        <div class="side-item-name" id="compteEmailAffiche"></div>
+        <div class="side-item-sub">Connecté · favoris, repères et noms synchronisés</div>
+      </div>
+      <div id="compteSyncStatut" style="font-size:11px;color:#6b6b8a;margin-bottom:10px"></div>
+      <button class="add-btn" onclick="seDeconnecter()">Se déconnecter</button>
+    </div>
+    <div id="compteFormulaire">
+      <div style="font-size:11px;color:#6b6b8a;margin-bottom:10px">Crée un compte pour retrouver tes favoris, repères et noms personnalisés sur un autre appareil.</div>
+      <input class="modal-input" id="compteEmail" type="email" placeholder="Email" autocomplete="username">
+      <input class="modal-input" id="compteMdp" type="password" placeholder="Mot de passe (8 caractères min)" autocomplete="current-password">
+      <div id="compteErreur" style="display:none;font-size:12px;color:#ff6b35;margin-bottom:10px"></div>
+      <button class="add-btn" style="background:#f5a623;color:#000" onclick="seConnecter()" id="btnSeConnecter">Se connecter</button>
+      <button class="add-btn" onclick="creerCompte()" id="btnCreerCompte">Créer un compte</button>
+      <div style="font-size:10px;color:#4a4a5e;margin-top:6px">Pas d'email de récupération : garde bien ton mot de passe, il ne peut pas être réinitialisé.</div>
+    </div>
+  </div>
   <div class="acc-header" onclick="toggleAcc('favAcc')"><div class="acc-title"><span data-icon="star" data-icon-taille="14px"></span> Stations favorites</div><div class="acc-arrow" id="favAccArrow">▼</div></div>
   <div class="acc-body" id="favAcc"><div id="favList"><div style="font-size:13px;color:#6b6b8a">Aucun favori pour l'instant</div></div></div>
   <div class="acc-header" onclick="toggleAcc('repAcc')"><div class="acc-title"><span data-icon="pin" data-icon-taille="14px"></span> Mes repères</div><div class="acc-arrow" id="repAccArrow">▼</div></div>
@@ -517,6 +537,14 @@ window.addEventListener('load',function(){
     document.getElementById('splash').classList.add('hide');
     setTimeout(function(){document.getElementById('splash').style.display='none';},500);
   },800);
+  // Si déjà connecté sur cet appareil, récupère les dernières données synchronisées depuis un autre appareil
+  if(estConnecte()){
+    fetch(PROXY+'/account',{headers:{'Authorization':'Bearer '+getToken()}})
+    .then(function(r){return r.json();}).then(function(d){
+      if(d.ok){appliquerDonneesServeur(d.data);rafraichirApresSync();}
+      else if(d.error==='Non authentifié'||d.error==='Compte introuvable'){localStorage.removeItem(CR_TOKEN_KEY);localStorage.removeItem(CR_EMAIL_KEY);}
+    }).catch(function(){});
+  }
 });
 
 function showPage(name){
@@ -604,7 +632,8 @@ function ic(nom,taille){
     back:'<line x1="20" y1="12" x2="6" y2="12"/><polyline points="11 6 5 12 11 18"/>',
     close:'<line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/>',
     menu:'<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>',
-    dots:'<circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/>'
+    dots:'<circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/>',
+    user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/>'
   };
   return '<svg width="'+taille+'" height="'+taille+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;flex-shrink:0">'+(chemins[nom]||'')+'</svg>';
 }
@@ -675,7 +704,7 @@ function isOpen(horairesStr){
 
 // Accordéon exclusif
 function toggleAcc(id){
-  var allIds=['favAcc','repAcc','alertAcc','aboutAcc'];
+  var allIds=['compteAcc','favAcc','repAcc','alertAcc','aboutAcc'];
   var isOpen=document.getElementById(id).classList.contains('open');
   allIds.forEach(function(a){
     document.getElementById(a).classList.remove('open');
@@ -687,7 +716,87 @@ function toggleAcc(id){
   }
 }
 
-function openMenu(){renderFavList();renderRepList();updateAlertUI();document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
+function openMenu(){renderFavList();renderRepList();updateAlertUI();updateCompteUI();document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
+
+// ===== Compte utilisateur (connexion / synchronisation) =====
+var CR_TOKEN_KEY='cr_account_token',CR_EMAIL_KEY='cr_account_email';
+function getToken(){return localStorage.getItem(CR_TOKEN_KEY);}
+function estConnecte(){return !!getToken();}
+function collecterDonneesLocales(){return {favs:getFavs(),names:getNames(),reps:getReps(),prefs:{fu:fu,ra:ra}};}
+function appliquerDonneesServeur(d){
+  if(!d)return;
+  if(d.favs)setFavs(d.favs);
+  if(d.names)setNames(d.names);
+  if(d.reps)setReps(d.reps);
+  if(d.prefs){
+    if(d.prefs.fu){fu=d.prefs.fu;localStorage.setItem('cr_fu',fu);}
+    if(d.prefs.ra){ra=d.prefs.ra;localStorage.setItem('cr_ra',ra);}
+  }
+}
+function rafraichirApresSync(){
+  renderFavList();renderRepList();
+  document.querySelectorAll('.fb').forEach(function(b){b.classList.remove('a');if(b.dataset.f===fu)b.classList.add('a');});
+  document.querySelectorAll('.rb').forEach(function(b){b.classList.remove('a');if(parseInt(b.dataset.k)===ra)b.classList.add('a');});
+  if(st.length)render();
+  if(map)updateMapMarkers();
+  if(document.getElementById('analyseList'))renderAnalyseListe();
+}
+function updateCompteUI(){
+  var connecte=estConnecte();
+  document.getElementById('compteConnecte').style.display=connecte?'block':'none';
+  document.getElementById('compteFormulaire').style.display=connecte?'none':'block';
+  if(connecte)document.getElementById('compteEmailAffiche').textContent=localStorage.getItem(CR_EMAIL_KEY)||'';
+}
+function afficherErreurCompte(msg){
+  var el=document.getElementById('compteErreur');el.textContent=msg;el.style.display='block';
+}
+function masquerErreurCompte(){document.getElementById('compteErreur').style.display='none';}
+function creerCompte(){
+  var email=document.getElementById('compteEmail').value.trim(),mdp=document.getElementById('compteMdp').value;
+  masquerErreurCompte();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){afficherErreurCompte('Email invalide.');return;}
+  if(mdp.length<8){afficherErreurCompte('Le mot de passe doit faire au moins 8 caractères.');return;}
+  var btn=document.getElementById('btnCreerCompte');btn.disabled=true;btn.textContent='Création...';
+  fetch(PROXY+'/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:mdp,data:collecterDonneesLocales()})})
+  .then(function(r){return r.json().then(function(d){return {status:r.status,body:d};});})
+  .then(function(res){
+    btn.disabled=false;btn.textContent='Créer un compte';
+    if(!res.body.ok){afficherErreurCompte(res.body.error||'Erreur lors de la création du compte.');return;}
+    localStorage.setItem(CR_TOKEN_KEY,res.body.token);localStorage.setItem(CR_EMAIL_KEY,email);
+    document.getElementById('compteEmail').value='';document.getElementById('compteMdp').value='';
+    updateCompteUI();
+  }).catch(function(){btn.disabled=false;btn.textContent='Créer un compte';afficherErreurCompte('Erreur réseau, réessaie.');});
+}
+function seConnecter(){
+  var email=document.getElementById('compteEmail').value.trim(),mdp=document.getElementById('compteMdp').value;
+  masquerErreurCompte();
+  if(!email||!mdp){afficherErreurCompte('Renseigne ton email et ton mot de passe.');return;}
+  var btn=document.getElementById('btnSeConnecter');btn.disabled=true;btn.textContent='Connexion...';
+  fetch(PROXY+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:mdp})})
+  .then(function(r){return r.json().then(function(d){return {status:r.status,body:d};});})
+  .then(function(res){
+    btn.disabled=false;btn.textContent='Se connecter';
+    if(!res.body.ok){afficherErreurCompte(res.body.error||'Connexion impossible.');return;}
+    localStorage.setItem(CR_TOKEN_KEY,res.body.token);localStorage.setItem(CR_EMAIL_KEY,email);
+    appliquerDonneesServeur(res.body.data);
+    document.getElementById('compteEmail').value='';document.getElementById('compteMdp').value='';
+    updateCompteUI();rafraichirApresSync();
+  }).catch(function(){btn.disabled=false;btn.textContent='Se connecter';afficherErreurCompte('Erreur réseau, réessaie.');});
+}
+function seDeconnecter(){
+  var jeton=getToken();
+  fetch(PROXY+'/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:jeton})}).catch(function(){});
+  localStorage.removeItem(CR_TOKEN_KEY);localStorage.removeItem(CR_EMAIL_KEY);
+  updateCompteUI();
+}
+function synchroniserVersServeur(){
+  if(!estConnecte())return;
+  var statut=document.getElementById('compteSyncStatut');
+  fetch(PROXY+'/account',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()},body:JSON.stringify({data:collecterDonneesLocales()})})
+  .then(function(r){return r.json();}).then(function(d){
+    if(statut)statut.textContent=d.ok?'Synchronisé':'';
+  }).catch(function(){});
+}
 function closeMenu(){document.getElementById('overlay').classList.remove('on');document.getElementById('sideMenu').classList.remove('on');}
 
 function updateAlertUI(){
@@ -745,20 +854,20 @@ function renderFavList(){
   el.innerHTML=ids.map(function(id){var s=st.find(function(x){return String(x.id)===id;});var nom=names[id]||(s?(s.adresse+' '+s.ville):'Station #'+id);
     return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('star','13px')+' '+echapperHTML(nom)+'</div>'+(s?'<div class="side-item-sub">'+echapperHTML(s.cp)+' '+echapperHTML(s.ville)+'</div>':'')+'</div><button class="del-btn" onclick="removeFav(\''+id+'\')">'+ic('close','13px')+'</button></div></div>';}).join('');
 }
-function removeFav(id){var f=getFavs();delete f[id];setFavs(f);renderFavList();render();if(analyseOpenId===id)analyseOpenId=null;if(document.getElementById('analyseList'))renderAnalyseListe();}
+function removeFav(id){var f=getFavs();delete f[id];setFavs(f);renderFavList();render();if(analyseOpenId===id)analyseOpenId=null;if(document.getElementById('analyseList'))renderAnalyseListe();synchroniserVersServeur();}
 function renderRepList(){
   var reps=getReps(),el=document.getElementById('repList');
   if(!reps.length){el.innerHTML='<div style="font-size:13px;color:#6b6b8a">Aucun repère pour l\'instant</div>';return;}
   el.innerHTML=reps.map(function(r,i){return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('pin','13px')+' '+echapperHTML(r.name)+'</div><div class="side-item-sub">'+r.lat.toFixed(4)+', '+r.lon.toFixed(4)+'</div></div><button class="del-btn" onclick="removeRep('+i+')">'+ic('close','13px')+'</button></div></div>';}).join('');
 }
-function removeRep(i){var r=getReps();r.splice(i,1);setReps(r);renderRepList();}
+function removeRep(i){var r=getReps();r.splice(i,1);setReps(r);renderRepList();synchroniserVersServeur();}
 function openAddRepere(){if(la===null){alert('Localise-toi d\'abord !');return;}document.getElementById('repName').value='';document.getElementById('repPos').textContent=la.toFixed(4)+', '+lo.toFixed(4);document.getElementById('repModal').classList.add('on');}
 function closeRepModal(){document.getElementById('repModal').classList.remove('on');}
-function saveRepere(){var nom=document.getElementById('repName').value.trim();if(!nom){alert('Entre un nom !');return;}var reps=getReps();reps.push({name:nom,lat:la,lon:lo});setReps(reps);closeRepModal();renderRepList();updateMapMarkers();}
+function saveRepere(){var nom=document.getElementById('repName').value.trim();if(!nom){alert('Entre un nom !');return;}var reps=getReps();reps.push({name:nom,lat:la,lon:lo});setReps(reps);closeRepModal();renderRepList();updateMapMarkers();synchroniserVersServeur();}
 var renameCurrentId=null;
 function openRenameModal(id){renameCurrentId=id;document.getElementById('renameInput').value=getName(id)||'';document.getElementById('renameModal').classList.add('on');closeAllCtx();}
 function closeRenameModal(){document.getElementById('renameModal').classList.remove('on');renameCurrentId=null;}
-function saveRename(){if(!renameCurrentId)return;var nom=document.getElementById('renameInput').value.trim();if(nom)setName(renameCurrentId,nom);closeRenameModal();render();var key=getLs('cr_alert_key');if(key){fetch(PROXY+'/update-names',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:key,names:getNames()})}).catch(function(){});}}
+function saveRename(){if(!renameCurrentId)return;var nom=document.getElementById('renameInput').value.trim();if(nom)setName(renameCurrentId,nom);closeRenameModal();render();var key=getLs('cr_alert_key');if(key){fetch(PROXY+'/update-names',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:key,names:getNames()})}).catch(function(){});}synchroniserVersServeur();}
 function closeAllCtx(){document.querySelectorAll('.ctx-menu').forEach(function(m){m.remove();});}
 
 function toggleCtx(id,fav){
@@ -777,9 +886,9 @@ function toggleCtx(id,fav){
   card.appendChild(menu);
   setTimeout(function(){document.addEventListener('click',closeAllCtx,{once:true});},10);
 }
-function doFav(id){toggleFav(id);closeAllCtx();render();renderFavList();if(document.getElementById('analyseList'))renderAnalyseListe();}
-function sf(b){document.querySelectorAll('.fb').forEach(function(x){x.classList.remove('a');});b.classList.add('a');fu=b.dataset.f;localStorage.setItem('cr_fu',fu);if(st.length)render();}
-function sr(b){document.querySelectorAll('.rb').forEach(function(x){x.classList.remove('a');});b.classList.add('a');ra=parseInt(b.dataset.k);localStorage.setItem('cr_ra',ra);if(la!=null)load();}
+function doFav(id){toggleFav(id);closeAllCtx();render();renderFavList();if(document.getElementById('analyseList'))renderAnalyseListe();synchroniserVersServeur();}
+function sf(b){document.querySelectorAll('.fb').forEach(function(x){x.classList.remove('a');});b.classList.add('a');fu=b.dataset.f;localStorage.setItem('cr_fu',fu);if(st.length)render();synchroniserVersServeur();}
+function sr(b){document.querySelectorAll('.rb').forEach(function(x){x.classList.remove('a');});b.classList.add('a');ra=parseInt(b.dataset.k);localStorage.setItem('cr_ra',ra);if(la!=null)load();synchroniserVersServeur();}
 function hv(a,b,c,d){var R=6371,dL=(c-a)*Math.PI/180,dO=(d-b)*Math.PI/180;var x=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dO/2)*Math.sin(dO/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 function fmtTime(sec){if(sec<60)return sec+'s';var m=Math.round(sec/60);if(m<60)return m+' min';return Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');}
 
@@ -1491,3 +1600,24 @@ function dessinerGraphique(dates,serieStation,serieMoy,periode,labelMain,labelRe
       var d=distanceTouches(e.touches);
       if(pinchDistPrec){
         var midX=(e.touches[0].clientX+e.touches[1].clientX)/2;
+        zoomVers(midX,pinchDistPrec/d);
+      }
+      pinchDistPrec=d;
+    }else if(e.touches[0]&&glisseDepartX!==null){
+      // Glissement à un doigt : déplace la fenêtre visible quand on est zoomé (pan),
+      // et affiche quand même l'infobulle sur le jour survolé.
+      var deltaPix=e.touches[0].clientX-glisseDepartX;
+      var span=glisseVueMaxDep-glisseVueMinDep;
+      var deltaIdx=-(deltaPix/gW)*span;
+      if(span<n-1-0.5)deplacerVue(deltaIdx);
+      afficherSurvol(e.touches[0].clientX,e.touches[0].clientY);
+    }
+  };
+  canvas.ontouchend=function(e){
+    if(e.touches.length<2)pinchDistPrec=null;
+    if(e.touches.length===0){glisseDepartX=null;cacherSurvol();}
+  };
+}
+</script>
+</body>
+</html>
