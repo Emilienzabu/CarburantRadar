@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ilienzabu.github.io/CarburantRadar/sitemap.xml
+Sitemap: https://emilienzabu.github.io/CarburantRadar/sitemap.xml
