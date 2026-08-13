@@ -1343,19 +1343,25 @@ function chargerAnalyseItem(id){
 }
 
 // Récupère les enregistrements bruts d'une zone (rayon en km autour de lat/lon), avec pagination
-// pour ne pas se limiter à une seule page de résultats sur les longues périodes. Le filtrage par
-// distance se fait CÔTÉ CLIENT via geo_point (méthode fiable et déjà éprouvée dans l'app).
+// pour ne pas se limiter à une seule page de résultats sur les longues périodes. Le filtrage
+// géographique se fait maintenant CÔTÉ SERVEUR (comparaisons lat/lon dans le where), car filtrer
+// après coup sur des résultats déjà limités au niveau national ne laissait quasiment aucune donnée
+// pour une petite zone sur une longue période (des milliers de stations mettent à jour leur prix
+// chaque jour en France, donc les X résultats "les plus récents" nationaux ne couvraient en
+// pratique que les tout derniers jours). Un filtrage circulaire précis est encore appliqué
+// côté client ensuite, pour affiner les coins de la zone rectangulaire.
 function fetchZoneBrut(lat,lon,rayonKm,dateStr,champHist){
-  var nbPages=2;
+  var deltaLat=rayonKm/111;
+  var deltaLon=rayonKm/(111*Math.cos(lat*Math.PI/180));
+  var latMin=(lat-deltaLat).toFixed(6),latMax=(lat+deltaLat).toFixed(6);
+  var lonMin=(lon-deltaLon).toFixed(6),lonMax=(lon+deltaLon).toFixed(6);
+  var whereZone='update%3E%3D%22'+dateStr+'%22%20AND%20geo_point.lat%3E%3D'+latMin+'%20AND%20geo_point.lat%3C%3D'+latMax+
+    '%20AND%20geo_point.lon%3E%3D'+lonMin+'%20AND%20geo_point.lon%3C%3D'+lonMax;
+  var nbPages=1;
   var joursDepuisDebut=Math.ceil((new Date()-new Date(dateStr))/86400000);
-  if(joursDepuisDebut>90)nbPages=8;else if(joursDepuisDebut>30)nbPages=5;else if(joursDepuisDebut>7)nbPages=3;
-  var promesses=[];
-  for(var p=0;p<nbPages;p++){
-    var url=ANALYSE_BASE+'?limit=100&offset='+(p*100)+
-      '&where=update%3E%3D%22'+dateStr+'%22&order_by=update%20DESC&select=update%2Cid%2C'+champHist+'%2Cgeo_point';
-    promesses.push(fetch(url).then(function(r){return r.json();}).catch(function(){return null;}));
-  }
-  return Promise.all(promesses).then(function(pages){
+  if(joursDepuisDebut>90)nbPages=5;else if(joursDepuisDebut>30)nbPages=3;else if(joursDepuisDebut>7)nbPages=2;
+
+  function filtrerCercle(pages){
     var enregistrements=[];
     pages.forEach(function(d){
       if(d&&d.results){d.results.forEach(function(r){
@@ -1367,6 +1373,25 @@ function fetchZoneBrut(lat,lon,rayonKm,dateStr,champHist){
       });}
     });
     return enregistrements;
+  }
+  function pagesAvec(whereClause,nb){
+    var promesses=[];
+    for(var p=0;p<nb;p++){
+      var url=ANALYSE_BASE+'?limit=100&offset='+(p*100)+
+        '&where='+whereClause+'&order_by=update%20DESC&select=update%2Cid%2C'+champHist+'%2Cgeo_point';
+      promesses.push(fetch(url).then(function(r){return r.json();}).catch(function(){return null;}));
+    }
+    return Promise.all(promesses);
+  }
+
+  return pagesAvec(whereZone,nbPages).then(function(pages){
+    var resultat=filtrerCercle(pages);
+    if(resultat.length>0)return resultat;
+    // Filtre géographique dans la requête = rien trouvé. Peut être une zone réellement vide,
+    // mais par précaution (au cas où cette syntaxe serait mal supportée), on retente avec
+    // l'ancienne méthode (filtrage par distance après coup, sur des résultats non géo-filtrés).
+    var whereDate='update%3E%3D%22'+dateStr+'%22';
+    return pagesAvec(whereDate,Math.min(nbPages,3)).then(filtrerCercle);
   });
 }
 function moyParJour(enregistrements,champHist){
