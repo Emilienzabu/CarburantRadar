@@ -7,7 +7,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CarburantRadar</title>
-<meta name="description" content="CarburantRadar compare les prix du carburant autour de vous et vous aide à trouver les stations-service les moins chères grâce aux données officielles du gouvernement français.">
 <meta name="theme-color" content="#f5a623">
 <meta name="color-scheme" content="dark">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8107840445070854" crossorigin="anonymous"></script>
@@ -1202,11 +1201,11 @@ function initAnalysePage(){
 function recupererStationParId(id){
   // Recupere adresse/ville/cp/lat/lon d'une station via son historique (utile pour un favori
   // enregistre avec l'ancien format qui ne stockait pas ces infos).
-  var url='https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/prix-des-carburants-j-1/records?limit=1&where=id%3D%22'+id+'%22&order_by=update%20DESC&select=adresse%2Cville%2Ccp%2Cgeo_point';
+  var url='https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/prix-des-carburants-j-1/records?limit=1&where=id%3D%22'+id+'%22&order_by=update%20DESC&select=adresse%2Cville%2Ccp%2Ccoordonnees';
   return fetch(url).then(function(r){return r.json();}).then(function(d){
-    if(d&&d.results&&d.results.length&&d.results[0].geo_point){
+    if(d&&d.results&&d.results.length&&d.results[0].coordonnees){
       var r=d.results[0];
-      return {id:id,lat:r.geo_point.lat,lon:r.geo_point.lon,adresse:r.adresse||'',ville:r.ville||'',cp:r.cp||'',prix:null};
+      return {id:id,lat:r.coordonnees.lat,lon:r.coordonnees.lon,adresse:r.adresse||'',ville:r.ville||'',cp:r.cp||'',prix:null};
     }
     return null;
   }).catch(function(){return null;});
@@ -1356,8 +1355,8 @@ function fetchZoneBrut(lat,lon,rayonKm,dateStr,champHist){
   var deltaLon=rayonKm/(111*Math.cos(lat*Math.PI/180));
   var latMin=(lat-deltaLat).toFixed(6),latMax=(lat+deltaLat).toFixed(6);
   var lonMin=(lon-deltaLon).toFixed(6),lonMax=(lon+deltaLon).toFixed(6);
-  var whereZone='update%3E%3D%22'+dateStr+'%22%20AND%20geo_point.lat%3E%3D'+latMin+'%20AND%20geo_point.lat%3C%3D'+latMax+
-    '%20AND%20geo_point.lon%3E%3D'+lonMin+'%20AND%20geo_point.lon%3C%3D'+lonMax;
+  var whereZone='update%3E%3D%22'+dateStr+'%22%20AND%20coordonnees.lat%3E%3D'+latMin+'%20AND%20coordonnees.lat%3C%3D'+latMax+
+    '%20AND%20coordonnees.lon%3E%3D'+lonMin+'%20AND%20coordonnees.lon%3C%3D'+lonMax;
   var nbPages=1;
   var joursDepuisDebut=Math.ceil((new Date()-new Date(dateStr))/86400000);
   if(joursDepuisDebut>90)nbPages=5;else if(joursDepuisDebut>30)nbPages=3;else if(joursDepuisDebut>7)nbPages=2;
@@ -1366,8 +1365,8 @@ function fetchZoneBrut(lat,lon,rayonKm,dateStr,champHist){
     var enregistrements=[];
     pages.forEach(function(d){
       if(d&&d.results){d.results.forEach(function(r){
-        if(!r.geo_point)return;
-        var dlat=r.geo_point.lat-lat,dlon=r.geo_point.lon-lon;
+        if(!r.coordonnees)return;
+        var dlat=r.coordonnees.lat-lat,dlon=r.coordonnees.lon-lon;
         var dist=Math.sqrt(dlat*dlat+dlon*dlon)*111;
         if(dist>rayonKm)return;
         enregistrements.push(r);
@@ -1379,7 +1378,7 @@ function fetchZoneBrut(lat,lon,rayonKm,dateStr,champHist){
     var promesses=[];
     for(var p=0;p<nb;p++){
       var url=ANALYSE_BASE+'?limit=100&offset='+(p*100)+
-        '&where='+whereClause+'&order_by=update%20DESC&select=update%2Cid%2C'+champHist+'%2Cgeo_point';
+        '&where='+whereClause+'&order_by=update%20DESC&select=update%2Cid%2C'+champHist+'%2Ccoordonnees';
       promesses.push(fetch(url).then(function(r){return r.json();}).catch(function(){return null;}));
     }
     return Promise.all(promesses);
