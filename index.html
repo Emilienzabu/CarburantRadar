@@ -1201,11 +1201,11 @@ function initAnalysePage(){
 function recupererStationParId(id){
   // Recupere adresse/ville/cp/lat/lon d'une station via son historique (utile pour un favori
   // enregistre avec l'ancien format qui ne stockait pas ces infos).
-  var url='https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/prix-des-carburants-j-1/records?limit=1&where=id%3D%22'+id+'%22&order_by=update%20DESC&select=adresse%2Cville%2Ccp%2Ccoordonnees';
+  var url='https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/prix-des-carburants-j-1/records?limit=1&where=id%3D%22'+id+'%22&order_by=update%20DESC&select=adresse%2Cville%2Ccp%2Cgeo_point';
   return fetch(url).then(function(r){return r.json();}).then(function(d){
-    if(d&&d.results&&d.results.length&&d.results[0].coordonnees){
+    if(d&&d.results&&d.results.length&&d.results[0].geo_point){
       var r=d.results[0];
-      return {id:id,lat:r.coordonnees.lat,lon:r.coordonnees.lon,adresse:r.adresse||'',ville:r.ville||'',cp:r.cp||'',prix:null};
+      return {id:id,lat:r.geo_point.lat,lon:r.geo_point.lon,adresse:r.adresse||'',ville:r.ville||'',cp:r.cp||'',prix:null};
     }
     return null;
   }).catch(function(){return null;});
@@ -1350,49 +1350,35 @@ function chargerAnalyseItem(id){
 // chaque jour en France, donc les X résultats "les plus récents" nationaux ne couvraient en
 // pratique que les tout derniers jours). Un filtrage circulaire précis est encore appliqué
 // côté client ensuite, pour affiner les coins de la zone rectangulaire.
+// Récupère l'historique des stations d'une zone en passant par le Radar (qui, lui, sait déjà
+// trouver géographiquement les stations d'une zone via le dataset "temps réel" — le dataset
+// HISTORIQUE (prix-des-carburants-j-1) n'a pas de coordonnées GPS exploitables (champ geo_point
+// systématiquement vide), donc impossible d'y filtrer par zone directement. On récupère donc
+// d'abord les identifiants des stations du coin via le Radar, puis on interroge l'historique
+// pour CES identifiants précis.
 function fetchZoneBrut(lat,lon,rayonKm,dateStr,champHist){
-  var deltaLat=rayonKm/111;
-  var deltaLon=rayonKm/(111*Math.cos(lat*Math.PI/180));
-  var latMin=(lat-deltaLat).toFixed(6),latMax=(lat+deltaLat).toFixed(6);
-  var lonMin=(lon-deltaLon).toFixed(6),lonMax=(lon+deltaLon).toFixed(6);
-  var whereZone='update%3E%3D%22'+dateStr+'%22%20AND%20coordonnees.lat%3E%3D'+latMin+'%20AND%20coordonnees.lat%3C%3D'+latMax+
-    '%20AND%20coordonnees.lon%3E%3D'+lonMin+'%20AND%20coordonnees.lon%3C%3D'+lonMax;
-  var nbPages=1;
-  var joursDepuisDebut=Math.ceil((new Date()-new Date(dateStr))/86400000);
-  if(joursDepuisDebut>90)nbPages=5;else if(joursDepuisDebut>30)nbPages=3;else if(joursDepuisDebut>7)nbPages=2;
-
-  function filtrerCercle(pages){
-    var enregistrements=[];
-    pages.forEach(function(d){
-      if(d&&d.results){d.results.forEach(function(r){
-        if(!r.coordonnees)return;
-        var dlat=r.coordonnees.lat-lat,dlon=r.coordonnees.lon-lon;
-        var dist=Math.sqrt(dlat*dlat+dlon*dlon)*111;
-        if(dist>rayonKm)return;
-        enregistrements.push(r);
-      });}
-    });
-    return enregistrements;
-  }
-  function pagesAvec(whereClause,nb){
-    var promesses=[];
-    for(var p=0;p<nb;p++){
-      var url=ANALYSE_BASE+'?limit=100&offset='+(p*100)+
-        '&where='+whereClause+'&order_by=update%20DESC&select=update%2Cid%2C'+champHist+'%2Ccoordonnees';
-      promesses.push(fetch(url).then(function(r){return r.json();}).catch(function(){return null;}));
-    }
-    return Promise.all(promesses);
-  }
-
-  return pagesAvec(whereZone,nbPages).then(function(pages){
-    var resultat=filtrerCercle(pages);
-    if(resultat.length>0)return resultat;
-    // Filtre géographique dans la requête = rien trouvé. Peut être une zone réellement vide,
-    // mais par précaution (au cas où cette syntaxe serait mal supportée), on retente avec
-    // l'ancienne méthode (filtrage par distance après coup, sur des résultats non géo-filtrés).
-    var whereDate='update%3E%3D%22'+dateStr+'%22';
-    return pagesAvec(whereDate,Math.min(nbPages,3)).then(filtrerCercle);
-  });
+  return fetch(PROXY+'?lat='+lat+'&lon='+lon+'&dist='+rayonKm+'&limit=100')
+    .then(function(r){return r.json();})
+    .then(function(raw){
+      if(!raw||!Array.isArray(raw.results)||!raw.results.length)return [];
+      var ids=raw.results.map(function(r){return String(r.id);}).slice(0,60); // borne raisonnable pour la taille de la requête
+      var whereId='('+ids.map(function(id){return 'id%3D%22'+id+'%22';}).join('%20OR%20')+')';
+      var whereClause=whereId+'%20AND%20update%3E%3D%22'+dateStr+'%22';
+      var joursDepuisDebut=Math.ceil((new Date()-new Date(dateStr))/86400000);
+      var nbPages=1;
+      if(joursDepuisDebut>90)nbPages=5;else if(joursDepuisDebut>30)nbPages=3;else if(joursDepuisDebut>7)nbPages=2;
+      var promesses=[];
+      for(var p=0;p<nbPages;p++){
+        var url=ANALYSE_BASE+'?limit=100&offset='+(p*100)+
+          '&where='+whereClause+'&order_by=update%20DESC&select=update%2Cid%2C'+champHist;
+        promesses.push(fetch(url).then(function(r){return r.json();}).catch(function(){return null;}));
+      }
+      return Promise.all(promesses).then(function(pages){
+        var enregistrements=[];
+        pages.forEach(function(d){if(d&&d.results)enregistrements=enregistrements.concat(d.results);});
+        return enregistrements;
+      });
+    }).catch(function(){return [];});
 }
 function moyParJour(enregistrements,champHist){
   var parDate={};
