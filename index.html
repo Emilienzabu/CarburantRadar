@@ -1413,15 +1413,23 @@ function chargerSerieStation(s,periode,carburant,reqId){
   var dateDebut=new Date();dateDebut.setDate(dateDebut.getDate()-periode);
   var dateStr=dateDebut.toISOString().split('T')[0];
   var champHist=pkHist[carburant]||'price_gazole';
-  var stationUrl=ANALYSE_BASE+'?limit=100&where=id%3D%22'+s.id+'%22%20AND%20update%3E%3D%22'+dateStr+'%22&order_by=update%20ASC&select=update%2C'+champHist;
-  Promise.all([fetch(stationUrl).then(function(r){return r.json();}),fetchZoneBrut(s.lat,s.lon,STATION_ZONE_RAYON_KM,dateStr,champHist)])
+  var nbPagesStation=1;
+  if(periode>90)nbPagesStation=5;else if(periode>30)nbPagesStation=3;else if(periode>7)nbPagesStation=2;
+  var promessesStation=[];
+  for(var p=0;p<nbPagesStation;p++){
+    var url=ANALYSE_BASE+'?limit=100&offset='+(p*100)+'&where=id%3D%22'+s.id+'%22%20AND%20update%3E%3D%22'+dateStr+'%22&order_by=update%20DESC&select=update%2C'+champHist;
+    promessesStation.push(fetch(url).then(function(r){return r.json();}).catch(function(){return null;}));
+  }
+  Promise.all([Promise.all(promessesStation),fetchZoneBrut(s.lat,s.lon,STATION_ZONE_RAYON_KM,dateStr,champHist)])
   .then(function(results){
     if(reqId!==analyseReqId)return;
     var stationPrix={};
-    if(results[0]&&results[0].results){results[0].results.forEach(function(r){
-      var d=r.update?r.update.split('T')[0]:null,p=parseFloat(r[champHist]);
-      if(d&&!isNaN(p)&&p>0)stationPrix[d]=p;
-    });}
+    results[0].forEach(function(page){
+      if(page&&page.results){page.results.forEach(function(r){
+        var d=r.update?r.update.split('T')[0]:null,p=parseFloat(r[champHist]);
+        if(d&&!isNaN(p)&&p>0)stationPrix[d]=p;
+      });}
+    });
     var enregistrementsZone=results[1];
     var moyPrix=moyParJour(enregistrementsZone,champHist);
     var classement=classementParStation(enregistrementsZone,champHist,s.id);
