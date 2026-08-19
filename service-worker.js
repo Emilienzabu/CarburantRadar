@@ -19,15 +19,27 @@ self.addEventListener('push', function(event) {
 });
 
 // Au clic sur la notification : ramène l'app au premier plan si elle est déjà ouverte,
-// sinon l'ouvre dans un nouvel onglet.
+// sinon l'ouvre dans un nouvel onglet. Transmet aussi les données de la station.
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
+  var stationId = event.notification.data ? event.notification.data.stationId : null;
+  var url = './';
+  if (stationId) {
+    url = './#station=' + stationId;
+  }
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
       for (var i = 0; i < clientList.length; i++) {
-        if ('focus' in clientList[i]) return clientList[i].focus();
+        if ('focus' in clientList[i]) {
+          // Envoyer un message au client pour lui dire quelle station afficher
+          clientList[i].postMessage({
+            type: 'NOTIFICATION_CLICK',
+            stationId: stationId
+          });
+          return clientList[i].focus();
+        }
       }
-      if (clients.openWindow) return clients.openWindow('./');
+      if (clients.openWindow) return clients.openWindow(url);
     })
   );
 });

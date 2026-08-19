@@ -551,6 +551,17 @@ setTimeout(function(){var s=document.getElementById('splash');if(s)s.style.displ
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('service-worker.js').catch(function(){});
+  // Ecouteur pour les messages du service worker (notifications)
+  navigator.serviceWorker.addEventListener('message', function(event) {
+    if (event.data.type === 'NOTIFICATION_CLICK' && event.data.stationId) {
+      // Stocker l'ID de la station pour affichage
+      localStorage.setItem('notificationStationId', event.data.stationId);
+      // Si on est deja sur la page Radar, afficher la station
+      if (document.getElementById('page-radar').classList.contains('active')) {
+        showStationFromNotification(event.data.stationId);
+      }
+    }
+  });
 }
 
 window.addEventListener('load',function(){
@@ -573,7 +584,109 @@ window.addEventListener('load',function(){
       else if(d.error==='Non authentifié'||d.error==='Compte introuvable'){localStorage.removeItem(CR_TOKEN_KEY);localStorage.removeItem(CR_EMAIL_KEY);}
     }).catch(function(){});
   }
+
+  // Gestion du hash dans l'URL (ex: #station=12345) et des notifications
+  setTimeout(function(){
+    var hash = window.location.hash;
+    if (hash.startsWith('#station=')) {
+      var id = hash.substring(9);
+      showStationFromNotification(id);
+      // Supprimer le hash après traitement pour éviter qu'il reste
+      history.replaceState({}, document.title, './');
+    }
+
+    // Vérifier si on arrive via une notification
+    var stationId = localStorage.getItem('notificationStationId');
+    if (stationId) {
+      localStorage.removeItem('notificationStationId');
+      // Si on est sur la page Radar, afficher la station
+      if (document.getElementById('page-radar').classList.contains('active')) {
+        showStationFromNotification(stationId);
+      }
+    }
+  }, 200);
 });
+
+// Fonction pour afficher une station depuis une notification
+function showStationFromNotification(stationId) {
+  // Si les stations ne sont pas encore chargees, on ne peut pas faire grand-chose
+  if (!st || !st.length) {
+    setTimeout(function() {
+      showStationFromNotification(stationId);
+    }, 1000);
+    return;
+  }
+
+  // Trouver la station dans la liste
+  var station = st.find(function(s) {
+    return String(s.id) === String(stationId);
+  });
+
+  if (station) {
+    // Si on n'est pas sur la page Radar, basculer vers celle-ci
+    if (!document.getElementById('page-radar').classList.contains('active')) {
+      showPage('radar');
+      // Attendre que la page soit affichee avant de faire defiler
+      setTimeout(function() {
+        scrollToStation(stationId);
+      }, 300);
+    } else {
+      scrollToStation(stationId);
+    }
+  }
+}
+
+// Fonction pour faire defiler jusqu'a une station et la mettre en evidence
+function scrollToStation(stationId) {
+  var card = document.getElementById('card-' + stationId);
+  if (card) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Mettre en evidence temporairement
+    card.style.borderColor = '#f5a623';
+    card.style.boxShadow = '0 0 15px rgba(245, 166, 35, 0.7)';
+    setTimeout(function() {
+      card.style.borderColor = '';
+      card.style.boxShadow = '';
+    }, 3000);
+  }
+}
+
+// Fonctions pour gerer la preference de navigation (Maps vs Waze)
+function getNavPref() {
+  return localStorage.getItem('cr_nav_pref') || 'maps';
+}
+
+function setNavPref(pref) {
+  localStorage.setItem('cr_nav_pref', pref);
+  // Recharger les liens si on est sur une page avec des stations
+  if (document.getElementById('page-radar').classList.contains('active') && st && st.length) {
+    render();
+  }
+  if (mapInit) {
+    updateMapMarkers();
+  }
+}
+
+// Fonction pour generer l'URL de navigation en fonction de la preference
+function getNavigationUrl(lat, lon) {
+  var pref = getNavPref();
+  if (pref === 'waze') {
+    return 'https://www.waze.com/ul?ll=' + lat + ',' + lon + '&navigate=yes';
+  } else {
+    return 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lon + '&travelmode=driving';
+  }
+}
+
+// Fonction pour generer l'URL de navigation avec waypoints (pour le mode Trajet)
+function getNavigationUrlWithWaypoints(originLat, originLon, waypointLat, waypointLon, dest) {
+  var pref = getNavPref();
+  if (pref === 'waze') {
+    // Waze ne supporte pas les waypoints dans l'URL, on ouvre juste vers la destination finale
+    return 'https://www.waze.com/ul?ll=' + waypointLat + ',' + waypointLon + '&navigate=yes&to=' + encodeURIComponent(dest);
+  } else {
+    return 'https://www.google.com/maps/dir/?api=1&origin=' + originLat + ',' + originLon + '&waypoints=' + waypointLat + ',' + waypointLon + '&destination=' + encodeURIComponent(dest) + '&travelmode=driving';
+  }
+}
 
 // ===== Écran d'accueil (onboarding) + installation PWA =====
 var evenementInstallDiffere=null;
@@ -660,8 +773,8 @@ function updateMapMarkers(){
     if(!s.lat||!s.lon)return;
     var nom=names[String(s.id)]||s.adresse,px=s.prix?(s.prix.toFixed(3)+'€'):'N/A',color=s.prix?'#f5a623':'#6b6b8a';
     var icon=L.divIcon({html:'<div style="background:'+color+';color:#000;border-radius:8px;padding:2px 5px;font-size:10px;font-weight:700;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)">'+px+'</div>',iconSize:[null,null],iconAnchor:[0,0],className:''});
-    var maps='https://www.google.com/maps/dir/?api=1&origin='+la+','+lo+'&destination='+s.lat+','+s.lon+'&travelmode=driving';
-    stationMarkers.push(L.marker([s.lat,s.lon],{icon:icon}).addTo(map).bindPopup('<div class="map-popup-name">'+echapperHTML(nom)+'</div><div class="map-popup-price">'+px+'</div><a class="map-popup-go" href="'+maps+'" target="_blank">Y aller</a>'));
+    var navUrl = getNavigationUrl(s.lat, s.lon);
+    stationMarkers.push(L.marker([s.lat,s.lon],{icon:icon}).addTo(map).bindPopup('<div class="map-popup-name">'+echapperHTML(nom)+'</div><div class="map-popup-price">'+px+'</div><a class="map-popup-go" href="'+navUrl+'" target="_blank">Y aller</a>'));
   });
 }
 
@@ -966,7 +1079,12 @@ function toggleCtx(id,fav){
   var d2=document.createElement('div');d2.className='ctx-divider';
   var b3=document.createElement('button');b3.className='ctx-item';b3.innerHTML=fav?(ic('star','14px')+' Retirer des favoris'):(ic('star','14px')+' Ajouter aux favoris');
   b3.onclick=function(){doFav(id);};
-  menu.appendChild(b1);menu.appendChild(d1);menu.appendChild(b2);menu.appendChild(d2);menu.appendChild(b3);
+  var d3=document.createElement('div');d3.className='ctx-divider';
+  var b4=document.createElement('button');b4.className='ctx-item';b4.innerHTML=ic('map','14px')+' Utiliser Google Maps';
+  b4.onclick=function(){setNavPref('maps');};
+  var b5=document.createElement('button');b5.className='ctx-item';b5.innerHTML=ic('compass','14px')+' Utiliser Waze';
+  b5.onclick=function(){setNavPref('waze');};
+  menu.appendChild(b1);menu.appendChild(d1);menu.appendChild(b2);menu.appendChild(d2);menu.appendChild(b3);menu.appendChild(d3);menu.appendChild(b4);menu.appendChild(b5);
   card.appendChild(menu);
   setTimeout(function(){document.addEventListener('click',closeAllCtx,{once:true});},10);
 }
@@ -1043,7 +1161,7 @@ function render(){
     var best=i===0&&s.score!==null,fav=!!favs[String(s.id)],nomPerso=names[String(s.id)]||null;
     var distTxt=s.distRoute!==null?(s.distRoute<1000?Math.round(s.distRoute)+' m':(s.distRoute/1000).toFixed(1)+' km'):(s.distance<1?Math.round(s.distance*1000)+' m':s.distance.toFixed(1)+' km');
     var prix=s.prix?(s.prix.toFixed(3)+' EUR'):'N/A';
-    var maps='https://www.google.com/maps/dir/?api=1&origin='+la+','+lo+'&destination='+s.lat+','+s.lon+'&travelmode=driving';
+    var navUrl = getNavigationUrl(s.lat, s.lon);
     return '<div class="card'+(best?' best':'')+(fav?' fav':'')+'" id="card-'+s.id+'">'+
       (best?'<div class="badge">MEILLEUR RATIO</div><br>':'')+
       '<div class="rank">#'+(i+1)+(s.score!==null?' - SCORE '+s.score+'/100':'')+(fav?' '+ic('star','11px'):'')+'</div>'+
@@ -1055,7 +1173,7 @@ function render(){
       '<div class="m"><div class="ml">Temps</div><div class="mv t">'+(s.duree!==null?fmtTime(s.duree):'--')+'</div></div></div>'+
       '<div class="metrics"><div class="m" style="grid-column:span 3"><div class="ml">Score</div><div class="mv s">'+(s.score!==null?s.score+'/100':'--')+'</div></div></div>'+
       (s.score!==null?'<div class="bar"><div class="fill" style="width:'+s.score+'%"></div></div>':'')+
-      '<a class="go" href="'+maps+'" target="_blank">Y aller</a></div>';
+      '<a class="go" href="'+navUrl+'" target="_blank">Y aller</a></div>';
   }).join(''));
 }
 
@@ -1166,7 +1284,7 @@ function lancerTrajetSuite(dest){
           var dureeAvecMin=best.dureeAvec!==null?Math.round(best.dureeAvec/60):null;
           var dureeDirecteMin=Math.round(dureeDirecte/60);
           var avert=detourMin!==null&&detourMin>10?'<div style="background:#2e1a0a;border:1px solid #f5a623;border-radius:8px;padding:8px 10px;font-size:11px;color:#f5a623;margin-bottom:10px">'+ic('warning','12px')+' Aucune station idéale trouvée. Meilleure option disponible (+'+detourMin+' min).</div>':'';
-          var mapsUrl='https://www.google.com/maps/dir/?api=1&origin='+la+','+lo+'&waypoints='+best.lat+','+best.lon+'&destination='+encodeURIComponent(dest)+'&travelmode=driving';
+          var navUrl = getNavigationUrlWithWaypoints(la, lo, best.lat, best.lon, dest);
           res.innerHTML='<div class="card best" style="margin-top:16px"><div class="badge">MEILLEURE STATION SUR LA ROUTE</div><br>'+avert+
             '<div class="name">'+nom+'</div><div class="addr">'+best.cp+' '+best.ville+'</div>'+
             '<div class="metrics" style="margin-top:10px">'+
@@ -1174,7 +1292,7 @@ function lancerTrajetSuite(dest){
             '<div class="m"><div class="ml">Détour</div><div class="mv t">'+(detourMin!==null?(detourMin<=1?'Aucun':'+'+detourMin+' min'):'--')+'</div></div>'+
             '<div class="m"><div class="ml">Durée totale</div><div class="mv d">'+(dureeAvecMin!==null?dureeAvecMin+' min':'--')+'</div></div></div>'+
             '<div style="font-size:11px;color:#6b6b8a;text-align:center;margin-bottom:10px">Trajet direct : '+dureeDirecteMin+' min · Score : '+best.score+'/100</div>'+
-            '<a class="go" href="'+mapsUrl+'" target="_blank">'+ic('compass','14px')+' Ouvrir l\'itinéraire complet</a></div>';
+            '<a class="go" href="'+navUrl+'" target="_blank">'+ic('compass','14px')+' Ouvrir l\'itinéraire complet</a></div>';
           btn.textContent='Trouver la meilleure station';btn.disabled=false;
         });
       });
@@ -1217,6 +1335,11 @@ function analyserDepuisRadar(id){
   if(!analyseItems[id])analyseItems[id]=etatParDefaut();
   analyseOpenId=id;
   showPage('analyse');
+  // Forcer le rafraichissement de la liste pour afficher la station non-favorite
+  setTimeout(function(){
+    renderAnalyseListe();
+    chargerAnalyseItem(id);
+  },100);
 }
 
 function toggleAnalyseItem(id){
@@ -1284,6 +1407,20 @@ function renderAnalyseListe(){
           selecteurPeriode(id,etat.periode)+selecteurCarburant(id,etat.carburant)+panneauSquelette()+'</div>';
       }
     });
+  }
+
+  // Afficher aussi les stations non-favorites qui sont en cours d'analyse
+  if (analyseOpenId && !ids.includes(analyseOpenId)) {
+    var s = st.find(function(x) { return String(x.id) === String(analyseOpenId); });
+    if (s) {
+      var nom = names[analyseOpenId] || s.adresse;
+      var etat = analyseItems[analyseOpenId] || etatParDefaut();
+      html += '<div style="font-size:11px;color:#6b6b8a;margin:14px 0 8px;text-transform:uppercase;letter-spacing:1px">Station en analyse</div>';
+      html += '<button class="fav-analyse-btn active" onclick="toggleAnalyseItem(\"' + analyseOpenId + '\')">'+
+        '▼ ' + ic('chart','14px') + ' ' + echapperHTML(nom) + '</button>';
+      html += '<div style="background:#0a0a0f;border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid #252535;border-top:none">'+
+        selecteurPeriode(analyseOpenId, etat.periode) + selecteurCarburant(analyseOpenId, etat.carburant) + panneauSquelette() + '</div>';
+    }
   }
   document.getElementById('analyseList').innerHTML=html;
 }
