@@ -1,6 +1,86 @@
-// Service Worker CarburantRadar — reçoit les notifications push et gère le clic dessus.
-// Ne gère PAS le cache/offline pour l'instant : uniquement le Web Push.
+// Service Worker CarburantRadar — gère le cache, les notifications push et le clic dessus.
+// Version du cache : à incrémenter à chaque modification majeure pour forcer la mise à jour
+const CACHE_NAME = 'carburant-radar-v2.0.0';
+const ASSETS_TO_CACHE = [
+  './',
+  './index.html',
+  './manifest.json',
+  './service-worker.js',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-512-maskable.png',
+  './icons/icon-96.png'
+];
 
+// Installation : mise en cache des assets statiques
+self.addEventListener('install', function(event) {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(function(cache) {
+        return cache.addAll(ASSETS_TO_CACHE);
+      })
+  );
+  // Passer directement à l'état "activating" pour éviter les attentes
+  self.skipWaiting();
+});
+
+// Activation : suppression des anciens caches
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(cacheNames) {
+      return Promise.all(
+        cacheNames.map(function(cacheName) {
+          // Supprimer tous les caches qui ne correspondent pas à la version actuelle
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  // Prendre le contrôle des clients immédiatement
+  self.clients.claim();
+});
+
+// Interception des requêtes : stratégie cache-first avec fallback réseau
+self.addEventListener('fetch', function(event) {
+  // Ne pas intercepter les requêtes vers des domaines externes (API, etc.)
+  if (event.request.url.startsWith('http://') || event.request.url.startsWith('https://')) {
+    if (new URL(event.request.url).origin !== self.location.origin) {
+      return;
+    }
+  }
+
+  event.respondWith(
+    caches.match(event.request)
+      .then(function(response) {
+        // Si trouvé dans le cache, retourner la réponse
+        if (response) {
+          return response;
+        }
+
+        // Sinon, faire la requête réseau
+        return fetch(event.request)
+          .then(function(networkResponse) {
+            // Mettre à jour le cache avec la nouvelle réponse (si c'est une requête GET)
+            if (event.request.method === 'GET') {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME)
+                .then(function(cache) {
+                  cache.put(event.request, responseClone);
+                });
+            }
+            return networkResponse;
+          })
+          .catch(function() {
+            // Si réseau échoue et pas dans le cache, retourner une réponse par défaut
+            return caches.match('./index.html');
+          });
+      })
+  );
+});
+
+// Gestion des notifications push (inchangé)
 self.addEventListener('push', function(event) {
   var data = {};
   try {
@@ -18,8 +98,7 @@ self.addEventListener('push', function(event) {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Au clic sur la notification : ramène l'app au premier plan si elle est déjà ouverte,
-// sinon l'ouvre dans un nouvel onglet. Transmet aussi les données de la station.
+// Gestion du clic sur les notifications (inchangé, mais avec gestion du cache)
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   var stationId = event.notification.data ? event.notification.data.stationId : null;
