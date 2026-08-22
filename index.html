@@ -473,6 +473,73 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
       <div class="alert-status" id="alertStatus">Alertes désactivées</div>
     </div>
   </div>
+  <div class="acc-header" onclick="toggleAcc('settingsAcc')"><div class="acc-title"><span data-icon="settings" data-icon-taille="14px"></span> Paramètres</div><div class="acc-arrow" id="settingsAccArrow">▼</div></div>
+  <div class="acc-body" id="settingsAcc">
+    <!-- Fuel Type Selection -->
+    <div class="side-item">
+      <div class="side-item-name">Carburant préféré</div>
+      <div class="side-item-sub">Utilisé pour les calculs d'économie</div>
+      <div class="fuels" style="margin-top:8px;">
+        <button class="fb" data-f="Gazole" onclick="setPreferredFuel(this)">Diesel</button>
+        <button class="fb" data-f="SP95" onclick="setPreferredFuel(this)">SP95</button>
+        <button class="fb" data-f="SP98" onclick="setPreferredFuel(this)">SP98</button>
+        <button class="fb" data-f="E10" onclick="setPreferredFuel(this)">E10</button>
+        <button class="fb" data-f="E85" onclick="setPreferredFuel(this)">E85</button>
+        <button class="fb" data-f="GPLc" onclick="setPreferredFuel(this)">GPL</button>
+      </div>
+    </div>
+
+    <!-- Navigation Preference -->
+    <div class="side-item">
+      <div class="side-item-name">Application de navigation</div>
+      <div class="side-item-sub">Choisissez votre préférence pour ouvrir les itinéraires</div>
+      <label class="toggle" style="margin-top:8px;">
+        <input type="checkbox" id="navToggle" onchange="toggleNavPreference(this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+      <div style="font-size:11px;color:#6b6b8a;margin-top:4px;">Waze (activé) / Google Maps (désactivé)</div>
+    </div>
+
+    <!-- Theme Selection -->
+    <div class="side-item">
+      <div class="side-item-name">Thème de l'application</div>
+      <div class="side-item-sub">Clair ou sombre</div>
+      <label class="toggle" style="margin-top:8px;">
+        <input type="checkbox" id="themeToggle" onchange="toggleTheme(this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+      <div style="font-size:11px;color:#6b6b8a;margin-top:4px;">Clair (activé) / Sombre (désactivé)</div>
+    </div>
+
+    <!-- Vehicle Configuration -->
+    <div class="side-item">
+      <div class="side-item-name">Configuration du véhicule</div>
+      <div class="side-item-sub">Pour calculer vos économies personnalisées</div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <div style="flex:1;min-width:8px;min-width:80px;">
+          <label style="font-size:11px;color:#6b6b8a;margin-bottom:2px;">Réservoir (L)</label>
+          <input type="number" id="tankSize" class="modal-input" style="height:32px;padding:8px;font-size:13px;" placeholder="50">
+        </div>
+        <div style="flex:1;min-width:80px;">
+          <label style="font-size:11px;color:#6b6b8a;margin-bottom:2px;">Consommation (L/100km)</label>
+          <input type="number" id="consumption" class="modal-input" style="height:32px;padding:8px;font-size:13px;" placeholder="6.0">
+        </div>
+      </div>
+      <button class="add-btn" style="margin-top:8px;width:100%;" onclick="saveVehicleConfig()">Sauvegarder la configuration</button>
+      <div id="vehicleConfigStatus" style="font-size:11px;color:#6b6b8a;margin-top:4px;"></div>
+    </div>
+
+    <!-- Savings Info -->
+    <div class="side-item">
+      <div class="side-item-name">À propos des économies</div>
+      <div class="side-item-sub">Comment sont calculées vos économies</div>
+      <div style="font-size:12px;color:#6b6b8a;margin-top:8px;line-height:1.4;">
+        Les économies affichées représentent la différence entre le prix de la station sélectionnée et la moyenne régionale du même carburant, multipliée par la quantité que vous seriez susceptible d'acheter (basée sur votre réservoir et consommation).
+      </div>
+    </div>
+  </div>
   <div class="acc-header" onclick="toggleAcc('aboutAcc')"><div class="acc-title"><span data-icon="info" data-icon-taille="14px"></span> Informations</div><div class="acc-arrow" id="aboutAccArrow">▼</div></div>
   <div class="acc-body" id="aboutAcc">
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:#e8e8f0;font-weight:600;font-size:14px" onclick="closeMenu();showPage('apropos')"><span data-icon="info" data-icon-taille="14px"></span> À propos</button>
@@ -990,6 +1057,140 @@ function seDeconnecter(){
   localStorage.removeItem(CR_TOKEN_KEY);localStorage.removeItem(CR_EMAIL_KEY);
   updateCompteUI();
 }
+
+// Settings functions
+function setPreferredFuel(button) {
+  // Update UI
+  document.querySelectorAll('.fuels .fb').forEach(function(b){b.classList.remove('a');});
+  button.classList.add('a');
+
+  // Store preference
+  var fuel = button.dataset.f;
+  localStorage.setItem('cr_preferred_fuel', fuel);
+
+  // Update global fuel variable if needed
+  fu = fuel;
+
+  // Re-render if we have stations
+  if (st.length) render();
+  synchroniserVersServeur();
+}
+
+function toggleNavPreference(useWaze) {
+  var pref = useWaze ? 'waze' : 'maps';
+  setNavPref(pref); // Reuse existing function
+}
+
+function toggleTheme(isDark) {
+  if (isDark) {
+    // Dark theme
+    document.documentElement.setAttribute('color-scheme', 'dark');
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f5a623');
+    document.querySelector('meta[name="color-scheme"]').setAttribute('content', 'dark');
+    document.body.style.background = '#0a0a0f';
+    document.body.style.color = '#e8e8f0';
+  } else {
+    // Light theme
+    document.documentElement.setAttribute('color-scheme', 'light');
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f5a623');
+    document.querySelector('meta[name="color-scheme"]').setAttribute('content', 'light');
+    document.body.style.background = '#f8f9fa';
+    document.body.style.color = '#212529';
+  }
+
+  // Save preference
+  localStorage.setItem('cr_theme', isDark ? 'dark' : 'light');
+
+  // Update toggle label
+  var themeLabel = document.querySelector('#settingsAcc .side-item:nth-child(3) .side-item-sub');
+  if (themeLabel) {
+    themeLabel.textContent = isDark ? 'Sombre (activé) / Clair (désactivé)' : 'Clair (activé) / Sombre (désactivé)';
+  }
+
+  synchroniserVersServeur();
+}
+
+function saveVehicleConfig() {
+  var tankSize = document.getElementById('tankSize').value.trim();
+  var consumption = document.getElementById('consumption').value.trim();
+
+  if (!tankSize || !consumption) {
+    document.getElementById('vehicleConfigStatus').textContent = 'Veuillez remplir tous les champs';
+    document.getElementById('vehicleConfigStatus').style.color = '#ff6b35';
+    return;
+  }
+
+  tankSize = parseFloat(tankSize);
+  consumption = parseFloat(consumption);
+
+  if (isNaN(tankSize) || tankSize <= 0 || isNaN(consumption) || consumption <= 0) {
+    document.getElementById('vehicleConfigStatus').textContent = 'Veuillez entrer des valeurs valides';
+    document.getElementById('vehicleConfigStatus').style.color = '#ff6b35';
+    return;
+  }
+
+  // Save to localStorage
+  localStorage.setItem('cr_tank_size', tankSize);
+  localStorage.setItem('cr_consumption', consumption);
+
+  // Show success
+  document.getElementById('vehicleConfigStatus').textContent = 'Configuration sauvegardée !';
+  document.getElementById('vehicleConfigStatus').style.color = '#3ddc97';
+
+  // Also save to server if connected
+  synchroniserVersServeur();
+}
+
+// Initialize settings on load
+function initSettings() {
+  // Fuel preference
+  var preferredFuel = localStorage.getItem('cr_preferred_fuel') || 'Gazole';
+  var fuelButton = document.querySelector('.fuels .fb[data-f="' + preferredFuel + '"]');
+  if (fuelButton) {
+    document.querySelectorAll('.fuels .fb').forEach(function(b){b.classList.remove('a');});
+    fuelButton.classList.add('a');
+    fu = preferredFuel;
+  }
+
+  // Navigation preference
+  var navPref = localStorage.getItem('cr_nav_pref') || 'maps';
+  var navToggle = document.getElementById('navToggle');
+  if (navToggle) {
+    navToggle.checked = (navPref === 'waze');
+    var navLabel = document.querySelector('#settingsAcc .side-item:nth-child(2) .side-item-sub');
+    if (navLabel) {
+      navLabel.textContent = navToggle.checked ? 'Waze (activé) / Google Maps (désactivé)' : 'Google Maps (activé) / Waze (désactivé)';
+    }
+  }
+
+  // Theme preference
+  var themePref = localStorage.getItem('cr_theme') || 'dark';
+  var themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.checked = (themePref === 'dark');
+    toggleTheme(themeToggle.checked);
+  }
+
+  // Vehicle configuration
+  var tankSize = localStorage.getItem('cr_tank_size');
+  var consumption = localStorage.getItem('cr_consumption');
+  if (tankSize) document.getElementById('tankSize').value = tankSize;
+  if (consumption) document.getElementById('consumption').value = consumption;
+}
+
+// Modify existing showPage function to init settings when radar page loads
+var originalShowPage = showPage;
+showPage = function(name) {
+  originalShowPage(name);
+  if (name === 'radar') {
+    initSettings();
+  }
+};
+
+// Also init settings on initial load if we're already on radar page
+if (document.getElementById('page-radar').classList.contains('active')) {
+  initSettings();
+}
 function synchroniserVersServeur(){
   if(!estConnecte())return;
   var statut=document.getElementById('compteSyncStatut');
@@ -1161,11 +1362,31 @@ function render(){
   document.getElementById('sa').textContent=(ps.reduce(function(a,b){return a+b;},0)/ps.length).toFixed(3)+' EUR';
   document.getElementById('stats').className='stats on';
   sstat(all.length+' stations ouvertes - '+FL[fu]+' - '+ra+' km');
+
+  // Calculate average price for savings
+  var avgPrice = ps.reduce(function(a,b){return a+b;},0)/ps.length;
+
+  // Get vehicle config for savings calculation
+  var tankSize = parseFloat(localStorage.getItem('cr_tank_size') || '50');
+  var consumption = parseFloat(localStorage.getItem('cr_consumption') || '6.0');
+  // Assume we fill up when tank is at 25% (75% of tank)
+  var fillQuantity = tankSize * 0.75;
+
   scontent(all.map(function(s,i){
     var best=i===0&&s.score!==null,fav=!!favs[String(s.id)],nomPerso=names[String(s.id)]||null;
     var distTxt=s.distRoute!==null?(s.distRoute<1000?Math.round(s.distRoute)+' m':(s.distRoute/1000).toFixed(1)+' km'):(s.distance<1?Math.round(s.distance*1000)+' m':s.distance.toFixed(1)+' km');
     var prix=s.prix?(s.prix.toFixed(3)+' EUR'):'N/A';
     var navUrl = getNavigationUrl(s.lat, s.lon);
+
+    // Calculate savings vs average price
+    var savingsEUR = null;
+    var savingsPercent = null;
+    if (s.prix && avgPrice) {
+      var priceDiff = avgPrice - s.prix; // Positive if station is cheaper than average
+      savingsEUR = priceDiff * fillQuantity;
+      savingsPercent = (priceDiff / avgPrice) * 100;
+    }
+
     return '<div class="card'+(best?' best':'')+(fav?' fav':'')+'" id="card-'+s.id+'">'+
       (best?'<div class="badge">MEILLEUR RATIO</div><br>':'')+
       '<div class="rank">#'+(i+1)+(s.score!==null?' - SCORE '+s.score+'/100':'')+(fav?' '+ic('star','11px'):'')+'</div>'+
@@ -1175,6 +1396,10 @@ function render(){
       '<div class="metrics"><div class="m"><div class="ml">Prix/L</div><div class="mv p">'+prix+'</div></div>'+
       '<div class="m"><div class="ml">Distance</div><div class="mv d">'+distTxt+'</div></div>'+
       '<div class="m"><div class="ml">Temps</div><div class="mv t">'+(s.duree!==null?fmtTime(s.duree):'--')+'</div></div></div>'+
+      (savingsEUR !== null ?
+        '<div class="metrics" style="background:#0a0a0f;border-radius:8px;padding:8px;margin:8px 0;">'+
+          '<div class="m"><div class="ml">Économies</div><div class="mv p">'+(savingsEUR > 0 ? '+' : '')+savingsEUR.toFixed(0)+' € ('+(savingsPercent > 0 ? '+' : '')+savingsPercent.toFixed(1)+'%)</div></div>'+
+        '</div>' : '')+
       '<div class="metrics"><div class="m" style="grid-column:span 3"><div class="ml">Score</div><div class="mv s">'+(s.score!==null?s.score+'/100':'--')+'</div></div></div>'+
       (s.score!==null?'<div class="bar"><div class="fill" style="width:'+s.score+'%"></div></div>':'')+
       '<a class="go" href="'+navUrl+'" target="_blank">Y aller</a></div>';
