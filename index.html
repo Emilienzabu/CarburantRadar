@@ -160,7 +160,7 @@ button{width:100%;padding:15px;background:var(--accent);color:#000;border:none;b
 .alert-box{background:var(--bg-sunken);border-radius:10px;padding:14px}
 .alert-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .alert-label{font-size:13px;font-weight:700}
-.toggle{position:relative;width:44px;height:24px;cursor:pointer}
+.toggle{display:inline-block;position:relative;width:44px;height:24px;cursor:pointer}
 .toggle input{display:none}
 .toggle-track{position:absolute;inset:0;background:var(--toggle-off);border:1px solid var(--input-border);border-radius:12px;transition:background .2s}
 .toggle input:checked+.toggle-track{background:var(--success)}
@@ -556,12 +556,15 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     <div class="side-item">
       <div class="side-item-name">Application de navigation</div>
       <div class="side-item-sub">Choisissez votre préférence pour ouvrir les itinéraires</div>
-      <label class="toggle" style="margin-top:8px;">
-        <input type="checkbox" id="navToggle" onchange="toggleNavPreference(this.checked)">
-        <div class="toggle-track"></div>
-        <div class="toggle-thumb"></div>
-      </label>
-      <div id="navPrefLabel" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Waze (activé) / Google Maps (désactivé)</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px;">
+        <span id="navLabelMaps" style="font-size:13px;font-weight:600;color:var(--text-muted);transition:color .2s;">Google Maps</span>
+        <label class="toggle">
+          <input type="checkbox" id="navToggle" onchange="toggleNavPreference(this.checked)">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+        <span id="navLabelWaze" style="font-size:13px;font-weight:600;color:var(--text-muted);transition:color .2s;">Waze</span>
+      </div>
     </div>
 
     <!-- Theme Selection -->
@@ -580,14 +583,14 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     <div class="side-item">
       <div class="side-item-name">Configuration du véhicule</div>
       <div class="side-item-sub">Pour calculer vos économies personnalisées</div>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <div style="flex:1;min-width:8px;min-width:80px;">
-          <label style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Réservoir (L)</label>
-          <input type="number" id="tankSize" class="modal-input" style="height:32px;padding:8px;font-size:13px;" placeholder="50">
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:end;">
+        <div style="flex:1;min-width:80px;">
+          <label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:2px;min-height:28px;">Réservoir (L)</label>
+          <input type="number" id="tankSize" class="modal-input" style="height:32px;padding:8px;font-size:13px;margin-bottom:0;" placeholder="50">
         </div>
         <div style="flex:1;min-width:80px;">
-          <label style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Consommation (L/100km)</label>
-          <input type="number" id="consumption" class="modal-input" style="height:32px;padding:8px;font-size:13px;" placeholder="6.0">
+          <label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:2px;min-height:28px;">Consommation (L/100km)</label>
+          <input type="number" id="consumption" class="modal-input" style="height:32px;padding:8px;font-size:13px;margin-bottom:0;" placeholder="6.0">
         </div>
       </div>
       <button class="add-btn" style="margin-top:8px;width:100%;" onclick="saveVehicleConfig()">Sauvegarder la configuration</button>
@@ -1143,6 +1146,14 @@ function setPreferredFuel(button) {
 function toggleNavPreference(useWaze) {
   var pref = useWaze ? 'waze' : 'maps';
   setNavPref(pref); // Reuse existing function
+  majSurlignageNavPref(useWaze);
+}
+
+function majSurlignageNavPref(useWaze) {
+  var mapsEl = document.getElementById('navLabelMaps');
+  var wazeEl = document.getElementById('navLabelWaze');
+  if (mapsEl) mapsEl.style.color = useWaze ? 'var(--text-muted)' : 'var(--accent)';
+  if (wazeEl) wazeEl.style.color = useWaze ? 'var(--accent)' : 'var(--text-muted)';
 }
 
 function toggleTheme(isDark) {
@@ -1215,10 +1226,7 @@ function initSettings() {
   var navToggle = document.getElementById('navToggle');
   if (navToggle) {
     navToggle.checked = (navPref === 'waze');
-    var navLabel = document.getElementById('navPrefLabel');
-    if (navLabel) {
-      navLabel.textContent = navToggle.checked ? 'Waze (activé) / Google Maps (désactivé)' : 'Google Maps (activé) / Waze (désactivé)';
-    }
+    majSurlignageNavPref(navToggle.checked);
   }
 
   // Theme preference
