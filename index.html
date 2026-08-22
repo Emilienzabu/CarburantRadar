@@ -10,6 +10,16 @@
 <meta name="description" content="CarburantRadar vous aide à trouver les stations-service les moins chères près de chez vous. Comparez les prix du Diesel, SP95, SP98, E10, E85 et GPL.">
 <meta name="theme-color" content="#f5a623">
 <meta name="color-scheme" content="dark">
+<script>
+// Applique le thème sauvegardé avant le premier rendu (évite un flash sombre->clair)
+(function(){
+  try{
+    if(localStorage.getItem('cr_theme')==='light'){
+      document.documentElement.setAttribute('data-theme','light');
+    }
+  }catch(e){}
+})();
+</script>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8107840445070854" crossorigin="anonymous"></script>
 <meta name="google-adsense-account" content="ca-pub-8107840445070854">
 <!-- Google tag (gtag.js) -->
@@ -22,95 +32,148 @@
 </script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{color-scheme:dark}
-body{background:#0a0a0f;color:#e8e8f0;font-family:sans-serif;padding-bottom:70px}
-header{background:#16161f;border-bottom:1px solid #252535;padding:16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
-.ico{width:36px;height:36px;background:#f5a623;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
-.h1{font-size:17px;font-weight:800}.h1 span{color:#f5a623}
-.sub{font-size:10px;color:#6b6b8a}
-.menu-btn{width:36px;height:36px;background:none;border:none;color:#e8e8f0;font-size:22px;cursor:pointer;margin-left:auto;padding:0;display:flex;align-items:center;justify-content:center}
-.nav-bar{position:fixed;bottom:0;left:0;right:0;background:#16161f;border-top:1px solid #252535;display:flex;z-index:9999;height:60px}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:none;border:none;color:#6b6b8a;font-size:10px;cursor:pointer;padding:8px 0;margin:0;border-radius:0;gap:3px}
-.nav-btn.active{color:#f5a623}
+:root{
+  color-scheme:dark;
+  --bg-page:#0a0a0f;
+  --bg-surface:#16161f;
+  --bg-sunken:#0a0a0f;
+  --border:#252535;
+  --input-bg:#252535;
+  --input-border:#3a3a4a;
+  --text:#e8e8f0;
+  --text-muted:#6b6b8a;
+  --text-secondary:#c8c8d8;
+  --accent:#f5a623;
+  --accent-text:#000;
+  --success:#3ddc97;
+  --success-bg:#1a2e1a;
+  --danger:#ff6b35;
+  --purple:#a78bfa;
+  --footer-muted:#4a4a5e;
+  --footer-border:#1c1c2a;
+  --suggest-border:#1a1a2a;
+  --thumb:#fff;
+  --overlay:rgba(0,0,0,0.6);
+  --shadow-modal:0 4px 20px rgba(0,0,0,0.5);
+  --shadow-card:none;
+  --warning-bg:#2e1a0a;
+  --toggle-off:#3a3a4a;
+}
+html[data-theme="light"]{
+  color-scheme:light;
+  --bg-page:#f7f5f1;
+  --bg-surface:#ffffff;
+  --bg-sunken:#f0ede7;
+  --border:#e6e1d8;
+  --input-bg:#f0ede7;
+  --input-border:#ddd6c8;
+  --text:#241f18;
+  --text-muted:#8a8377;
+  --text-secondary:#54503f;
+  --accent:#e8940f;
+  --accent-text:#000;
+  --success:#1f9d64;
+  --success-bg:#e2f5eb;
+  --danger:#e0532a;
+  --purple:#7c5cd6;
+  --footer-muted:#a39c8c;
+  --footer-border:#e6e1d8;
+  --suggest-border:#eeeae1;
+  --thumb:#fff;
+  --overlay:rgba(20,17,10,0.45);
+  --shadow-modal:0 8px 30px rgba(60,50,30,0.18);
+  --shadow-card:0 1px 3px rgba(60,50,30,0.07),0 1px 2px rgba(60,50,30,0.04);
+  --warning-bg:#fdf1de;
+  --toggle-off:#c9c2b2;
+}
+body{background:var(--bg-page);color:var(--text);font-family:sans-serif;padding-bottom:70px;transition:background .2s,color .2s}
+header{background:var(--bg-surface);border-bottom:1px solid var(--border);padding:16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
+.ico{width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.h1{font-size:17px;font-weight:800}.h1 span{color:var(--accent)}
+.sub{font-size:10px;color:var(--text-muted)}
+.menu-btn{width:36px;height:36px;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;margin-left:auto;padding:0;display:flex;align-items:center;justify-content:center}
+.nav-bar{position:fixed;bottom:0;left:0;right:0;background:var(--bg-surface);border-top:1px solid var(--border);display:flex;z-index:9999;height:60px}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:none;border:none;color:var(--text-muted);font-size:10px;cursor:pointer;padding:8px 0;margin:0;border-radius:0;gap:3px}
+.nav-btn.active{color:var(--accent)}
 .nav-btn span{font-size:20px;line-height:1}
 .page{display:none;padding:20px}
 .page.active{display:block}
 #page-map{display:none;padding:0}
 #page-map.active{display:block}
 #map{height:calc(100vh - 190px);width:100%;position:relative;z-index:1}
-button{width:100%;padding:15px;background:#f5a623;color:#000;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px}
-.fuels,.radii{display:flex;gap:4px;background:#16161f;border:1px solid #252535;border-radius:10px;padding:4px;margin-bottom:10px;overflow-x:auto}
+button{width:100%;padding:15px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px}
+.fuels,.radii{display:flex;gap:4px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:10px;overflow-x:auto}
 .fuels::-webkit-scrollbar,.radii::-webkit-scrollbar{display:none}
-.fb,.rb{padding:8px 12px;border-radius:8px;background:transparent;border:none;color:#6b6b8a;font-size:12px;cursor:pointer;white-space:nowrap}
-.fb.a{background:#ff6b35;color:#fff;font-weight:700}
-.rb.a{background:#f5a623;color:#000;font-weight:700}
-#status{display:none;background:#16161f;border:1px solid #252535;border-radius:10px;padding:10px 14px;font-size:12px;color:#6b6b8a;margin-bottom:12px}
+.fb,.rb{padding:8px 12px;border-radius:8px;background:transparent;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;white-space:nowrap}
+.fb.a{background:var(--danger);color:#fff;font-weight:700}
+.rb.a{background:var(--accent);color:#000;font-weight:700}
+#status{display:none;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--text-muted);margin-bottom:12px}
 #status.on{display:block}
 .stats{display:none;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
 .stats.on{display:grid}
-.stat{background:#16161f;border:1px solid #252535;border-radius:10px;padding:10px;text-align:center}
-.sl{font-size:9px;color:#6b6b8a;text-transform:uppercase;letter-spacing:1px}
+.stat{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;box-shadow:var(--shadow-card)}
+.sl{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
 .sv{font-size:19px;font-weight:800}
-.card{background:#16161f;border:1px solid #252535;border-radius:14px;padding:16px;margin-bottom:10px;position:relative}
-.card.best{border-color:#3ddc97}
-.card.fav{border-color:#f5a623}
-.badge{display:inline-block;background:#3ddc97;color:#000;font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;margin-bottom:6px}
-.rank{font-size:10px;color:#6b6b8a;margin-bottom:4px}
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;position:relative;box-shadow:var(--shadow-card)}
+.card.best{border-color:var(--success)}
+.card.fav{border-color:var(--accent)}
+.badge{display:inline-block;background:var(--success);color:#000;font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;margin-bottom:6px}
+.rank{font-size:10px;color:var(--text-muted);margin-bottom:4px}
 .card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px}
 .name{font-size:15px;font-weight:700}
-.addr{font-size:11px;color:#6b6b8a;margin-bottom:12px}
+.addr{font-size:11px;color:var(--text-muted);margin-bottom:12px}
 .metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
-.m{background:#0a0a0f;border-radius:8px;padding:8px;text-align:center}
-.ml{font-size:8px;color:#6b6b8a;text-transform:uppercase;margin-bottom:2px}
+.m{background:var(--bg-sunken);border-radius:8px;padding:8px;text-align:center}
+.ml{font-size:8px;color:var(--text-muted);text-transform:uppercase;margin-bottom:2px}
 .mv{font-size:13px;font-weight:600}
-.mv.p{color:#f5a623}.mv.d{color:#e8e8f0}.mv.s{color:#3ddc97}.mv.t{color:#a78bfa}
-.bar{height:4px;background:#0a0a0f;border-radius:4px;overflow:hidden;margin-bottom:10px}
-.fill{height:100%;background:linear-gradient(90deg,#3ddc97,#f5a623)}
-.go{display:block;width:100%;padding:10px;background:#f5a623;color:#000;border:none;border-radius:9px;font-size:13px;font-weight:700;text-align:center;text-decoration:none}
-.empty{text-align:center;padding:50px 20px;color:#6b6b8a}
-.spinner{width:30px;height:30px;border:3px solid #252535;border-top-color:#f5a623;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+.mv.p{color:var(--accent)}.mv.d{color:var(--text)}.mv.s{color:var(--success)}.mv.t{color:var(--purple)}
+.bar{height:4px;background:var(--bg-sunken);border-radius:4px;overflow:hidden;margin-bottom:10px}
+.fill{height:100%;background:linear-gradient(90deg,var(--success),var(--accent))}
+.go{display:block;width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:9px;font-size:13px;font-weight:700;text-align:center;text-decoration:none}
+.empty{text-align:center;padding:50px 20px;color:var(--text-muted)}
+.spinner{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.dots-btn{background:none;border:none;color:#6b6b8a;font-size:20px;cursor:pointer;padding:0 4px;width:auto;margin:0;line-height:1}
-.ctx-menu{position:absolute;right:16px;top:44px;background:#252535;border-radius:10px;z-index:50;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,0.5);overflow:hidden}
-.ctx-item{display:block;width:100%;padding:12px 16px;background:none;border:none;color:#e8e8f0;font-size:14px;text-align:left;cursor:pointer;margin:0;border-radius:0}
-.ctx-divider{height:1px;background:#16161f}
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200}
+.dots-btn{background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;width:auto;margin:0;line-height:1}
+.ctx-menu{position:absolute;right:16px;top:44px;background:var(--input-bg);border-radius:10px;z-index:50;min-width:160px;box-shadow:var(--shadow-modal);overflow:hidden}
+.ctx-item{display:block;width:100%;padding:12px 16px;background:none;border:none;color:var(--text);font-size:14px;text-align:left;cursor:pointer;margin:0;border-radius:0}
+.ctx-divider{height:1px;background:var(--bg-surface)}
+.overlay{display:none;position:fixed;inset:0;background:var(--overlay);z-index:200}
 .overlay.on{display:block}
-.side-menu{position:fixed;right:0;top:0;bottom:0;width:80%;max-width:320px;background:#16161f;z-index:201;transform:translateX(100%);transition:transform .25s;overflow-y:auto}
+.side-menu{position:fixed;right:0;top:0;bottom:0;width:80%;max-width:320px;background:var(--bg-surface);z-index:201;transform:translateX(100%);transition:transform .25s;overflow-y:auto}
 .side-menu.on{transform:translateX(0)}
-.side-header{background:#0a0a0f;padding:20px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #252535}
+.side-header{background:var(--bg-sunken);padding:20px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
 .side-title{font-size:16px;font-weight:800}
-.close-btn{background:none;border:none;color:#e8e8f0;font-size:22px;cursor:pointer;width:auto;margin:0;padding:4px}
-.acc-header{display:flex;align-items:center;justify-content:space-between;padding:16px;cursor:pointer;border-bottom:1px solid #252535;user-select:none}
-.acc-title{font-size:13px;font-weight:700;color:#e8e8f0}
-.acc-arrow{font-size:12px;color:#6b6b8a;transition:transform .2s}
+.close-btn{background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;width:auto;margin:0;padding:4px}
+.acc-header{display:flex;align-items:center;justify-content:space-between;padding:16px;cursor:pointer;border-bottom:1px solid var(--border);user-select:none}
+.acc-title{font-size:13px;font-weight:700;color:var(--text)}
+.acc-arrow{font-size:12px;color:var(--text-muted);transition:transform .2s}
 .acc-arrow.open{transform:rotate(180deg)}
-.acc-body{display:none;padding:16px;border-bottom:1px solid #252535}
+.acc-body{display:none;padding:16px;border-bottom:1px solid var(--border)}
 .acc-body.open{display:block}
-.side-item{background:#0a0a0f;border-radius:10px;padding:12px;margin-bottom:8px}
+.side-item{background:var(--bg-sunken);border-radius:10px;padding:12px;margin-bottom:8px}
 .side-item-name{font-size:14px;font-weight:700;margin-bottom:2px}
-.side-item-sub{font-size:11px;color:#6b6b8a}
+.side-item-sub{font-size:11px;color:var(--text-muted)}
 .side-item-row{display:flex;align-items:center;justify-content:space-between}
-.del-btn{background:none;border:none;color:#ff6b35;font-size:18px;cursor:pointer;width:auto;margin:0;padding:4px}
-.add-btn{width:100%;padding:12px;background:#252535;color:#e8e8f0;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin:0;margin-top:4px}
-.about-box{background:#0a0a0f;border-radius:10px;padding:14px;font-size:13px;color:#6b6b8a;line-height:1.6}
-.alert-box{background:#0a0a0f;border-radius:10px;padding:14px}
+.del-btn{background:none;border:none;color:var(--danger);font-size:18px;cursor:pointer;width:auto;margin:0;padding:4px}
+.add-btn{width:100%;padding:12px;background:var(--input-bg);color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin:0;margin-top:4px}
+.about-box{background:var(--bg-sunken);border-radius:10px;padding:14px;font-size:13px;color:var(--text-muted);line-height:1.6}
+.alert-box{background:var(--bg-sunken);border-radius:10px;padding:14px}
 .alert-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .alert-label{font-size:13px;font-weight:700}
 .toggle{position:relative;width:44px;height:24px;cursor:pointer}
 .toggle input{display:none}
-.toggle-track{position:absolute;inset:0;background:#252535;border-radius:12px;transition:background .2s}
-.toggle input:checked+.toggle-track{background:#3ddc97}
-.toggle-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .2s}
+.toggle-track{position:absolute;inset:0;background:var(--toggle-off);border:1px solid var(--input-border);border-radius:12px;transition:background .2s}
+.toggle input:checked+.toggle-track{background:var(--success)}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;background:var(--thumb);border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,0.25)}
 .toggle input:checked~.toggle-thumb{left:23px}
-.alert-sub{font-size:11px;color:#6b6b8a;margin-bottom:12px}
-.alert-status{font-size:12px;padding:8px 10px;border-radius:8px;background:#252535;color:#6b6b8a;text-align:center}
-.alert-status.on{background:#1a2e1a;color:#3ddc97}
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;align-items:center;justify-content:center}
+.alert-sub{font-size:11px;color:var(--text-muted);margin-bottom:12px}
+.alert-status{font-size:12px;padding:8px 10px;border-radius:8px;background:var(--input-bg);color:var(--text-muted);text-align:center}
+.alert-status.on{background:var(--success-bg);color:var(--success)}
+.modal{display:none;position:fixed;inset:0;background:var(--overlay);z-index:300;align-items:center;justify-content:center}
 .modal.on{display:flex}
-.modal-box{background:#16161f;border-radius:16px;padding:20px;width:90%;max-width:340px}
+.modal-box{background:var(--bg-surface);border-radius:16px;padding:20px;width:90%;max-width:340px;box-shadow:var(--shadow-modal)}
 .modal-title{font-size:16px;font-weight:800;margin-bottom:16px}
-.modal-input{width:100%;background:#252535;border:1px solid #3a3a4a;border-radius:8px;padding:10px 12px;color:#e8e8f0;font-size:14px;margin-bottom:10px}
+.modal-input{width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:10px}
 /* Listes déroulantes stylisées nous-mêmes plutôt que de laisser l'OS décider (évite les listes
    qui s'affichent en clair sur certains téléphones malgré le thème sombre de l'app) */
 select.modal-input{
@@ -118,65 +181,65 @@ select.modal-input{
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b8a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 12px center;background-size:16px;padding-right:38px;cursor:pointer
 }
-select.modal-input option{background:#252535;color:#e8e8f0}
+select.modal-input option{background:var(--input-bg);color:var(--text)}
 /* Neutralise le fond jaune que certains navigateurs imposent sur les champs auto-remplis */
 input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{
-  -webkit-box-shadow:0 0 0 1000px #252535 inset;-webkit-text-fill-color:#e8e8f0;caret-color:#e8e8f0
+  -webkit-box-shadow:0 0 0 1000px var(--input-bg) inset;-webkit-text-fill-color:var(--text);caret-color:var(--text)
 }
 .modal-row{display:flex;gap:8px}
-.modal-cancel{flex:1;padding:10px;background:#252535;color:#e8e8f0;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin:0}
-.modal-ok{flex:1;padding:10px;background:#f5a623;color:#000;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin:0}
-.suggest-item{padding:10px 12px;font-size:13px;color:#e8e8f0;cursor:pointer;border-bottom:1px solid #1a1a2a}
+.modal-cancel{flex:1;padding:10px;background:var(--input-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin:0}
+.modal-ok{flex:1;padding:10px;background:var(--accent);color:#000;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin:0}
+.suggest-item{padding:10px 12px;font-size:13px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--suggest-border)}
 .suggest-item:last-child{border-bottom:none}
-.suggest-item:active{background:#16161f}
-.open-badge{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:5px;margin-left:6px;vertical-align:middle;background:#1a2e1a;color:#3ddc97}
-#splash{position:fixed;inset:0;background:#0a0a0f;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
+.suggest-item:active{background:var(--bg-surface)}
+.open-badge{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:5px;margin-left:6px;vertical-align:middle;background:var(--success-bg);color:var(--success)}
+#splash{position:fixed;inset:0;background:var(--bg-sunken);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
 #splash.hide{opacity:0;pointer-events:none}
-.splash-ico{width:80px;height:80px;background:#f5a623;border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:44px;margin-bottom:20px;animation:pulse 1.5s ease-in-out infinite}
+.splash-ico{width:80px;height:80px;background:var(--accent);border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:44px;margin-bottom:20px;animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(245,166,35,0.3)}50%{box-shadow:0 0 50px rgba(245,166,35,0.7)}}
 .splash-title{font-size:24px;font-weight:800;margin-bottom:4px}
-.splash-title span{color:#f5a623}
-.splash-sub{font-size:12px;color:#6b6b8a;margin-bottom:30px}
-.splash-bar{width:160px;height:3px;background:#252535;border-radius:3px;overflow:hidden}
-.splash-progress{height:100%;background:#f5a623;border-radius:3px;animation:progress 1.5s ease-in-out forwards}
+.splash-title span{color:var(--accent)}
+.splash-sub{font-size:12px;color:var(--text-muted);margin-bottom:30px}
+.splash-bar{width:160px;height:3px;background:var(--input-bg);border-radius:3px;overflow:hidden}
+.splash-progress{height:100%;background:var(--accent);border-radius:3px;animation:progress 1.5s ease-in-out forwards}
 @keyframes progress{from{width:0}to{width:100%}}
-.leaflet-popup-content-wrapper{background:#16161f;color:#e8e8f0;border:1px solid #252535;border-radius:12px}
-.leaflet-popup-tip{background:#16161f}
+.leaflet-popup-content-wrapper{background:var(--bg-surface);color:var(--text);border:1px solid var(--border);border-radius:12px}
+.leaflet-popup-tip{background:var(--bg-surface)}
 .map-popup-name{font-size:13px;font-weight:700;margin-bottom:4px}
-.map-popup-price{font-size:16px;font-weight:800;color:#f5a623;margin-bottom:8px}
-.map-popup-go{display:block;padding:7px;background:#f5a623;color:#000;border-radius:8px;font-size:12px;font-weight:700;text-align:center;text-decoration:none}
+.map-popup-price{font-size:16px;font-weight:800;color:var(--accent);margin-bottom:8px}
+.map-popup-go{display:block;padding:7px;background:var(--accent);color:#000;border-radius:8px;font-size:12px;font-weight:700;text-align:center;text-decoration:none}
 /* Analyse */
 .indic-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
-.indic{background:#16161f;border:1px solid #252535;border-radius:10px;padding:10px;text-align:center}
-.indic-label{font-size:8px;color:#6b6b8a;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.indic{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;box-shadow:var(--shadow-card)}
+.indic-label{font-size:8px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
 .indic-val{font-size:15px;font-weight:800}
-.indic-val.pos{color:#3ddc97}
-.indic-val.neg{color:#ff6b35}
-.indic-val.neu{color:#e8e8f0}
-.fav-analyse-btn{width:100%;text-align:left;padding:10px 12px;background:#16161f;border:1px solid #252535;border-radius:8px;margin-bottom:6px;color:#e8e8f0;font-size:13px;cursor:pointer;margin-top:0}
-.fav-analyse-btn.active{border-color:#f5a623;font-weight:700}
+.indic-val.pos{color:var(--success)}
+.indic-val.neg{color:var(--danger)}
+.indic-val.neu{color:var(--text)}
+.fav-analyse-btn{width:100%;text-align:left;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;color:var(--text);font-size:13px;cursor:pointer;margin-top:0}
+.fav-analyse-btn.active{border-color:var(--accent);font-weight:700}
 /* Pages d'information (À propos, Mentions légales, etc.) */
-.info-back{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:#f5a623;font-size:13px;font-weight:600;cursor:pointer;padding:0;margin-bottom:16px;width:auto}
+.info-back{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;padding:0;margin-bottom:16px;width:auto}
 .info-page h1{font-size:18px;font-weight:800;margin-bottom:4px}
-.info-page .info-sub{font-size:12px;color:#6b6b8a;margin-bottom:18px}
-.info-page h2{font-size:14px;font-weight:700;color:#f5a623;margin:20px 0 8px}
+.info-page .info-sub{font-size:12px;color:var(--text-muted);margin-bottom:18px}
+.info-page h2{font-size:14px;font-weight:700;color:var(--accent);margin:20px 0 8px}
 .info-page h2:first-of-type{margin-top:0}
-.info-page p{font-size:13px;color:#c8c8d8;line-height:1.65;margin-bottom:10px}
+.info-page p{font-size:13px;color:var(--text-secondary);line-height:1.65;margin-bottom:10px}
 .info-page ul{margin:0 0 10px 18px;padding:0}
-.info-page li{font-size:13px;color:#c8c8d8;line-height:1.65;margin-bottom:4px}
-.info-page .info-card{background:#16161f;border:1px solid #252535;border-radius:12px;padding:14px 16px;margin-bottom:12px}
-.info-page .info-field{font-size:12px;color:#6b6b8a;margin-bottom:2px}
-.info-page .info-value{font-size:14px;color:#e8e8f0;margin-bottom:10px}
+.info-page li{font-size:13px;color:var(--text-secondary);line-height:1.65;margin-bottom:4px}
+.info-page .info-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow-card)}
+.info-page .info-field{font-size:12px;color:var(--text-muted);margin-bottom:2px}
+.info-page .info-value{font-size:14px;color:var(--text);margin-bottom:10px}
 .info-page .info-value:last-child{margin-bottom:0}
-.info-page .placeholder{color:#6b6b8a;font-style:italic}
-.contact-btn{display:block;text-align:center;padding:13px;background:#f5a623;color:#000;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:12px}
+.info-page .placeholder{color:var(--text-muted);font-style:italic}
+.contact-btn{display:block;text-align:center;padding:13px;background:var(--accent);color:#000;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:12px}
 /* Footer discret */
-.app-footer{margin-top:28px;padding-top:16px;border-top:1px solid #1c1c2a;text-align:center}
-.app-footer .footer-copy{font-size:10px;color:#4a4a5e;margin-bottom:6px}
+.app-footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--footer-border);text-align:center}
+.app-footer .footer-copy{font-size:10px;color:var(--footer-muted);margin-bottom:6px}
 .app-footer .footer-links{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;font-size:10px}
-.app-footer .footer-links a{color:#6b6b8a;text-decoration:none;cursor:pointer}
-.app-footer .footer-links a:hover{color:#f5a623}
-.app-footer .footer-sep{color:#3a3a4a}
+.app-footer .footer-links a{color:var(--text-muted);text-decoration:none;cursor:pointer}
+.app-footer .footer-links a:hover{color:var(--accent)}
+.app-footer .footer-sep{color:var(--input-border)}
 </style>
 </head>
 <body>
@@ -219,18 +282,18 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     </div>
     <div id="status"></div>
     <div class="stats" id="stats">
-      <div class="stat"><div class="sl">Stations</div><div class="sv" id="sc" style="color:#f5a623">0</div></div>
-      <div class="stat"><div class="sl">Prix min</div><div class="sv" id="sm" style="color:#3ddc97">0</div></div>
-      <div class="stat"><div class="sl">Prix moy</div><div class="sv" id="sa" style="color:#ff6b35">0</div></div>
+      <div class="stat"><div class="sl">Stations</div><div class="sv" id="sc" style="color:var(--accent)">0</div></div>
+      <div class="stat"><div class="sl">Prix min</div><div class="sv" id="sm" style="color:var(--success)">0</div></div>
+      <div class="stat"><div class="sl">Prix moy</div><div class="sv" id="sa" style="color:var(--danger)">0</div></div>
     </div>
   </div>
-  <div style="padding:0 20px 16px;font-size:13px;line-height:1.5;color:#8a8aa5">
+  <div style="padding:0 20px 16px;font-size:13px;line-height:1.5;color:var(--text-muted)">
     Trouvez les stations-service les plus avantageuses autour de vous et comparez les prix du Diesel, SP95, SP98, E10, E85 et GPL. CarburantRadar vous aide à repérer rapidement les meilleurs prix selon votre position.
   </div>
   <div id="content" style="padding:0 20px 20px">
     <div class="empty">
       <img src="icons/icon-96.png" alt="" width="56" height="56" style="border-radius:14px;margin-bottom:10px" onerror="this.remove()">
-      <div style="font-size:16px;font-weight:700;color:#e8e8f0;margin-bottom:6px">Pret a demarrer</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">Pret a demarrer</div>
       <div style="font-size:13px">Appuie sur Me localiser</div>
     </div>
   </div>
@@ -248,13 +311,13 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 <div class="page" id="page-trajet">
   <div style="padding:20px">
     <div style="font-size:16px;font-weight:800;margin-bottom:4px"><span data-icon="compass" data-icon-taille="18px"></span> Mode Trajet</div>
-    <div style="font-size:12px;color:#6b6b8a;margin-bottom:16px">Trouve la meilleure station sur ta route</div>
-    <div style="font-size:12px;color:#6b6b8a;margin-bottom:6px">Destination</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Trouve la meilleure station sur ta route</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Destination</div>
     <div style="position:relative;margin-bottom:12px">
       <input id="trajetDest" class="modal-input" placeholder="Ex: Aix-en-Provence, 13100..." style="margin-bottom:0" oninput="autocomplete()" autocomplete="off">
-      <div id="suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;background:#252535;border-radius:0 0 8px 8px;z-index:100;max-height:200px;overflow-y:auto;border:1px solid #3a3a4a;border-top:none"></div>
+      <div id="suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--input-bg);border-radius:0 0 8px 8px;z-index:100;max-height:200px;overflow-y:auto;border:1px solid var(--input-border);border-top:none"></div>
     </div>
-    <div style="font-size:12px;color:#6b6b8a;margin-bottom:6px">Carburant</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Carburant</div>
     <select id="trajetCarb" class="modal-input" style="margin-bottom:16px">
       <option value="Gazole">Diesel</option>
       <option value="SP95">SP95</option>
@@ -280,7 +343,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 <div class="page" id="page-analyse">
   <div style="padding:20px">
     <div style="font-size:16px;font-weight:800;margin-bottom:4px"><span data-icon="chart" data-icon-taille="18px"></span> Analyse des prix</div>
-    <div style="font-size:12px;color:#6b6b8a;margin-bottom:16px">Évolution du prix vs moyenne zone</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Évolution du prix vs moyenne zone</div>
     <div id="analyseList"></div>
     <div class="app-footer">
       <div class="footer-copy">© 2026 CarburantRadar</div>
@@ -433,34 +496,34 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
         <div class="side-item-name" id="compteEmailAffiche"></div>
         <div class="side-item-sub">Connecté · favoris, repères et noms synchronisés</div>
       </div>
-      <div id="compteSyncStatut" style="font-size:11px;color:#6b6b8a;margin-bottom:10px"></div>
+      <div id="compteSyncStatut" style="font-size:11px;color:var(--text-muted);margin-bottom:10px"></div>
       <button class="add-btn" onclick="seDeconnecter()">Se déconnecter</button>
     </div>
     <div id="compteFormulaire">
-      <div style="font-size:11px;color:#6b6b8a;margin-bottom:10px">Crée un compte pour retrouver tes favoris, repères et noms personnalisés sur un autre appareil.</div>
-      <div style="display:flex;gap:4px;background:#0f0f16;border:1px solid #252535;border-radius:10px;padding:4px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Crée un compte pour retrouver tes favoris, repères et noms personnalisés sur un autre appareil.</div>
+      <div style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:10px">
         <button class="rb a" id="ongletConnexion" style="flex:1" onclick="basculerModeCompte('login')">Se connecter</button>
         <button class="rb" id="ongletCreation" style="flex:1" onclick="basculerModeCompte('creer')">Créer un compte</button>
       </div>
       <input class="modal-input" id="compteEmail" type="email" placeholder="Email" autocomplete="username">
       <div style="position:relative">
         <input class="modal-input" id="compteMdp" type="password" placeholder="Mot de passe (8 caractères min)" autocomplete="current-password" style="padding-right:42px">
-        <button type="button" onclick="basculerVisibiliteMdp('compteMdp',this)" style="position:absolute;right:2px;top:2px;width:38px;height:38px;background:none;color:#6b6b8a;border:none;margin:0;padding:0"><span data-icon="eye" data-icon-taille="18px"></span></button>
+        <button type="button" onclick="basculerVisibiliteMdp('compteMdp',this)" style="position:absolute;right:2px;top:2px;width:38px;height:38px;background:none;color:var(--text-muted);border:none;margin:0;padding:0"><span data-icon="eye" data-icon-taille="18px"></span></button>
       </div>
       <div style="position:relative;display:none" id="compteMdpConfirmWrap">
         <input class="modal-input" id="compteMdpConfirm" type="password" placeholder="Confirmer le mot de passe" autocomplete="new-password" style="padding-right:42px">
-        <button type="button" onclick="basculerVisibiliteMdp('compteMdpConfirm',this)" style="position:absolute;right:2px;top:2px;width:38px;height:38px;background:none;color:#6b6b8a;border:none;margin:0;padding:0"><span data-icon="eye" data-icon-taille="18px"></span></button>
+        <button type="button" onclick="basculerVisibiliteMdp('compteMdpConfirm',this)" style="position:absolute;right:2px;top:2px;width:38px;height:38px;background:none;color:var(--text-muted);border:none;margin:0;padding:0"><span data-icon="eye" data-icon-taille="18px"></span></button>
       </div>
-      <div id="compteErreur" style="display:none;font-size:12px;color:#ff6b35;margin-bottom:10px"></div>
-      <button class="add-btn" style="background:#f5a623;color:#000;margin-bottom:6px" onclick="validerFormulaireCompte()" id="btnActionCompte">Se connecter</button>
-      <div id="compteAvertRecup" style="font-size:10px;color:#4a4a5e;display:none">Pas d'email de récupération : garde bien ton mot de passe, il ne peut pas être réinitialisé.</div>
+      <div id="compteErreur" style="display:none;font-size:12px;color:var(--danger);margin-bottom:10px"></div>
+      <button class="add-btn" style="background:var(--accent);color:var(--accent-text);margin-bottom:6px" onclick="validerFormulaireCompte()" id="btnActionCompte">Se connecter</button>
+      <div id="compteAvertRecup" style="font-size:10px;color:var(--footer-muted);display:none">Pas d'email de récupération : garde bien ton mot de passe, il ne peut pas être réinitialisé.</div>
     </div>
   </div>
   <div class="acc-header" onclick="toggleAcc('favAcc')"><div class="acc-title"><span data-icon="star" data-icon-taille="14px"></span> Stations favorites</div><div class="acc-arrow" id="favAccArrow">▼</div></div>
-  <div class="acc-body" id="favAcc"><div id="favList"><div style="font-size:13px;color:#6b6b8a">Aucun favori pour l'instant</div></div></div>
+  <div class="acc-body" id="favAcc"><div id="favList"><div style="font-size:13px;color:var(--text-muted)">Aucun favori pour l'instant</div></div></div>
   <div class="acc-header" onclick="toggleAcc('repAcc')"><div class="acc-title"><span data-icon="pin" data-icon-taille="14px"></span> Mes repères</div><div class="acc-arrow" id="repAccArrow">▼</div></div>
   <div class="acc-body" id="repAcc">
-    <div id="repList"><div style="font-size:13px;color:#6b6b8a">Aucun repère pour l'instant</div></div>
+    <div id="repList"><div style="font-size:13px;color:var(--text-muted)">Aucun repère pour l'instant</div></div>
     <button class="add-btn" onclick="openAddRepere()">+ Ajouter un repère</button>
   </div>
   <div class="acc-header" onclick="toggleAcc('alertAcc')"><div class="acc-title"><span data-icon="bell" data-icon-taille="14px"></span> Alertes prix</div><div class="acc-arrow" id="alertAccArrow">▼</div></div>
@@ -498,7 +561,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
         <div class="toggle-track"></div>
         <div class="toggle-thumb"></div>
       </label>
-      <div style="font-size:11px;color:#6b6b8a;margin-top:4px;">Waze (activé) / Google Maps (désactivé)</div>
+      <div id="navPrefLabel" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Waze (activé) / Google Maps (désactivé)</div>
     </div>
 
     <!-- Theme Selection -->
@@ -510,7 +573,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
         <div class="toggle-track"></div>
         <div class="toggle-thumb"></div>
       </label>
-      <div style="font-size:11px;color:#6b6b8a;margin-top:4px;">Clair (activé) / Sombre (désactivé)</div>
+      <div id="themePrefLabel" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Clair (activé) / Sombre (désactivé)</div>
     </div>
 
     <!-- Vehicle Configuration -->
@@ -519,50 +582,50 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
       <div class="side-item-sub">Pour calculer vos économies personnalisées</div>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <div style="flex:1;min-width:8px;min-width:80px;">
-          <label style="font-size:11px;color:#6b6b8a;margin-bottom:2px;">Réservoir (L)</label>
+          <label style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Réservoir (L)</label>
           <input type="number" id="tankSize" class="modal-input" style="height:32px;padding:8px;font-size:13px;" placeholder="50">
         </div>
         <div style="flex:1;min-width:80px;">
-          <label style="font-size:11px;color:#6b6b8a;margin-bottom:2px;">Consommation (L/100km)</label>
+          <label style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Consommation (L/100km)</label>
           <input type="number" id="consumption" class="modal-input" style="height:32px;padding:8px;font-size:13px;" placeholder="6.0">
         </div>
       </div>
       <button class="add-btn" style="margin-top:8px;width:100%;" onclick="saveVehicleConfig()">Sauvegarder la configuration</button>
-      <div id="vehicleConfigStatus" style="font-size:11px;color:#6b6b8a;margin-top:4px;"></div>
+      <div id="vehicleConfigStatus" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
     </div>
 
     <!-- Savings Info -->
     <div class="side-item">
       <div class="side-item-name">À propos des économies</div>
       <div class="side-item-sub">Comment sont calculées vos économies</div>
-      <div style="font-size:12px;color:#6b6b8a;margin-top:8px;line-height:1.4;">
+      <div style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.4;">
         Les économies affichées représentent la différence entre le prix de la station sélectionnée et la moyenne régionale du même carburant, multipliée par la quantité que vous seriez susceptible d'acheter (basée sur votre réservoir et consommation).
       </div>
     </div>
   </div>
   <div class="acc-header" onclick="toggleAcc('aboutAcc')"><div class="acc-title"><span data-icon="info" data-icon-taille="14px"></span> Informations</div><div class="acc-arrow" id="aboutAccArrow">▼</div></div>
   <div class="acc-body" id="aboutAcc">
-    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:#e8e8f0;font-weight:600;font-size:14px" onclick="closeMenu();showPage('apropos')"><span data-icon="info" data-icon-taille="14px"></span> À propos</button>
-    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:#e8e8f0;font-weight:600;font-size:14px" onclick="closeMenu();showPage('mentions')"><span data-icon="file" data-icon-taille="14px"></span> Mentions légales</button>
-    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:#e8e8f0;font-weight:600;font-size:14px" onclick="closeMenu();showPage('confidentialite')"><span data-icon="lock" data-icon-taille="14px"></span> Politique de confidentialité</button>
-    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:#e8e8f0;font-weight:600;font-size:14px;margin-bottom:0" onclick="closeMenu();showPage('contact')"><span data-icon="mail" data-icon-taille="14px"></span> Contact</button>
+    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('apropos')"><span data-icon="info" data-icon-taille="14px"></span> À propos</button>
+    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('mentions')"><span data-icon="file" data-icon-taille="14px"></span> Mentions légales</button>
+    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('confidentialite')"><span data-icon="lock" data-icon-taille="14px"></span> Politique de confidentialité</button>
+    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px;margin-bottom:0" onclick="closeMenu();showPage('contact')"><span data-icon="mail" data-icon-taille="14px"></span> Contact</button>
   </div>
 </div>
 
 <div class="modal" id="alertModal">
   <div class="modal-box">
     <div class="modal-title"><span data-icon="bell" data-icon-taille="16px"></span> Configurer les alertes</div>
-    <div style="font-size:12px;color:#6b6b8a;margin-bottom:8px">Carburant à surveiller</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Carburant à surveiller</div>
     <select id="alertCarb" class="modal-input" >
       <option value="Gazole">Diesel</option><option value="SP95">SP95</option><option value="SP98">SP98</option><option value="E10">E10</option><option value="E85">E85</option><option value="GPLc">GPL</option>
     </select>
-    <div style="font-size:12px;color:#6b6b8a;margin-bottom:8px">Emplacement de référence</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Emplacement de référence</div>
     <select id="alertLoc" class="modal-input" ></select>
-    <div style="font-size:12px;color:#6b6b8a;margin-bottom:8px">Rayon de la zone</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Rayon de la zone</div>
     <select id="alertRayon" class="modal-input" >
       <option value="5">5 km</option><option value="10">10 km</option><option value="20">20 km</option><option value="50">50 km</option>
     </select>
-    <div style="font-size:12px;color:#6b6b8a;margin-bottom:8px">Seuil d'écart vs moyenne zone</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Seuil d'écart vs moyenne zone</div>
     <select id="alertSeuil" class="modal-input" >
       <option value="2">-2% (fréquent)</option><option value="3" selected>-3% (recommandé)</option><option value="5">-5% (plus rare)</option><option value="8">-8% (rare)</option>
     </select>
@@ -573,7 +636,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
   <div class="modal-box">
     <div class="modal-title"><span data-icon="pin" data-icon-taille="16px"></span> Nouveau repère</div>
     <input class="modal-input" id="repName" placeholder="Nom (ex: Domicile, Travail...)">
-    <div style="font-size:12px;color:#6b6b8a;margin-bottom:10px">Position actuelle : <span id="repPos">--</span></div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Position actuelle : <span id="repPos">--</span></div>
     <div class="modal-row"><button class="modal-cancel" onclick="closeRepModal()">Annuler</button><button class="modal-ok" onclick="saveRepere()">Enregistrer</button></div>
   </div>
 </div>
@@ -591,11 +654,11 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
       <img src="icons/icon-96.png" alt="" width="64" height="64" style="border-radius:16px" onerror="this.style.display='none'">
     </div>
     <div class="modal-title" style="text-align:center;margin-bottom:6px">Bienvenue sur CarburantRadar</div>
-    <div style="font-size:12px;color:#6b6b8a;text-align:center;margin-bottom:18px">Crée un compte pour retrouver tes favoris et repères sur tous tes appareils — ou continue sans compte, tu pourras le faire plus tard.</div>
-    <button style="background:#f5a623;color:#000;margin-bottom:8px" onclick="onboardingOuvrirCompte('creer')"><span data-icon="user" data-icon-taille="15px"></span> Créer un compte</button>
-    <button style="background:#252535;color:#e8e8f0;margin-bottom:8px" onclick="onboardingOuvrirCompte('login')">J'ai déjà un compte</button>
-    <button id="btnOnboardingInstall" style="background:#252535;color:#e8e8f0;margin-bottom:12px;display:none" onclick="installerApp()"><span data-icon="download" data-icon-taille="15px"></span> Installer l'application</button>
-    <button style="background:none;color:#6b6b8a;font-weight:600;font-size:13px;padding:6px" onclick="fermerOnboarding()">Continuer sans compte</button>
+    <div style="font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:18px">Crée un compte pour retrouver tes favoris et repères sur tous tes appareils — ou continue sans compte, tu pourras le faire plus tard.</div>
+    <button style="background:var(--accent);color:var(--accent-text);margin-bottom:8px" onclick="onboardingOuvrirCompte('creer')"><span data-icon="user" data-icon-taille="15px"></span> Créer un compte</button>
+    <button style="background:var(--input-bg);color:var(--text);margin-bottom:8px" onclick="onboardingOuvrirCompte('login')">J'ai déjà un compte</button>
+    <button id="btnOnboardingInstall" style="background:var(--input-bg);color:var(--text);margin-bottom:12px;display:none" onclick="installerApp()"><span data-icon="download" data-icon-taille="15px"></span> Installer l'application</button>
+    <button style="background:none;color:var(--text-muted);font-weight:600;font-size:13px;padding:6px" onclick="fermerOnboarding()">Continuer sans compte</button>
   </div>
 </div>
 
@@ -713,7 +776,7 @@ function scrollToStation(stationId) {
   if (card) {
     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     // Mettre en evidence temporairement
-    card.style.borderColor = '#f5a623';
+    card.style.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
     card.style.boxShadow = '0 0 15px rgba(245, 166, 35, 0.7)';
     setTimeout(function() {
       card.style.borderColor = '';
@@ -829,7 +892,7 @@ function initMapCore(){
 }
 function addUserMarker(){
   if(!map)return;if(userMarker)userMarker.remove();
-  var icon=L.divIcon({html:'<div style="width:16px;height:16px;background:#3ddc97;border:3px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(61,220,151,0.8)"></div>',iconSize:[16,16],iconAnchor:[8,8],className:''});
+  var icon=L.divIcon({html:'<div style="width:16px;height:16px;background:var(--success);border:3px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(61,220,151,0.8)"></div>',iconSize:[16,16],iconAnchor:[8,8],className:''});
   userMarker=L.marker([la,lo],{icon:icon}).addTo(map).bindPopup(ic('pin','14px')+' Ma position');
 }
 function updateMapMarkers(){
@@ -842,7 +905,7 @@ function updateMapMarkers(){
   var names=getNames();
   st.forEach(function(s){
     if(!s.lat||!s.lon)return;
-    var nom=names[String(s.id)]||s.adresse,px=s.prix?(s.prix.toFixed(3)+'€'):'N/A',color=s.prix?'#f5a623':'#6b6b8a';
+    var nom=names[String(s.id)]||s.adresse,px=s.prix?(s.prix.toFixed(3)+'€'):'N/A',color=s.prix?'var(--accent)':'var(--text-muted)';
     var icon=L.divIcon({html:'<div style="background:'+color+';color:#000;border-radius:8px;padding:2px 5px;font-size:10px;font-weight:700;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)">'+px+'</div>',iconSize:[null,null],iconAnchor:[0,0],className:''});
     var navUrl = getNavigationUrl(s.lat, s.lon);
     stationMarkers.push(L.marker([s.lat,s.lon],{icon:icon}).addTo(map).bindPopup('<div class="map-popup-name">'+echapperHTML(nom)+'</div><div class="map-popup-price">'+px+'</div><a class="map-popup-go" href="'+navUrl+'" target="_blank">Y aller</a>'));
@@ -875,7 +938,8 @@ function ic(nom,taille){
     user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/>',
     eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
     eyeOff:'<path d="M3 3l18 18"/><path d="M10.6 5.2A10.6 10.6 0 0 1 12 5c6 0 10 7 10 7a17.6 17.6 0 0 1-3.4 4.2M6.6 6.6C3.6 8.5 2 12 2 12s4 7 10 7a9.6 9.6 0 0 0 4-1"/><path d="M9.5 9.8a3 3 0 0 0 4.2 4.2"/>',
-    download:'<path d="M12 3v13"/><polyline points="7 11 12 16 17 11"/><line x1="4" y1="20" x2="20" y2="20"/>'
+    download:'<path d="M12 3v13"/><polyline points="7 11 12 16 17 11"/><line x1="4" y1="20" x2="20" y2="20"/>',
+    settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
   };
   return '<svg width="'+taille+'" height="'+taille+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;flex-shrink:0">'+(chemins[nom]||'')+'</svg>';
 }
@@ -958,7 +1022,7 @@ function toggleAcc(id){
   }
 }
 
-function openMenu(){renderFavList();renderRepList();updateAlertUI();updateCompteUI();document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
+function openMenu(){renderFavList();renderRepList();updateAlertUI();updateCompteUI();initSettings();document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
 
 // ===== Compte utilisateur (connexion / synchronisation) =====
 var CR_TOKEN_KEY='cr_account_token',CR_EMAIL_KEY='cr_account_email';
@@ -1082,27 +1146,21 @@ function toggleNavPreference(useWaze) {
 }
 
 function toggleTheme(isDark) {
+  // Le thème est piloté par un seul attribut sur <html> ; toutes les couleurs
+  // de l'app (variables CSS) en découlent automatiquement, y compris header,
+  // nav-bar, cartes, menu, modales, etc.
   if (isDark) {
-    // Dark theme
-    document.documentElement.setAttribute('color-scheme', 'dark');
-    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f5a623');
-    document.querySelector('meta[name="color-scheme"]').setAttribute('content', 'dark');
-    document.body.style.background = '#0a0a0f';
-    document.body.style.color = '#e8e8f0';
+    document.documentElement.removeAttribute('data-theme'); // dark = défaut (:root)
   } else {
-    // Light theme
-    document.documentElement.setAttribute('color-scheme', 'light');
-    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f5a623');
-    document.querySelector('meta[name="color-scheme"]').setAttribute('content', 'light');
-    document.body.style.background = '#f8f9fa';
-    document.body.style.color = '#212529';
+    document.documentElement.setAttribute('data-theme', 'light');
   }
+  document.querySelector('meta[name="color-scheme"]').setAttribute('content', isDark ? 'dark' : 'light');
 
   // Save preference
   localStorage.setItem('cr_theme', isDark ? 'dark' : 'light');
 
   // Update toggle label
-  var themeLabel = document.querySelector('#settingsAcc .side-item:nth-child(3) .side-item-sub');
+  var themeLabel = document.getElementById('themePrefLabel');
   if (themeLabel) {
     themeLabel.textContent = isDark ? 'Sombre (activé) / Clair (désactivé)' : 'Clair (activé) / Sombre (désactivé)';
   }
@@ -1116,7 +1174,7 @@ function saveVehicleConfig() {
 
   if (!tankSize || !consumption) {
     document.getElementById('vehicleConfigStatus').textContent = 'Veuillez remplir tous les champs';
-    document.getElementById('vehicleConfigStatus').style.color = '#ff6b35';
+    document.getElementById('vehicleConfigStatus').style.color = 'var(--danger)';
     return;
   }
 
@@ -1125,7 +1183,7 @@ function saveVehicleConfig() {
 
   if (isNaN(tankSize) || tankSize <= 0 || isNaN(consumption) || consumption <= 0) {
     document.getElementById('vehicleConfigStatus').textContent = 'Veuillez entrer des valeurs valides';
-    document.getElementById('vehicleConfigStatus').style.color = '#ff6b35';
+    document.getElementById('vehicleConfigStatus').style.color = 'var(--danger)';
     return;
   }
 
@@ -1135,7 +1193,7 @@ function saveVehicleConfig() {
 
   // Show success
   document.getElementById('vehicleConfigStatus').textContent = 'Configuration sauvegardée !';
-  document.getElementById('vehicleConfigStatus').style.color = '#3ddc97';
+  document.getElementById('vehicleConfigStatus').style.color = 'var(--success)';
 
   // Also save to server if connected
   synchroniserVersServeur();
@@ -1157,7 +1215,7 @@ function initSettings() {
   var navToggle = document.getElementById('navToggle');
   if (navToggle) {
     navToggle.checked = (navPref === 'waze');
-    var navLabel = document.querySelector('#settingsAcc .side-item:nth-child(2) .side-item-sub');
+    var navLabel = document.getElementById('navPrefLabel');
     if (navLabel) {
       navLabel.textContent = navToggle.checked ? 'Waze (activé) / Google Maps (désactivé)' : 'Google Maps (activé) / Waze (désactivé)';
     }
@@ -1252,14 +1310,14 @@ function deactivateAlert(){
 }
 function renderFavList(){
   var favs=getFavs(),names=getNames(),ids=Object.keys(favs),el=document.getElementById('favList');
-  if(!ids.length){el.innerHTML='<div style="font-size:13px;color:#6b6b8a">Aucun favori pour l\'instant</div>';return;}
+  if(!ids.length){el.innerHTML='<div style="font-size:13px;color:var(--text-muted)">Aucun favori pour l\'instant</div>';return;}
   el.innerHTML=ids.map(function(id){var s=st.find(function(x){return String(x.id)===id;});var nom=names[id]||(s?(s.adresse+' '+s.ville):'Station #'+id);
     return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('star','13px')+' '+echapperHTML(nom)+'</div>'+(s?'<div class="side-item-sub">'+echapperHTML(s.cp)+' '+echapperHTML(s.ville)+'</div>':'')+'</div><button class="del-btn" onclick="removeFav(\''+id+'\')">'+ic('close','13px')+'</button></div></div>';}).join('');
 }
 function removeFav(id){var f=getFavs();delete f[id];setFavs(f);renderFavList();render();if(analyseOpenId===id)analyseOpenId=null;if(document.getElementById('analyseList'))renderAnalyseListe();synchroniserVersServeur();}
 function renderRepList(){
   var reps=getReps(),el=document.getElementById('repList');
-  if(!reps.length){el.innerHTML='<div style="font-size:13px;color:#6b6b8a">Aucun repère pour l\'instant</div>';return;}
+  if(!reps.length){el.innerHTML='<div style="font-size:13px;color:var(--text-muted)">Aucun repère pour l\'instant</div>';return;}
   el.innerHTML=reps.map(function(r,i){return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('pin','13px')+' '+echapperHTML(r.name)+'</div><div class="side-item-sub">'+r.lat.toFixed(4)+', '+r.lon.toFixed(4)+'</div></div><button class="del-btn" onclick="removeRep('+i+')">'+ic('close','13px')+'</button></div></div>';}).join('');
 }
 function removeRep(i){var r=getReps();r.splice(i,1);setReps(r);renderRepList();synchroniserVersServeur();}
@@ -1276,7 +1334,7 @@ function toggleCtx(id,fav){
   closeAllCtx();
   var card=document.getElementById('card-'+id);if(!card)return;
   var menu=document.createElement('div');menu.className='ctx-menu';
-  var b1=document.createElement('button');b1.className='ctx-item';b1.innerHTML=ic('chart','14px')+' Analyser cette station';b1.style.color='#3ddc97';
+  var b1=document.createElement('button');b1.className='ctx-item';b1.innerHTML=ic('chart','14px')+' Analyser cette station';b1.style.color='var(--success)';
   b1.onclick=function(){analyserDepuisRadar(id);};
   var d1=document.createElement('div');d1.className='ctx-divider';
   var b2=document.createElement('button');b2.className='ctx-item';b2.innerHTML=ic('edit','14px')+' Renommer';
@@ -1320,7 +1378,7 @@ function obtenirPosition(succes,erreur,forcer){
   );
 }
 function load(){
-  sstat('Chargement des prix...');scontent('<div class="empty"><div class="spinner"></div><div style="font-size:14px;color:#e8e8f0">Recherche en cours...</div></div>');
+  sstat('Chargement des prix...');scontent('<div class="empty"><div class="spinner"></div><div style="font-size:14px;color:var(--text)">Recherche en cours...</div></div>');
   document.getElementById('stats').className='stats';
   fetch(PROXY+'?lat='+la+'&lon='+lo+'&dist='+ra+'&limit=100').then(function(r){if(!r.ok)throw new Error();return r.json();})
   .then(function(raw){
@@ -1333,7 +1391,7 @@ function load(){
     });
     var top10=st.filter(function(s){return s.prix>0;}).sort(function(a,b){return a.prix-b.prix;}).slice(0,10);
     sstat('Calcul des temps de trajet...');fetchOSRM(top10);
-  }).catch(function(){sstat('Erreur - verifie ta connexion');scontent('<div class="empty"><div style="font-size:30px">!</div><div style="color:#e8e8f0;font-weight:700;margin:8px 0">Erreur</div><div style="font-size:13px">Actualise pour reessayer</div></div>');});
+  }).catch(function(){sstat('Erreur - verifie ta connexion');scontent('<div class="empty"><div style="font-size:30px">!</div><div style="color:var(--text);font-weight:700;margin:8px 0">Erreur</div><div style="font-size:13px">Actualise pour reessayer</div></div>');});
 }
 function fetchOSRM(top10){
   if(!top10.length){render();return;}
@@ -1347,7 +1405,7 @@ function fetchOSRM(top10){
 }
 function render(){
   var names=getNames(),favs=getFavs(),wp=st.filter(function(s){return s.prix>0;}),ps=wp.map(function(s){return s.prix;});
-  if(!ps.length){sstat('Aucune station ouverte dans '+ra+' km');scontent('<div class="empty"><div style="font-size:30px">?</div><div style="color:#e8e8f0;font-weight:700;margin:8px 0">Aucune station ouverte</div><div style="font-size:13px">Augmente le rayon</div></div>');return;}
+  if(!ps.length){sstat('Aucune station ouverte dans '+ra+' km');scontent('<div class="empty"><div style="font-size:30px">?</div><div style="color:var(--text);font-weight:700;margin:8px 0">Aucune station ouverte</div><div style="font-size:13px">Augmente le rayon</div></div>');return;}
   var mnP=Math.min.apply(null,ps),mxP=Math.max.apply(null,ps);
   var ts=wp.map(function(s){return s.duree!==null?s.duree:s.distance*120;});
   var mnT=Math.min.apply(null,ts),mxT=Math.max.apply(null,ts);
@@ -1397,8 +1455,11 @@ function render(){
       '<div class="m"><div class="ml">Distance</div><div class="mv d">'+distTxt+'</div></div>'+
       '<div class="m"><div class="ml">Temps</div><div class="mv t">'+(s.duree!==null?fmtTime(s.duree):'--')+'</div></div></div>'+
       (savingsEUR !== null ?
-        '<div class="metrics" style="background:#0a0a0f;border-radius:8px;padding:8px;margin:8px 0;">'+
-          '<div class="m"><div class="ml">Économies</div><div class="mv p">'+(savingsEUR > 0 ? '+' : '')+savingsEUR.toFixed(0)+' € ('+(savingsPercent > 0 ? '+' : '')+savingsPercent.toFixed(1)+'%)</div></div>'+
+        '<div class="metrics" style="background:var(--bg-sunken);border-radius:8px;padding:8px;margin:8px 0;">'+
+          '<div class="m" style="grid-column:span 3">'+
+            '<div class="ml">'+(savingsEUR >= 0 ? 'Économie estimée vs moyenne' : 'Surcoût estimé vs moyenne')+'</div>'+
+            '<div class="mv" style="color:'+(savingsEUR >= 0 ? 'var(--success)' : 'var(--danger)')+'">'+(savingsEUR >= 0 ? '+' : '')+savingsEUR.toFixed(2)+' € ('+(savingsPercent >= 0 ? '+' : '')+savingsPercent.toFixed(1)+'%)</div>'+
+          '</div>'+
         '</div>' : '')+
       '<div class="metrics"><div class="m" style="grid-column:span 3"><div class="ml">Score</div><div class="mv s">'+(s.score!==null?s.score+'/100':'--')+'</div></div></div>'+
       (s.score!==null?'<div class="bar"><div class="fill" style="width:'+s.score+'%"></div></div>':'')+
@@ -1445,7 +1506,7 @@ function lancerTrajet(){
   var btn=document.getElementById('trajetBtn'),res=document.getElementById('trajetResult');
   if(la===null){
     btn.textContent='Localisation...';btn.disabled=true;
-    res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:#e8e8f0">Localisation en cours...</div></div>';
+    res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Localisation en cours...</div></div>';
     obtenirPosition(function(){lancerTrajetSuite(dest);},function(){
       alert('Impossible de te localiser. Vérifie que tu as autorisé la géolocalisation.');
       btn.textContent='Trouver la meilleure station';btn.disabled=false;res.innerHTML='';
@@ -1458,18 +1519,18 @@ function lancerTrajetSuite(dest){
   var carb=document.getElementById('trajetCarb').value,champPrix=PK[carb];
   var btn=document.getElementById('trajetBtn'),res=document.getElementById('trajetResult');
   btn.textContent='Recherche en cours...';btn.disabled=true;
-  res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:#e8e8f0">Géocodage de la destination...</div></div>';
+  res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Géocodage de la destination...</div></div>';
   fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(dest)+'&countrycodes=fr&limit=1&format=json',{headers:{'Accept-Language':'fr'}})
   .then(function(r){return r.json();})
   .then(function(geo){
     if(!geo||!geo.length)throw new Error('dest_not_found');
     var dLat=parseFloat(geo[0].lat),dLon=parseFloat(geo[0].lon);
-    res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:#e8e8f0">Calcul du trajet direct...</div></div>';
+    res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Calcul du trajet direct...</div></div>';
     return fetch('https://router.project-osrm.org/route/v1/driving/'+lo+','+la+';'+dLon+','+dLat+'?overview=false')
     .then(function(r){return r.json();})
     .then(function(route){
       var dureeDirecte=route.routes[0].duration;
-      res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:#e8e8f0">Recherche des stations...</div></div>';
+      res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Recherche des stations...</div></div>';
       var distKm=hv(la,lo,dLat,dLon),rayonPt=Math.max(10,Math.min(distKm*0.3,40));
       var pts=[{lat:la,lon:lo},{lat:(la+dLat)/2,lon:(lo+dLon)/2},{lat:dLat,lon:dLon}];
       return Promise.all(pts.map(function(pt){
@@ -1487,7 +1548,7 @@ function lancerTrajetSuite(dest){
           });
         });
         if(!stations.length)throw new Error('no_stations');
-        res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:#e8e8f0">Calcul des détours...</div></div>';
+        res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Calcul des détours...</div></div>';
         stations.sort(function(a,b){return a.prix-b.prix;});
         return Promise.all(stations.slice(0,15).map(function(s){
           return fetch('https://router.project-osrm.org/route/v1/driving/'+lo+','+la+';'+s.lon+','+s.lat+';'+dLon+','+dLat+'?overview=false')
@@ -1512,7 +1573,7 @@ function lancerTrajetSuite(dest){
           var detourMin=best.detour!==null?Math.round(best.detour/60):null;
           var dureeAvecMin=best.dureeAvec!==null?Math.round(best.dureeAvec/60):null;
           var dureeDirecteMin=Math.round(dureeDirecte/60);
-          var avert=detourMin!==null&&detourMin>10?'<div style="background:#2e1a0a;border:1px solid #f5a623;border-radius:8px;padding:8px 10px;font-size:11px;color:#f5a623;margin-bottom:10px">'+ic('warning','12px')+' Aucune station idéale trouvée. Meilleure option disponible (+'+detourMin+' min).</div>':'';
+          var avert=detourMin!==null&&detourMin>10?'<div style="background:var(--warning-bg);border:1px solid var(--accent);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--accent);margin-bottom:10px">'+ic('warning','12px')+' Aucune station idéale trouvée. Meilleure option disponible (+'+detourMin+' min).</div>':'';
           var navUrl = getNavigationUrlWithWaypoints(la, lo, best.lat, best.lon, dest);
           res.innerHTML='<div class="card best" style="margin-top:16px"><div class="badge">MEILLEURE STATION SUR LA ROUTE</div><br>'+avert+
             '<div class="name">'+nom+'</div><div class="addr">'+best.cp+' '+best.ville+'</div>'+
@@ -1520,7 +1581,7 @@ function lancerTrajetSuite(dest){
             '<div class="m"><div class="ml">Prix/L</div><div class="mv p">'+best.prix.toFixed(3)+' €</div></div>'+
             '<div class="m"><div class="ml">Détour</div><div class="mv t">'+(detourMin!==null?(detourMin<=1?'Aucun':'+'+detourMin+' min'):'--')+'</div></div>'+
             '<div class="m"><div class="ml">Durée totale</div><div class="mv d">'+(dureeAvecMin!==null?dureeAvecMin+' min':'--')+'</div></div></div>'+
-            '<div style="font-size:11px;color:#6b6b8a;text-align:center;margin-bottom:10px">Trajet direct : '+dureeDirecteMin+' min · Score : '+best.score+'/100</div>'+
+            '<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:10px">Trajet direct : '+dureeDirecteMin+' min · Score : '+best.score+'/100</div>'+
             '<a class="go" href="'+navUrl+'" target="_blank">'+ic('compass','14px')+' Ouvrir l\'itinéraire complet</a></div>';
           btn.textContent='Trouver la meilleure station';btn.disabled=false;
         });
@@ -1529,7 +1590,7 @@ function lancerTrajetSuite(dest){
   }).catch(function(e){
     var msg=e.message==='dest_not_found'?'Destination introuvable — essaie une adresse plus précise':
       e.message==='no_stations'?'Aucune station trouvée — essaie une destination plus lointaine':'Erreur — vérifie ta connexion';
-    res.innerHTML='<div class="empty"><div style="color:#e8e8f0;font-weight:700;margin-bottom:8px">'+msg+'</div></div>';
+    res.innerHTML='<div class="empty"><div style="color:var(--text);font-weight:700;margin-bottom:8px">'+msg+'</div></div>';
     btn.textContent='Trouver la meilleure station';btn.disabled=false;
   });
 }
@@ -1585,42 +1646,42 @@ function setCarburantItem(id,c){analyseItems[id].carburant=c;renderAnalyseListe(
 
 function selecteurPeriode(id,periodeActuelle){
   var opts=[[7,'7 jours'],[30,'1 mois'],[90,'3 mois'],[365,'1 an']];
-  return '<div style="display:flex;gap:4px;background:#0f0f16;border:1px solid #252535;border-radius:10px;padding:4px;margin-bottom:8px;overflow-x:auto">'+
+  return '<div style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:8px;overflow-x:auto">'+
     opts.map(function(o){return '<button class="rb'+(o[0]===periodeActuelle?' a':'')+'" onclick="event.stopPropagation();setPeriodeItem(\''+id+'\','+o[0]+')">'+o[1]+'</button>';}).join('')+
     '</div>';
 }
 function selecteurRayon(id,rayonActuel){
   var opts=[5,10,20,50];
-  return '<div style="display:flex;gap:4px;background:#0f0f16;border:1px solid #252535;border-radius:10px;padding:4px;margin-bottom:8px;overflow-x:auto">'+
+  return '<div style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:8px;overflow-x:auto">'+
     opts.map(function(r){return '<button class="rb'+(r===rayonActuel?' a':'')+'" onclick="event.stopPropagation();setRayonItem(\''+id+'\','+r+')">'+r+' km</button>';}).join('')+
     '</div>';
 }
 function selecteurCarburant(id,carburantActuel){
   var opts=Object.keys(FL);
-  return '<div style="display:flex;gap:4px;background:#0f0f16;border:1px solid #252535;border-radius:10px;padding:4px;margin-bottom:10px;overflow-x:auto">'+
+  return '<div style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:10px;overflow-x:auto">'+
     opts.map(function(c){return '<button class="fb'+(c===carburantActuel?' a':'')+'" onclick="event.stopPropagation();setCarburantItem(\''+id+'\',\''+c+'\')">'+FL[c]+'</button>';}).join('')+
     '</div>';
 }
 function panneauSquelette(){
-  return '<div id="analyseLoading" style="text-align:center;padding:24px 0"><div class="spinner" style="margin:0 auto 10px"></div><div style="font-size:12px;color:#6b6b8a">Chargement...</div></div>'+
+  return '<div id="analyseLoading" style="text-align:center;padding:24px 0"><div class="spinner" style="margin:0 auto 10px"></div><div style="font-size:12px;color:var(--text-muted)">Chargement...</div></div>'+
     '<div id="analyseSummary" style="display:none;margin-bottom:10px"></div>'+
     '<div id="analyseIndicateurs" style="display:none;margin-bottom:10px" class="indic-grid"></div>'+
-    '<div id="analyseGraphContainer" style="display:none;position:relative;background:#16161f;border:1px solid #252535;border-radius:14px;padding:16px"><canvas id="analyseGraph"></canvas></div>';
+    '<div id="analyseGraphContainer" style="display:none;position:relative;background:var(--bg-surface);border:1px solid var(--border);border-radius:14px;padding:16px"><canvas id="analyseGraph"></canvas></div>';
 }
 
 function renderAnalyseListe(){
   var favs=getFavs(),names=getNames(),ids=Object.keys(favs);
   var etatZone=analyseItems.ZONE||etatParDefaut();
   var zoneOuverte=analyseOpenId==='ZONE';
-  var html='<button class="fav-analyse-btn'+(zoneOuverte?' active':'')+'" style="border-color:#a78bfa" onclick="toggleAnalyseItem(\'ZONE\')">'+
+  var html='<button class="fav-analyse-btn'+(zoneOuverte?' active':'')+'" style="border-color:var(--purple)" onclick="toggleAnalyseItem(\'ZONE\')">'+
     (zoneOuverte?'▼ ':'▶ ')+ic('chart','14px')+' Moyenne zone ('+etatZone.rayon+' km, '+FL[etatZone.carburant]+')</button>';
   if(zoneOuverte){
-    html+='<div style="background:#0a0a0f;border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid #252535;border-top:none">'+
+    html+='<div style="background:var(--bg-sunken);border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid var(--border);border-top:none">'+
       selecteurPeriode('ZONE',etatZone.periode)+selecteurRayon('ZONE',etatZone.rayon)+selecteurCarburant('ZONE',etatZone.carburant)+panneauSquelette()+'</div>';
   }
-  html+='<div style="font-size:11px;color:#6b6b8a;margin:14px 0 8px;text-transform:uppercase;letter-spacing:1px">Stations favorites</div>';
+  html+='<div style="font-size:11px;color:var(--text-muted);margin:14px 0 8px;text-transform:uppercase;letter-spacing:1px">Stations favorites</div>';
   if(!ids.length){
-    html+='<div style="font-size:12px;color:#6b6b8a;text-align:center;padding:10px 0 16px">Ajoute des favoris via ⋮ sur une station, puis reviens ici.</div>';
+    html+='<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0 16px">Ajoute des favoris via ⋮ sur une station, puis reviens ici.</div>';
   } else {
     ids.forEach(function(id){
       var s=st.find(function(x){return String(x.id)===id;});
@@ -1632,7 +1693,7 @@ function renderAnalyseListe(){
       if(ouvert){
         // Pas de sélecteur de zone ici : la zone ne sert que pour l'item "Moyenne zone" tout en haut.
         // La station utilise un rayon fixe (5km) juste pour tracer la courbe de référence, discrète, sur le graphique.
-        html+='<div style="background:#0a0a0f;border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid #252535;border-top:none">'+
+        html+='<div style="background:var(--bg-sunken);border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid var(--border);border-top:none">'+
           selecteurPeriode(id,etat.periode)+selecteurCarburant(id,etat.carburant)+panneauSquelette()+'</div>';
       }
     });
@@ -1644,10 +1705,10 @@ function renderAnalyseListe(){
     if (s) {
       var nom = names[analyseOpenId] || s.adresse;
       var etat = analyseItems[analyseOpenId] || etatParDefaut();
-      html += '<div style="font-size:11px;color:#6b6b8a;margin:14px 0 8px;text-transform:uppercase;letter-spacing:1px">Station en analyse</div>';
+      html += '<div style="font-size:11px;color:var(--text-muted);margin:14px 0 8px;text-transform:uppercase;letter-spacing:1px">Station en analyse</div>';
       html += '<button class="fav-analyse-btn active" onclick="toggleAnalyseItem(\"' + analyseOpenId + '\')">'+
         '▼ ' + ic('chart','14px') + ' ' + echapperHTML(nom) + '</button>';
-      html += '<div style="background:#0a0a0f;border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid #252535;border-top:none">'+
+      html += '<div style="background:var(--bg-sunken);border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid var(--border);border-top:none">'+
         selecteurPeriode(analyseOpenId, etat.periode) + selecteurCarburant(analyseOpenId, etat.carburant) + panneauSquelette() + '</div>';
     }
   }
@@ -1688,7 +1749,7 @@ function chargerAnalyseItem(id){
       chargerSerieZone(la,lo,etat.rayon,etat.periode,etat.carburant,reqId);
     },function(){
       var c=document.getElementById('analyseLoading');
-      if(c)c.outerHTML='<div style="text-align:center;padding:20px 0;font-size:12px;color:#ff6b35">Impossible de te localiser. Vérifie que tu as autorisé la géolocalisation.</div>';
+      if(c)c.outerHTML='<div style="text-align:center;padding:20px 0;font-size:12px;color:var(--danger)">Impossible de te localiser. Vérifie que tu as autorisé la géolocalisation.</div>';
     });
     return;
   }
@@ -1703,7 +1764,7 @@ function chargerAnalyseItem(id){
       chargerSerieStation(recupere,etat.periode,etat.carburant,reqId);
     }else{
       var c=document.getElementById('analyseLoading');
-      if(c)c.outerHTML='<div style="text-align:center;padding:20px;font-size:12px;color:#ff6b35">Station introuvable. Fais une recherche Radar puis re-ajoute-la aux favoris.</div>';
+      if(c)c.outerHTML='<div style="text-align:center;padding:20px;font-size:12px;color:var(--danger)">Station introuvable. Fais une recherche Radar puis re-ajoute-la aux favoris.</div>';
     }
   });
 }
@@ -1806,7 +1867,7 @@ function chargerSerieStation(s,periode,carburant,reqId){
   }).catch(function(){
     if(reqId!==analyseReqId)return;
     var c=document.getElementById('analyseLoading');
-    if(c)c.outerHTML='<div style="text-align:center;color:#ff6b35;padding:20px;font-size:12px">Erreur de chargement</div>';
+    if(c)c.outerHTML='<div style="text-align:center;color:var(--danger);padding:20px;font-size:12px">Erreur de chargement</div>';
   });
 }
 
@@ -1817,7 +1878,7 @@ function afficherResultatStation(dates,serieStation,serieMoy,periode,classement)
   var indic=document.getElementById('analyseIndicateurs');
   if(indic){indic.style.display='grid';indic.innerHTML=grille3Station(statStation,classement);}
   var gc=document.getElementById('analyseGraphContainer');
-  if(gc){gc.style.display='block';gc.innerHTML='<canvas id="analyseGraph"></canvas><div id="analyseTooltip" style="display:none;position:absolute;background:#0a0a0f;border:1px solid #f5a623;border-radius:8px;padding:6px 10px;font-size:11px;pointer-events:none;white-space:nowrap;z-index:10"></div>';}
+  if(gc){gc.style.display='block';gc.innerHTML='<canvas id="analyseGraph"></canvas><div id="analyseTooltip" style="display:none;position:absolute;background:var(--bg-sunken);border:1px solid var(--accent);border-radius:8px;padding:6px 10px;font-size:11px;pointer-events:none;white-space:nowrap;z-index:10"></div>';}
   dessinerGraphique(dates,remplirTrous(serieStation),remplirTrous(serieMoy),periode,'Cette station','Moyenne zone (5 km)');
 }
 
@@ -1835,7 +1896,7 @@ function chargerSerieZone(lat,lon,rayon,periode,carburant,reqId){
   }).catch(function(){
     if(reqId!==analyseReqId)return;
     var c=document.getElementById('analyseLoading');
-    if(c)c.outerHTML='<div style="text-align:center;color:#ff6b35;padding:20px;font-size:12px">Erreur de chargement</div>';
+    if(c)c.outerHTML='<div style="text-align:center;color:var(--danger);padding:20px;font-size:12px">Erreur de chargement</div>';
   });
 }
 
@@ -1846,7 +1907,7 @@ function afficherResultatZone(dates,serie,periode){
   var indic=document.getElementById('analyseIndicateurs');
   if(indic){indic.style.display='grid';indic.innerHTML=grille3(stat);}
   var gc=document.getElementById('analyseGraphContainer');
-  if(gc){gc.style.display='block';gc.innerHTML='<canvas id="analyseGraph"></canvas><div id="analyseTooltip" style="display:none;position:absolute;background:#0a0a0f;border:1px solid #f5a623;border-radius:8px;padding:6px 10px;font-size:11px;pointer-events:none;white-space:nowrap;z-index:10"></div>';}
+  if(gc){gc.style.display='block';gc.innerHTML='<canvas id="analyseGraph"></canvas><div id="analyseTooltip" style="display:none;position:absolute;background:var(--bg-sunken);border:1px solid var(--accent);border-radius:8px;padding:6px 10px;font-size:11px;pointer-events:none;white-space:nowrap;z-index:10"></div>';}
   dessinerGraphique(dates,remplirTrous(serie),serie.map(function(){return null;}),periode,'Moyenne zone',null);
 }
 
@@ -1882,13 +1943,13 @@ function dessinerGraphique(dates,serieStation,serieMoy,periode,labelMain,labelRe
   var nbPointsStation=serieStation.filter(function(x){return x!==null;}).length;
 
   if(!allVals.length){
-    container.innerHTML='<div style="text-align:center;color:#6b6b8a;padding:40px 10px;font-size:13px">Aucune donnée disponible pour cette période.</div>';
+    container.innerHTML='<div style="text-align:center;color:var(--text-muted);padding:40px 10px;font-size:13px">Aucune donnée disponible pour cette période.</div>';
     return;
   }
   // Bouton de réinitialisation du zoom (ajouté une fois, affiché seulement quand on est zoomé)
   var resetBtn=document.createElement('button');
   resetBtn.innerHTML=ic('reset','12px')+' Zoom';
-  resetBtn.style.cssText='display:none;position:absolute;top:8px;right:8px;width:auto;padding:4px 9px;margin:0;background:#252535;color:#e8e8f0;border:1px solid #3a3a4a;border-radius:6px;font-size:10px;font-weight:600;z-index:11';
+  resetBtn.style.cssText='display:none;position:absolute;top:8px;right:8px;width:auto;padding:4px 9px;margin:0;background:var(--input-bg);color:var(--text);border:1px solid var(--input-border);border-radius:6px;font-size:10px;font-weight:600;z-index:11';
   container.appendChild(resetBtn);
 
   // Résolution native (écran Retina) pour un rendu net
@@ -1914,25 +1975,35 @@ function dessinerGraphique(dates,serieStation,serieMoy,periode,labelMain,labelRe
   function majBoutonReset(){resetBtn.style.display=(vueMin>0.01||vueMax<n-1-0.01)?'block':'none';}
 
   function dessinerBase(){
+    // Le canvas ne comprend pas var(--x) : on lit les couleurs CSS réellement actives
+    // (thème clair ou sombre) au moment de dessiner, pour que le graphique s'adapte aussi.
+    var cs=getComputedStyle(document.documentElement);
+    var couleurGrille=cs.getPropertyValue('--border').trim()||'var(--border)';
+    var couleurTexte=cs.getPropertyValue('--text-muted').trim()||'var(--text-muted)';
+    var couleurLegende=cs.getPropertyValue('--text').trim()||'var(--text)';
+    var couleurAccent=cs.getPropertyValue('--accent').trim()||'#f5a623';
+    var estClair=document.documentElement.getAttribute('data-theme')==='light';
+    var couleurAccentRGBA=estClair?'233,148,15':'245,166,35';
+
     ctx.clearRect(0,0,W,H);
     var iDebut=Math.max(0,Math.floor(vueMin)),iFin=Math.min(n-1,Math.ceil(vueMax)),nVisible=iFin-iDebut+1;
     // Grille horizontale (niveaux de prix)
-    ctx.strokeStyle='#252535';ctx.lineWidth=1;
+    ctx.strokeStyle=couleurGrille;ctx.lineWidth=1;
     for(var g=0;g<=4;g++){
       var y=pad.t+g/4*gH;
       ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+gW,y);ctx.stroke();
-      ctx.fillStyle='#6b6b8a';ctx.font='9px sans-serif';ctx.textAlign='right';
+      ctx.fillStyle=couleurTexte;ctx.font='9px sans-serif';ctx.textAlign='right';
       ctx.fillText((maxV-g/4*rangeV).toFixed(3),pad.l-6,y+3);
     }
     // Grille verticale : une graduation par jour visible, avec un espacement minimum lisible
-    ctx.strokeStyle='rgba(37,37,53,0.6)';ctx.lineWidth=1;
+    ctx.strokeStyle=couleurGrille;ctx.lineWidth=1;
     var gridStep=Math.max(1,Math.ceil(nVisible/Math.max(1,Math.floor(gW/6))));
     for(var i=iDebut;i<=iFin;i+=gridStep){
       var x=xPos(i);
       ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+gH);ctx.stroke();
     }
     // Labels de dates : nombre limité pour rester lisible, alignement adapté aux bords
-    ctx.fillStyle='#6b6b8a';ctx.font='9px sans-serif';
+    ctx.fillStyle=couleurTexte;ctx.font='9px sans-serif';
     var maxLabels=Math.max(2,Math.floor(gW/50));
     var labelStep=Math.max(1,Math.ceil(nVisible/maxLabels));
     for(var i=iDebut;i<=iFin;i+=labelStep){
@@ -1951,7 +2022,7 @@ function dessinerGraphique(dates,serieStation,serieMoy,periode,labelMain,labelRe
       for(var i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
       ctx.lineTo(pts[pts.length-1].x,pad.t+gH);ctx.lineTo(pts[0].x,pad.t+gH);ctx.closePath();
       var grad=ctx.createLinearGradient(0,pad.t,0,pad.t+gH);
-      grad.addColorStop(0,'rgba(245,166,35,0.3)');grad.addColorStop(1,'rgba(245,166,35,0)');
+      grad.addColorStop(0,'rgba('+couleurAccentRGBA+',0.3)');grad.addColorStop(1,'rgba('+couleurAccentRGBA+',0)');
       ctx.fillStyle=grad;ctx.fill();
     }
     // Ligne de référence (moyenne zone) : volontairement discrète, en arrière-plan
@@ -1962,26 +2033,26 @@ function dessinerGraphique(dates,serieStation,serieMoy,periode,labelMain,labelRe
       ctx.stroke();ctx.setLineDash([]);
     }
     // Ligne principale
-    ctx.beginPath();ctx.strokeStyle='#f5a623';ctx.lineWidth=2.5;ctx.lineJoin='round';
+    ctx.beginPath();ctx.strokeStyle=couleurAccent;ctx.lineWidth=2.5;ctx.lineJoin='round';
     var startedSt=false;
     for(var i=iDebut;i<=iFin;i++){if(serieStation[i]===null)continue;if(!startedSt){ctx.moveTo(xPos(i),yPos(serieStation[i]));startedSt=true;}else ctx.lineTo(xPos(i),yPos(serieStation[i]));}
     ctx.stroke();
     // Points sur chaque jour avec donnée (essentiel quand il y a peu de points, ex: 1 seul jour sur 7)
-    ctx.fillStyle='#f5a623';
+    ctx.fillStyle=couleurAccent;
     for(var i=iDebut;i<=iFin;i++){
       if(serieStation[i]===null)continue;
       ctx.beginPath();ctx.arc(xPos(i),yPos(serieStation[i]),pts.length<=3?3.5:2,0,Math.PI*2);ctx.fill();
     }
     // Légende
-    ctx.fillStyle='#f5a623';ctx.fillRect(pad.l,4,16,3);
-    ctx.fillStyle='#e8e8f0';ctx.font='10px sans-serif';ctx.textAlign='left';ctx.fillText(labelMain,pad.l+20,8);
+    ctx.fillStyle=couleurAccent;ctx.fillRect(pad.l,4,16,3);
+    ctx.fillStyle=couleurLegende;ctx.font='10px sans-serif';ctx.textAlign='left';ctx.fillText(labelMain,pad.l+20,8);
     if(hasRef){
       ctx.strokeStyle='rgba(120,120,140,0.6)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
       ctx.beginPath();ctx.moveTo(pad.l+108,6);ctx.lineTo(pad.l+124,6);ctx.stroke();ctx.setLineDash([]);
-      ctx.fillStyle='#6b6b8a';ctx.fillText(labelRef,pad.l+128,8);
+      ctx.fillStyle=couleurTexte;ctx.fillText(labelRef,pad.l+128,8);
     }
     if(nbPointsStation<=1){
-      ctx.fillStyle='#6b6b8a';ctx.font='10px sans-serif';ctx.textAlign='center';
+      ctx.fillStyle=couleurTexte;ctx.font='10px sans-serif';ctx.textAlign='center';
       ctx.fillText('Une seule mise à jour de prix sur cette période',W/2,H/2);
     }
     majBoutonReset();
@@ -2038,8 +2109,8 @@ function dessinerGraphique(dates,serieStation,serieMoy,periode,labelMain,labelRe
       ctx.beginPath();ctx.fillStyle='#f5a623';ctx.arc(x,yPos(serieStation[idx]),2.5,0,Math.PI*2);ctx.fill();
     }
     var lignes='<b>'+fmtDateComplete(dates[idx])+'</b>';
-    lignes+='<br><span style="color:#f5a623">●</span> '+labelMain+': '+(serieStation[idx]!==null?serieStation[idx].toFixed(3)+'€':'pas de donnée');
-    if(hasRef)lignes+='<br><span style="color:#8a8aa5">- -</span> '+labelRef+': '+(serieMoy[idx]!==null?serieMoy[idx].toFixed(3)+'€':'pas de donnée');
+    lignes+='<br><span style="color:var(--accent)">●</span> '+labelMain+': '+(serieStation[idx]!==null?serieStation[idx].toFixed(3)+'€':'pas de donnée');
+    if(hasRef)lignes+='<br><span style="color:var(--text-muted)">- -</span> '+labelRef+': '+(serieMoy[idx]!==null?serieMoy[idx].toFixed(3)+'€':'pas de donnée');
     tooltip.innerHTML=lignes;
     tooltip.style.display='block';
     var left=x+16,top=8;
@@ -2089,6 +2160,6 @@ function dessinerGraphique(dates,serieStation,serieMoy,periode,labelMain,labelRe
 }
 </script>
 <!-- Numéro de version - à incrémenter à chaque modification -->
-<div style="position:fixed;bottom:0;right:0;background:rgba(0,0,0,0.5);color:#6b6b8a;font-size:10px;padding:2px 6px;border-top-left-radius:4px;z-index:9999">v2.0.0</div>
+<div style="position:fixed;bottom:0;right:0;background:rgba(0,0,0,0.5);color:var(--text-muted);font-size:10px;padding:2px 6px;border-top-left-radius:4px;z-index:9999">v2.0.0</div>
 </body>
 </html>
