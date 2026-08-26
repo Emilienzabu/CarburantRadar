@@ -8,6 +8,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CarburantRadar – Comparez les prix du carburant près de chez vous</title>
 <meta name="description" content="CarburantRadar vous aide à trouver les stations-service les moins chères près de chez vous. Comparez les prix du Diesel, SP95, SP98, E10, E85 et GPL.">
+<link rel="canonical" href="https://emilienzabu.github.io/CarburantRadar/">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CarburantRadar">
+<meta property="og:title" content="CarburantRadar – Comparez les prix du carburant près de chez vous">
+<meta property="og:description" content="Trouvez les stations-service les moins chères près de chez vous et comparez les prix du Diesel, SP95, SP98, E10, E85 et GPL.">
+<meta property="og:url" content="https://emilienzabu.github.io/CarburantRadar/">
+<meta property="og:image" content="https://emilienzabu.github.io/CarburantRadar/icons/icon-192.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="CarburantRadar – Comparez les prix du carburant près de chez vous">
+<meta name="twitter:description" content="Trouvez les stations-service les moins chères près de chez vous et comparez les prix du Diesel, SP95, SP98, E10, E85 et GPL.">
+<meta name="twitter:image" content="https://emilienzabu.github.io/CarburantRadar/icons/icon-192.png">
 <meta name="theme-color" content="#f5a623">
 <meta name="color-scheme" content="dark">
 <script>
@@ -241,6 +253,17 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 .app-footer .footer-links a:hover{color:var(--accent)}
 .app-footer .footer-sep{color:var(--input-border)}
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "CarburantRadar",
+  "url": "https://emilienzabu.github.io/CarburantRadar/",
+  "description": "CarburantRadar permet de comparer les prix du carburant dans les stations-service proches de l'utilisateur et de trouver les meilleurs prix pour Diesel, SP95, SP98, E10, E85 et GPL.",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Any (Progressive Web App)"
+}
+</script>
 </head>
 <body>
 <div id="splash">
@@ -265,6 +288,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 
 <div class="page active" id="page-radar">
   <div style="padding:20px 20px 0">
+    <h1 style="font-size:15px;font-weight:700;color:var(--text-muted);margin:0 0 12px;text-transform:none">Comparer les prix du carburant près de chez vous</h1>
     <button id="locBtn" onclick="locate()">Me localiser</button>
     <div class="fuels" id="fg">
       <button class="fb a" data-f="Gazole" onclick="sf(this)">Diesel</button>
@@ -867,7 +891,7 @@ function showPage(name){
 
 // Adresse de contact centralisée : modifie uniquement cette variable pour la mettre à jour partout
 // (page Contact, mentions légales).
-var CONTACT_EMAIL='emilienzabukovec09@gmail.com';
+var CONTACT_EMAIL='CarburantRadar@gmail.com';
 function initPagesInfo(){
   var mEmail=document.getElementById('mentionsEmail');
   if(mEmail)mEmail.textContent=CONTACT_EMAIL;
@@ -1013,7 +1037,7 @@ function isOpen(horairesStr){
 
 // Accordéon exclusif
 function toggleAcc(id){
-  var allIds=['compteAcc','favAcc','repAcc','alertAcc','aboutAcc'];
+  var allIds=['compteAcc','favAcc','repAcc','alertAcc','settingsAcc','aboutAcc'];
   var isOpen=document.getElementById(id).classList.contains('open');
   allIds.forEach(function(a){
     document.getElementById(a).classList.remove('open');
