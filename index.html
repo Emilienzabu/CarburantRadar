@@ -63,7 +63,7 @@ footer{margin-top:32px;font-size:11px;color:var(--text-muted)}
 <div class="pays-liste">
   <a class="pays-btn" href="france/" id="btnFrance"><span class="drapeau">🇫🇷</span> France <span class="defaut">Par défaut</span></a>
   <a class="pays-btn" href="espagne/" id="btnEspagne"><span class="drapeau">🇪🇸</span> Espagne</a>
-  <div class="pays-btn desactive"><span class="drapeau">🇮🇹</span> Italie <span class="bientot">Bientôt disponible</span></div>
+  <a class="pays-btn" href="italie/" id="btnItalie"><span class="drapeau">🇮🇹</span> Italie</a>
   <div class="pays-btn desactive"><span class="drapeau">🇵🇹</span> Portugal <span class="bientot">Bientôt disponible</span></div>
   <div class="pays-btn desactive"><span class="drapeau">🇩🇪</span> Allemagne <span class="bientot">Bientôt disponible</span></div>
 </div>
@@ -74,12 +74,16 @@ try{
   var paysMemo=localStorage.getItem('cr_pays');
   if(paysMemo==='france')window.location.replace('france/');
   else if(paysMemo==='espagne')window.location.replace('espagne/');
+  else if(paysMemo==='italie')window.location.replace('italie/');
 }catch(e){}
 document.getElementById('btnFrance').addEventListener('click',function(){
   try{localStorage.setItem('cr_pays','france');}catch(e){}
 });
 document.getElementById('btnEspagne').addEventListener('click',function(){
   try{localStorage.setItem('cr_pays','espagne');}catch(e){}
+});
+document.getElementById('btnItalie').addEventListener('click',function(){
+  try{localStorage.setItem('cr_pays','italie');}catch(e){}
 });
 </script>
 </body>
