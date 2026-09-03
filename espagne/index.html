@@ -337,9 +337,10 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Encuentra la mejor estación en tu ruta</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Destino</div>
     <div style="position:relative;margin-bottom:12px">
-      <input id="trajetDest" class="modal-input" placeholder="Ej: Sitges, 08870..." style="margin-bottom:0" oninput="autocomplete()" autocomplete="off">
+      <input id="trajetDest" class="modal-input" placeholder="Ej: Sitges, 08870..." style="margin-bottom:0" oninput="autocomplete();trajetDestCoords=null;" autocomplete="off">
       <div id="suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--input-bg);border-radius:0 0 8px 8px;z-index:100;max-height:200px;overflow-y:auto;border:1px solid var(--input-border);border-top:none"></div>
     </div>
+    <div id="trajetReperes" style="display:none;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px"></div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Combustible</div>
     <select id="trajetCarb" class="modal-input" style="margin-bottom:16px">
       <option value="GasoleoA">Diesel</option>
@@ -549,6 +550,11 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     <div id="repList"><div style="font-size:13px;color:var(--text-muted)">Todavía no hay marcadores</div></div>
     <button class="add-btn" onclick="openAddRepere()">+ Añadir un marcador</button>
   </div>
+  <div class="acc-header" onclick="toggleAcc('destAcc')"><div class="acc-title"><span data-icon="compass" data-icon-taille="14px"></span> Destinos favoritos</div><div class="acc-arrow" id="destAccArrow">▼</div></div>
+  <div class="acc-body" id="destAcc">
+    <div id="destFavList"><div style="font-size:13px;color:var(--text-muted)">Todavía no hay destinos</div></div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Añade un destino desde el Modo Ruta, después de encontrar la mejor estación.</div>
+  </div>
   <div class="acc-header" onclick="toggleAcc('alertAcc')"><div class="acc-title"><span data-icon="bell" data-icon-taille="14px"></span> Alertas de precio</div><div class="acc-arrow" id="alertAccArrow">▼</div></div>
   <div class="acc-body" id="alertAcc">
     <div class="alert-box">
@@ -599,6 +605,17 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
         <div class="toggle-thumb"></div>
       </label>
       <div id="themePrefLabel" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Claro (activado) / Oscuro (desactivado)</div>
+    </div>
+
+    <!-- Pays / País -->
+    <div class="side-item">
+      <div class="side-item-name">País</div>
+      <div class="side-item-sub">Cambiar la aplicación a otro país</div>
+      <div class="radii" id="paysSwitch" style="margin-top:8px;margin-bottom:0;">
+        <button class="rb" data-pays="france" onclick="changerPays('france')">🇫🇷 Francia</button>
+        <button class="rb a" data-pays="espagne" onclick="changerPays('espagne')">🇪🇸 España</button>
+        <button class="rb" data-pays="italie" onclick="changerPays('italie')">🇮🇹 Italia</button>
+      </div>
     </div>
 
     <!-- Vehicle Configuration -->
@@ -709,15 +726,17 @@ function urlBase64ToUint8Array(base64String){
 setTimeout(function(){var s=document.getElementById('splash');if(s)s.style.display='none';},3000);
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('../service-worker.js',{scope:'/CarburantRadar/france/'}).catch(function(){});
+  navigator.serviceWorker.register('../service-worker.js',{scope:'/CarburantRadar/espagne/'}).catch(function(){});
   // Ecouteur pour les messages du service worker (notifications)
   navigator.serviceWorker.addEventListener('message', function(event) {
     if (event.data.type === 'NOTIFICATION_CLICK' && event.data.stationId) {
       // Stocker l'ID de la station pour affichage
       localStorage.setItem('notificationStationId', event.data.stationId);
+      if (event.data.lat != null) localStorage.setItem('notificationStationLat', event.data.lat);
+      if (event.data.lon != null) localStorage.setItem('notificationStationLon', event.data.lon);
       // Si on est deja sur la page Radar, afficher la station
       if (document.getElementById('page-radar').classList.contains('active')) {
-        showStationFromNotification(event.data.stationId);
+        showStationFromNotification(event.data.stationId, event.data.lat, event.data.lon);
       }
     }
   });
@@ -744,12 +763,19 @@ window.addEventListener('load',function(){
     }).catch(function(){});
   }
 
-  // Gestion du hash dans l'URL (ex: #station=12345) et des notifications
+  // Gestion du hash dans l'URL (ex: #station=12345&lat=..&lon=..) et des notifications
   setTimeout(function(){
     var hash = window.location.hash;
-    if (hash.startsWith('#station=')) {
-      var id = hash.substring(9);
-      showStationFromNotification(id);
+    if (hash.indexOf('#station=') === 0) {
+      var params = hash.substring(1).split('&');
+      var id = null, hlat = null, hlon = null;
+      params.forEach(function(p){
+        var kv = p.split('=');
+        if (kv[0] === 'station') id = kv[1];
+        else if (kv[0] === 'lat') hlat = parseFloat(kv[1]);
+        else if (kv[0] === 'lon') hlon = parseFloat(kv[1]);
+      });
+      showStationFromNotification(id, isNaN(hlat) ? null : hlat, isNaN(hlon) ? null : hlon);
       // Supprimer le hash après traitement pour éviter qu'il reste
       history.replaceState({}, document.title, './');
     }
@@ -758,20 +784,47 @@ window.addEventListener('load',function(){
     var stationId = localStorage.getItem('notificationStationId');
     if (stationId) {
       localStorage.removeItem('notificationStationId');
+      var slat = parseFloat(localStorage.getItem('notificationStationLat'));
+      var slon = parseFloat(localStorage.getItem('notificationStationLon'));
+      localStorage.removeItem('notificationStationLat');
+      localStorage.removeItem('notificationStationLon');
       // Si on est sur la page Radar, afficher la station
       if (document.getElementById('page-radar').classList.contains('active')) {
-        showStationFromNotification(stationId);
+        showStationFromNotification(stationId, isNaN(slat) ? null : slat, isNaN(slon) ? null : slon);
       }
     }
   }, 200);
 });
 
 // Fonction pour afficher une station depuis une notification
-function showStationFromNotification(stationId) {
-  // Si les stations ne sont pas encore chargees, on ne peut pas faire grand-chose
+function showStationFromNotification(stationId, hintLat, hintLon) {
+  // Si les stations ne sont pas encore chargees, tenter de charger automatiquement
   if (!st || !st.length) {
+    if (la === null) {
+      if (hintLat != null && hintLon != null) {
+        la = hintLat; lo = hintLon; ra = ra || 5;
+      } else {
+        var info = getLs('cr_alert_info');
+        if (info) { la = info.lat; lo = info.lon; ra = info.rayon || ra; }
+      }
+    }
+    if (la !== null) {
+      showPage('radar');
+      var lb = document.getElementById('locBtn'); if (lb) lb.textContent = 'Actualizar';
+      load();
+      var tentatives = 0;
+      var attente = setInterval(function() {
+        tentatives++;
+        var trouvee = st.find(function(s) { return String(s.id) === String(stationId); });
+        if (trouvee || tentatives > 15) {
+          clearInterval(attente);
+          if (trouvee) { setTimeout(function() { scrollToStation(stationId); }, 300); }
+        }
+      }, 400);
+      return;
+    }
     setTimeout(function() {
-      showStationFromNotification(stationId);
+      showStationFromNotification(stationId, hintLat, hintLon);
     }, 1000);
     return;
   }
@@ -914,6 +967,7 @@ function initMapCore(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
   if(la){map.setView([la,lo],13);addUserMarker();}
   updateMapMarkers();
+  map.on('click',gererClicCarte);
 }
 function addUserMarker(){
   if(!map)return;if(userMarker)userMarker.remove();
@@ -974,6 +1028,14 @@ function hydraterIcones(){
   });
 }
 
+function changerPays(p){
+  try{localStorage.setItem('cr_pays',p);}catch(e){}
+  if(p==='espagne')return;
+  window.location.href='../'+p+'/';
+}
+// La página española se marca a sí misma como país activo al cargar,
+// para mantener la coherencia si se llega por un enlace directo (favorito, Google, etc.)
+try{localStorage.setItem('cr_pays','espagne');}catch(e){}
 function getLs(k){try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;}}
 // Échappe une chaîne avant insertion en HTML (protection XSS) — à utiliser pour toute donnée
 // venant de l'utilisateur (noms perso) ou d'une source externe (API gouvernementale) insérée via innerHTML.
@@ -1000,6 +1062,8 @@ function getName(id){return(getNames()[id])||null;}
 function setName(id,nom){var n=getNames();n[id]=nom;setNames(n);}
 function getReps(){return getLs('cr_reps')||[];}
 function setReps(v){setLs('cr_reps',v);}
+function getDestFavs(){return getLs('cr_dest_favs')||[];}
+function setDestFavs(v){setLs('cr_dest_favs',v);}
 function sstat(m){var e=document.getElementById('status');e.textContent=m;e.className='on';}
 function scontent(h){document.getElementById('content').innerHTML=h;}
 
@@ -1047,7 +1111,7 @@ function toggleAcc(id){
   }
 }
 
-function openMenu(){renderFavList();renderRepList();updateAlertUI();updateCompteUI();initSettings();document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
+function openMenu(){renderFavList();renderRepList();renderDestFavList();updateAlertUI();updateCompteUI();initSettings();document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
 
 // ===== Compte utilisateur (connexion / synchronisation) =====
 var CR_TOKEN_KEY='cr_account_token',CR_EMAIL_KEY='cr_account_email';
@@ -1348,12 +1412,56 @@ function removeFav(id){var f=getFavs();delete f[id];setFavs(f);renderFavList();r
 function renderRepList(){
   var reps=getReps(),el=document.getElementById('repList');
   if(!reps.length){el.innerHTML='<div style="font-size:13px;color:var(--text-muted)">Todavía no hay marcadores</div>';return;}
-  el.innerHTML=reps.map(function(r,i){return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('pin','13px')+' '+echapperHTML(r.name)+'</div><div class="side-item-sub">'+r.lat.toFixed(4)+', '+r.lon.toFixed(4)+'</div></div><button class="del-btn" onclick="removeRep('+i+')">'+ic('close','13px')+'</button></div></div>';}).join('');
+  el.innerHTML=reps.map(function(r,i){return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('pin','13px')+' '+echapperHTML(r.name)+'</div><div class="side-item-sub">'+r.lat.toFixed(4)+', '+r.lon.toFixed(4)+'</div></div><div style="display:flex;gap:6px;align-items:center"><button class="del-btn" title="Buscar aquí" onclick="rechercherDepuisRepere('+i+')">'+ic('compass','13px')+'</button><button class="del-btn" onclick="removeRep('+i+')">'+ic('close','13px')+'</button></div></div></div>';}).join('');
 }
-function removeRep(i){var r=getReps();r.splice(i,1);setReps(r);renderRepList();synchroniserVersServeur();}
-function openAddRepere(){if(la===null){alert('Localise-toi d\'abord !');return;}document.getElementById('repName').value='';document.getElementById('repPos').textContent=la.toFixed(4)+', '+lo.toFixed(4);document.getElementById('repModal').classList.add('on');}
-function closeRepModal(){document.getElementById('repModal').classList.remove('on');}
-function saveRepere(){var nom=document.getElementById('repName').value.trim();if(!nom){alert('Entre un nom !');return;}var reps=getReps();reps.push({name:nom,lat:la,lon:lo});setReps(reps);closeRepModal();renderRepList();updateMapMarkers();synchroniserVersServeur();}
+function removeRep(i){var r=getReps();r.splice(i,1);setReps(r);renderRepList();updateMapMarkers();renderTrajetReperes();synchroniserVersServeur();}
+function renderDestFavList(){
+  var favs=getDestFavs(),el=document.getElementById('destFavList');
+  if(!el)return;
+  if(!favs.length){el.innerHTML='<div style="font-size:13px;color:var(--text-muted)">Todavía no hay destinos</div>';return;}
+  el.innerHTML=favs.map(function(d,i){return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('compass','13px')+' '+echapperHTML(d.name)+'</div><div class="side-item-sub">'+d.lat.toFixed(4)+', '+d.lon.toFixed(4)+'</div></div><button class="del-btn" onclick="removeDestFav('+i+')">'+ic('close','13px')+'</button></div></div>';}).join('');
+}
+function removeDestFav(i){var f=getDestFavs();f.splice(i,1);setDestFavs(f);renderDestFavList();renderTrajetReperes();synchroniserVersServeur();}
+function rechercherDepuisRepere(i){
+  var r=getReps()[i];if(!r)return;
+  la=r.lat;lo=r.lon;
+  closeMenu();showPage('radar');
+  var btn=document.getElementById('locBtn');if(btn)btn.textContent='Actualizar';
+  if(map){map.setView([la,lo],13);addUserMarker();}
+  load();
+}
+var repereEnAttenteCoords=null;
+function openAddRepere(){if(la===null){alert('¡Localízate primero!');return;}repereEnAttenteCoords=null;document.getElementById('repName').value='';document.getElementById('repPos').textContent=la.toFixed(4)+', '+lo.toFixed(4);document.getElementById('repModal').classList.add('on');}
+function closeRepModal(){document.getElementById('repModal').classList.remove('on');repereEnAttenteCoords=null;}
+function saveRepere(){
+  var nom=document.getElementById('repName').value.trim();if(!nom){alert('¡Introduce un nombre!');return;}
+  var coords=repereEnAttenteCoords||{lat:la,lon:lo};
+  var reps=getReps();reps.push({name:nom,lat:coords.lat,lon:coords.lon});setReps(reps);
+  repereEnAttenteCoords=null;closeRepModal();renderRepList();updateMapMarkers();renderTrajetReperes();synchroniserVersServeur();
+}
+function gererClicCarte(e){
+  var clat=e.latlng.lat,clon=e.latlng.lng;
+  var contenu='<div style="text-align:center;min-width:170px">'+
+    '<div style="font-weight:700;margin-bottom:8px;font-size:12px">Punto elegido</div>'+
+    '<button class="add-btn" style="margin-bottom:6px" onclick="rechercherDepuisClicCarte('+clat+','+clon+')">'+ic('compass','13px')+' Buscar aquí</button>'+
+    '<button class="add-btn" onclick="ouvrirAjoutRepereDepuisCarte('+clat+','+clon+')">'+ic('pin','13px')+' Guardar como marcador</button>'+
+    '</div>';
+  L.popup({closeButton:true}).setLatLng(e.latlng).setContent(contenu).openOn(map);
+}
+function rechercherDepuisClicCarte(clat,clon){
+  la=clat;lo=clon;
+  if(map)map.closePopup();
+  showPage('radar');
+  var btn=document.getElementById('locBtn');if(btn)btn.textContent='Actualizar';
+  load();
+}
+function ouvrirAjoutRepereDepuisCarte(clat,clon){
+  if(map)map.closePopup();
+  repereEnAttenteCoords={lat:clat,lon:clon};
+  document.getElementById('repName').value='';
+  document.getElementById('repPos').textContent=clat.toFixed(4)+', '+clon.toFixed(4);
+  document.getElementById('repModal').classList.add('on');
+}
 var renameCurrentId=null;
 function openRenameModal(id){renameCurrentId=id;document.getElementById('renameInput').value=getName(id)||'';document.getElementById('renameModal').classList.add('on');closeAllCtx();}
 function closeRenameModal(){document.getElementById('renameModal').classList.remove('on');renameCurrentId=null;}
@@ -1526,9 +1634,43 @@ document.addEventListener('click',function(e){
 });
 
 // Mode Trajet
+var trajetDestCoords=null,trajetDestLat=null,trajetDestLon=null;
 function initTrajetPage(){
   var info=getLs('cr_alert_info');
   document.getElementById('trajetCarb').value=(info&&info.carburant)?info.carburant:fu;
+  renderTrajetReperes();
+}
+function renderTrajetReperes(){
+  var reps=getReps(),favs=getDestFavs(),el=document.getElementById('trajetReperes');
+  if(!el)return;
+  if(!reps.length&&!favs.length){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='flex';
+  var chipsRep=reps.map(function(r,i){
+    return '<button type="button" style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0" onclick="choisirRepereTrajet('+i+')">'+ic('pin','12px')+' '+echapperHTML(r.name)+'</button>';
+  });
+  var chipsDest=favs.map(function(d,i){
+    return '<button type="button" style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--accent);border-radius:20px;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0" onclick="choisirDestFavoriteTrajet('+i+')">'+ic('star','12px')+' '+echapperHTML(d.name)+'</button>';
+  });
+  el.innerHTML=chipsDest.concat(chipsRep).join('');
+}
+function choisirRepereTrajet(i){
+  var r=getReps()[i];if(!r)return;
+  document.getElementById('trajetDest').value=r.name;
+  trajetDestCoords={lat:r.lat,lon:r.lon};
+  var sug=document.getElementById('suggestions');if(sug)sug.style.display='none';
+}
+function choisirDestFavoriteTrajet(i){
+  var d=getDestFavs()[i];if(!d)return;
+  document.getElementById('trajetDest').value=d.name;
+  trajetDestCoords={lat:d.lat,lon:d.lon};
+  var sug=document.getElementById('suggestions');if(sug)sug.style.display='none';
+}
+function enregistrerDestinationFavorite(){
+  if(trajetDestLat===null)return;
+  var nom=document.getElementById('trajetDest').value.trim()||'Destino';
+  var favs=getDestFavs();favs.push({name:nom,lat:trajetDestLat,lon:trajetDestLon});setDestFavs(favs);
+  renderDestFavList();renderTrajetReperes();synchroniserVersServeur();
+  alert('¡Destino añadido a tus favoritos!');
 }
 function lancerTrajet(){
   var dest=document.getElementById('trajetDest').value.trim();
@@ -1550,11 +1692,13 @@ function lancerTrajetSuite(dest){
   var btn=document.getElementById('trajetBtn'),res=document.getElementById('trajetResult');
   btn.textContent='Recherche en cours...';btn.disabled=true;
   res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Géocodage de la destination...</div></div>';
-  fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(dest)+'&countrycodes=fr&limit=1&format=json',{headers:{'Accept-Language':'fr'}})
-  .then(function(r){return r.json();})
+  (trajetDestCoords?Promise.resolve([{lat:trajetDestCoords.lat,lon:trajetDestCoords.lon}]):
+    fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(dest)+'&countrycodes=fr&limit=1&format=json',{headers:{'Accept-Language':'fr'}}).then(function(r){return r.json();})
+  )
   .then(function(geo){
     if(!geo||!geo.length)throw new Error('dest_not_found');
     var dLat=parseFloat(geo[0].lat),dLon=parseFloat(geo[0].lon);
+    trajetDestLat=dLat;trajetDestLon=dLon;
     res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Calcul du trajet direct...</div></div>';
     return fetch('https://router.project-osrm.org/route/v1/driving/'+lo+','+la+';'+dLon+','+dLat+'?overview=false')
     .then(function(r){return r.json();})
@@ -1612,7 +1756,8 @@ function lancerTrajetSuite(dest){
             '<div class="m"><div class="ml">Détour</div><div class="mv t">'+(detourMin!==null?(detourMin<=1?'Aucun':'+'+detourMin+' min'):'--')+'</div></div>'+
             '<div class="m"><div class="ml">Durée totale</div><div class="mv d">'+(dureeAvecMin!==null?dureeAvecMin+' min':'--')+'</div></div></div>'+
             '<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:10px">Ruta directa: '+dureeDirecteMin+' min · Puntuación: '+best.score+'/100</div>'+
-            '<a class="go" href="'+navUrl+'" target="_blank">'+ic('compass','14px')+' Abrir ruta completa</a></div>';
+            '<a class="go" href="'+navUrl+'" target="_blank">'+ic('compass','14px')+' Abrir ruta completa</a>'+
+            '<button class="add-btn" style="margin-top:8px" onclick="enregistrerDestinationFavorite()">'+ic('star','13px')+' Añadir este destino a favoritos</button></div>';
           btn.textContent='Trouver la meilleure station';btn.disabled=false;
         });
       });
