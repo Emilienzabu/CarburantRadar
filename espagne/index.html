@@ -10,6 +10,10 @@
 <meta name="description" content="CarburantRadar vous aide à trouver les stations-service les moins chères en Espagne, près de chez vous. Comparez les prix du Diesel, Diesel+, SP95, SP98 et GLP.">
 <link rel="canonical" href="https://emilienzabu.github.io/CarburantRadar/espagne/">
 <meta name="robots" content="index, follow">
+<link rel="alternate" hreflang="fr" href="https://emilienzabu.github.io/CarburantRadar/france/">
+<link rel="alternate" hreflang="es" href="https://emilienzabu.github.io/CarburantRadar/espagne/">
+<link rel="alternate" hreflang="it" href="https://emilienzabu.github.io/CarburantRadar/italie/">
+<link rel="alternate" hreflang="x-default" href="https://emilienzabu.github.io/CarburantRadar/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="CarburantRadar">
 <meta property="og:title" content="CarburantRadar – Comparez les prix du carburant en Espagne">
@@ -1099,7 +1103,7 @@ function isOpen(horairesStr){
 
 // Accordéon exclusif
 function toggleAcc(id){
-  var allIds=['compteAcc','favAcc','repAcc','alertAcc','settingsAcc','aboutAcc'];
+  var allIds=['compteAcc','favAcc','repAcc','destAcc','alertAcc','settingsAcc','aboutAcc'];
   var isOpen=document.getElementById(id).classList.contains('open');
   allIds.forEach(function(a){
     document.getElementById(a).classList.remove('open');
