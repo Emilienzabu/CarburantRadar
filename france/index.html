@@ -551,6 +551,11 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     <div id="repList"><div style="font-size:13px;color:var(--text-muted)">Aucun repère pour l'instant</div></div>
     <button class="add-btn" onclick="openAddRepere()">+ Ajouter un repère</button>
   </div>
+  <div class="acc-header" onclick="toggleAcc('destAcc')"><div class="acc-title"><span data-icon="compass" data-icon-taille="14px"></span> Destinations favorites</div><div class="acc-arrow" id="destAccArrow">▼</div></div>
+  <div class="acc-body" id="destAcc">
+    <div id="destFavList"><div style="font-size:13px;color:var(--text-muted)">Aucune destination pour l'instant</div></div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Ajoute une destination depuis le mode Trajet, après avoir trouvé la meilleure station.</div>
+  </div>
   <div class="acc-header" onclick="toggleAcc('alertAcc')"><div class="acc-title"><span data-icon="bell" data-icon-taille="14px"></span> Alertes prix</div><div class="acc-arrow" id="alertAccArrow">▼</div></div>
   <div class="acc-body" id="alertAcc">
     <div class="alert-box">
@@ -729,9 +734,11 @@ if('serviceWorker' in navigator){
     if (event.data.type === 'NOTIFICATION_CLICK' && event.data.stationId) {
       // Stocker l'ID de la station pour affichage
       localStorage.setItem('notificationStationId', event.data.stationId);
+      if (event.data.lat != null) localStorage.setItem('notificationStationLat', event.data.lat);
+      if (event.data.lon != null) localStorage.setItem('notificationStationLon', event.data.lon);
       // Si on est deja sur la page Radar, afficher la station
       if (document.getElementById('page-radar').classList.contains('active')) {
-        showStationFromNotification(event.data.stationId);
+        showStationFromNotification(event.data.stationId, event.data.lat, event.data.lon);
       }
     }
   });
@@ -758,12 +765,19 @@ window.addEventListener('load',function(){
     }).catch(function(){});
   }
 
-  // Gestion du hash dans l'URL (ex: #station=12345) et des notifications
+  // Gestion du hash dans l'URL (ex: #station=12345&lat=..&lon=..) et des notifications
   setTimeout(function(){
     var hash = window.location.hash;
-    if (hash.startsWith('#station=')) {
-      var id = hash.substring(9);
-      showStationFromNotification(id);
+    if (hash.indexOf('#station=') === 0) {
+      var params = hash.substring(1).split('&');
+      var id = null, hlat = null, hlon = null;
+      params.forEach(function(p){
+        var kv = p.split('=');
+        if (kv[0] === 'station') id = kv[1];
+        else if (kv[0] === 'lat') hlat = parseFloat(kv[1]);
+        else if (kv[0] === 'lon') hlon = parseFloat(kv[1]);
+      });
+      showStationFromNotification(id, isNaN(hlat) ? null : hlat, isNaN(hlon) ? null : hlon);
       // Supprimer le hash après traitement pour éviter qu'il reste
       history.replaceState({}, document.title, './');
     }
@@ -772,20 +786,52 @@ window.addEventListener('load',function(){
     var stationId = localStorage.getItem('notificationStationId');
     if (stationId) {
       localStorage.removeItem('notificationStationId');
+      var slat = parseFloat(localStorage.getItem('notificationStationLat'));
+      var slon = parseFloat(localStorage.getItem('notificationStationLon'));
+      localStorage.removeItem('notificationStationLat');
+      localStorage.removeItem('notificationStationLon');
       // Si on est sur la page Radar, afficher la station
       if (document.getElementById('page-radar').classList.contains('active')) {
-        showStationFromNotification(stationId);
+        showStationFromNotification(stationId, isNaN(slat) ? null : slat, isNaN(slon) ? null : slon);
       }
     }
   }, 200);
 });
 
 // Fonction pour afficher une station depuis une notification
-function showStationFromNotification(stationId) {
-  // Si les stations ne sont pas encore chargees, on ne peut pas faire grand-chose
+function showStationFromNotification(stationId, hintLat, hintLon) {
+  // Si les stations ne sont pas encore chargees, tenter de charger automatiquement
   if (!st || !st.length) {
+    if (la === null) {
+      if (hintLat != null && hintLon != null) {
+        // Position fournie par la notification (station concernée)
+        la = hintLat; lo = hintLon; ra = ra || 5;
+      } else {
+        // Sinon on réutilise la zone configurée pour l'alerte (c'est forcément dans cette zone
+        // que la notification a été déclenchée)
+        var info = getLs('cr_alert_info');
+        if (info) { la = info.lat; lo = info.lon; ra = info.rayon || ra; }
+      }
+    }
+    if (la !== null) {
+      showPage('radar');
+      var lb = document.getElementById('locBtn'); if (lb) lb.textContent = 'Actualiser';
+      load();
+      // On attend que la recherche se termine (avec une limite de tentatives) avant de scroller
+      var tentatives = 0;
+      var attente = setInterval(function() {
+        tentatives++;
+        var trouvee = st.find(function(s) { return String(s.id) === String(stationId); });
+        if (trouvee || tentatives > 15) {
+          clearInterval(attente);
+          if (trouvee) { setTimeout(function() { scrollToStation(stationId); }, 300); }
+        }
+      }, 400);
+      return;
+    }
+    // Aucune position connue du tout (première ouverture, pas d'alerte configurée) : on retente
     setTimeout(function() {
-      showStationFromNotification(stationId);
+      showStationFromNotification(stationId, hintLat, hintLon);
     }, 1000);
     return;
   }
@@ -1020,6 +1066,8 @@ function getName(id){return(getNames()[id])||null;}
 function setName(id,nom){var n=getNames();n[id]=nom;setNames(n);}
 function getReps(){return getLs('cr_reps')||[];}
 function setReps(v){setLs('cr_reps',v);}
+function getDestFavs(){return getLs('cr_dest_favs')||[];}
+function setDestFavs(v){setLs('cr_dest_favs',v);}
 function sstat(m){var e=document.getElementById('status');e.textContent=m;e.className='on';}
 function scontent(h){document.getElementById('content').innerHTML=h;}
 
@@ -1067,7 +1115,7 @@ function toggleAcc(id){
   }
 }
 
-function openMenu(){renderFavList();renderRepList();updateAlertUI();updateCompteUI();initSettings();document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
+function openMenu(){renderFavList();renderRepList();renderDestFavList();updateAlertUI();updateCompteUI();initSettings();document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
 
 // ===== Compte utilisateur (connexion / synchronisation) =====
 var CR_TOKEN_KEY='cr_account_token',CR_EMAIL_KEY='cr_account_email';
@@ -1371,6 +1419,13 @@ function renderRepList(){
   el.innerHTML=reps.map(function(r,i){return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('pin','13px')+' '+echapperHTML(r.name)+'</div><div class="side-item-sub">'+r.lat.toFixed(4)+', '+r.lon.toFixed(4)+'</div></div><div style="display:flex;gap:6px;align-items:center"><button class="del-btn" title="Rechercher ici" onclick="rechercherDepuisRepere('+i+')">'+ic('compass','13px')+'</button><button class="del-btn" onclick="removeRep('+i+')">'+ic('close','13px')+'</button></div></div></div>';}).join('');
 }
 function removeRep(i){var r=getReps();r.splice(i,1);setReps(r);renderRepList();updateMapMarkers();renderTrajetReperes();synchroniserVersServeur();}
+function renderDestFavList(){
+  var favs=getDestFavs(),el=document.getElementById('destFavList');
+  if(!el)return;
+  if(!favs.length){el.innerHTML='<div style="font-size:13px;color:var(--text-muted)">Aucune destination pour l\'instant</div>';return;}
+  el.innerHTML=favs.map(function(d,i){return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('compass','13px')+' '+echapperHTML(d.name)+'</div><div class="side-item-sub">'+d.lat.toFixed(4)+', '+d.lon.toFixed(4)+'</div></div><button class="del-btn" onclick="removeDestFav('+i+')">'+ic('close','13px')+'</button></div></div>';}).join('');
+}
+function removeDestFav(i){var f=getDestFavs();f.splice(i,1);setDestFavs(f);renderDestFavList();renderTrajetReperes();synchroniserVersServeur();}
 function rechercherDepuisRepere(i){
   var r=getReps()[i];if(!r)return;
   la=r.lat;lo=r.lon;
@@ -1591,13 +1646,17 @@ function initTrajetPage(){
   renderTrajetReperes();
 }
 function renderTrajetReperes(){
-  var reps=getReps(),el=document.getElementById('trajetReperes');
+  var reps=getReps(),favs=getDestFavs(),el=document.getElementById('trajetReperes');
   if(!el)return;
-  if(!reps.length){el.style.display='none';el.innerHTML='';return;}
+  if(!reps.length&&!favs.length){el.style.display='none';el.innerHTML='';return;}
   el.style.display='flex';
-  el.innerHTML=reps.map(function(r,i){
+  var chipsRep=reps.map(function(r,i){
     return '<button type="button" style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0" onclick="choisirRepereTrajet('+i+')">'+ic('pin','12px')+' '+echapperHTML(r.name)+'</button>';
-  }).join('');
+  });
+  var chipsDest=favs.map(function(d,i){
+    return '<button type="button" style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--accent);border-radius:20px;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0" onclick="choisirDestFavoriteTrajet('+i+')">'+ic('star','12px')+' '+echapperHTML(d.name)+'</button>';
+  });
+  el.innerHTML=chipsDest.concat(chipsRep).join('');
 }
 function choisirRepereTrajet(i){
   var r=getReps()[i];if(!r)return;
@@ -1605,12 +1664,18 @@ function choisirRepereTrajet(i){
   trajetDestCoords={lat:r.lat,lon:r.lon};
   var sug=document.getElementById('suggestions');if(sug)sug.style.display='none';
 }
-function enregistrerDestinationCommeRepere(){
+function choisirDestFavoriteTrajet(i){
+  var d=getDestFavs()[i];if(!d)return;
+  document.getElementById('trajetDest').value=d.name;
+  trajetDestCoords={lat:d.lat,lon:d.lon};
+  var sug=document.getElementById('suggestions');if(sug)sug.style.display='none';
+}
+function enregistrerDestinationFavorite(){
   if(trajetDestLat===null)return;
   var nom=document.getElementById('trajetDest').value.trim()||'Destination';
-  var reps=getReps();reps.push({name:nom,lat:trajetDestLat,lon:trajetDestLon});setReps(reps);
-  renderRepList();renderTrajetReperes();synchroniserVersServeur();
-  alert('Destination enregistrée comme repère !');
+  var favs=getDestFavs();favs.push({name:nom,lat:trajetDestLat,lon:trajetDestLon});setDestFavs(favs);
+  renderDestFavList();renderTrajetReperes();synchroniserVersServeur();
+  alert('Destination ajoutée à tes favoris !');
 }
 function lancerTrajet(){
   var dest=document.getElementById('trajetDest').value.trim();
@@ -1697,7 +1762,7 @@ function lancerTrajetSuite(dest){
             '<div class="m"><div class="ml">Durée totale</div><div class="mv d">'+(dureeAvecMin!==null?dureeAvecMin+' min':'--')+'</div></div></div>'+
             '<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:10px">Trajet direct : '+dureeDirecteMin+' min · Score : '+best.score+'/100</div>'+
             '<a class="go" href="'+navUrl+'" target="_blank">'+ic('compass','14px')+' Ouvrir l\'itinéraire complet</a>'+
-            '<button class="add-btn" style="margin-top:8px" onclick="enregistrerDestinationCommeRepere()">'+ic('pin','13px')+' Enregistrer cette destination comme repère</button></div>';
+            '<button class="add-btn" style="margin-top:8px" onclick="enregistrerDestinationFavorite()">'+ic('star','13px')+' Ajouter cette destination aux favoris</button></div>';
           btn.textContent='Trouver la meilleure station';btn.disabled=false;
         });
       });
