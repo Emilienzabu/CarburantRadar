@@ -1,6 +1,6 @@
 // Service Worker CarburantRadar — gère le cache, les notifications push et le clic dessus.
 // Version du cache : à incrémenter à chaque modification majeure pour forcer la mise à jour
-const CACHE_NAME = 'carburant-radar-v2.0.0';
+const CACHE_NAME = 'carburant-radar-v2.1.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -93,7 +93,12 @@ self.addEventListener('push', function(event) {
     body: data.body || '',
     icon: 'icons/icon-192.png',
     badge: 'icons/icon-192.png',
-    vibrate: [100, 50, 100]
+    vibrate: [100, 50, 100],
+    data: {
+      stationId: data.stationId || null,
+      lat: (typeof data.lat !== 'undefined') ? data.lat : null,
+      lon: (typeof data.lon !== 'undefined') ? data.lon : null
+    }
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
@@ -101,10 +106,11 @@ self.addEventListener('push', function(event) {
 // Gestion du clic sur les notifications (inchangé, mais avec gestion du cache)
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  var stationId = event.notification.data ? event.notification.data.stationId : null;
+  var d = event.notification.data || {};
+  var stationId = d.stationId || null;
   var url = './';
   if (stationId) {
-    url = './#station=' + stationId;
+    url = './#station=' + stationId + ((d.lat != null && d.lon != null) ? ('&lat=' + d.lat + '&lon=' + d.lon) : '');
   }
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
@@ -113,7 +119,9 @@ self.addEventListener('notificationclick', function(event) {
           // Envoyer un message au client pour lui dire quelle station afficher
           clientList[i].postMessage({
             type: 'NOTIFICATION_CLICK',
-            stationId: stationId
+            stationId: stationId,
+            lat: d.lat,
+            lon: d.lon
           });
           return clientList[i].focus();
         }
