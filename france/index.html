@@ -1036,10 +1036,13 @@ function hydraterIcones(){
 }
 
 function changerPays(p){
-  if(p==='france')return;
   try{localStorage.setItem('cr_pays',p);}catch(e){}
+  if(p==='france')return;
   window.location.href='../'+p+'/';
 }
+// La page française se marque elle-même comme pays actif dès qu'elle se charge,
+// pour que la sélection reste cohérente même si on y arrive par un lien direct (favori, Google, etc.)
+try{localStorage.setItem('cr_pays','france');}catch(e){}
 function getLs(k){try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;}}
 // Échappe une chaîne avant insertion en HTML (protection XSS) — à utiliser pour toute donnée
 // venant de l'utilisateur (noms perso) ou d'une source externe (API gouvernementale) insérée via innerHTML.
