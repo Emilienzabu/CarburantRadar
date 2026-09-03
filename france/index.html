@@ -338,9 +338,10 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Trouve la meilleure station sur ta route</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Destination</div>
     <div style="position:relative;margin-bottom:12px">
-      <input id="trajetDest" class="modal-input" placeholder="Ex: Aix-en-Provence, 13100..." style="margin-bottom:0" oninput="autocomplete()" autocomplete="off">
+      <input id="trajetDest" class="modal-input" placeholder="Ex: Aix-en-Provence, 13100..." style="margin-bottom:0" oninput="autocomplete();trajetDestCoords=null;" autocomplete="off">
       <div id="suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--input-bg);border-radius:0 0 8px 8px;z-index:100;max-height:200px;overflow-y:auto;border:1px solid var(--input-border);border-top:none"></div>
     </div>
+    <div id="trajetReperes" style="display:none;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px"></div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Carburant</div>
     <select id="trajetCarb" class="modal-input" style="margin-bottom:16px">
       <option value="Gazole">Diesel</option>
@@ -601,6 +602,17 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
         <div class="toggle-thumb"></div>
       </label>
       <div id="themePrefLabel" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Clair (activé) / Sombre (désactivé)</div>
+    </div>
+
+    <!-- Pays -->
+    <div class="side-item">
+      <div class="side-item-name">Pays</div>
+      <div class="side-item-sub">Changer l'application vers un autre pays</div>
+      <div class="radii" id="paysSwitch" style="margin-top:8px;margin-bottom:0;">
+        <button class="rb a" data-pays="france" onclick="changerPays('france')">🇫🇷 France</button>
+        <button class="rb" data-pays="espagne" onclick="changerPays('espagne')">🇪🇸 Espagne</button>
+        <button class="rb" data-pays="italie" onclick="changerPays('italie')">🇮🇹 Italie</button>
+      </div>
     </div>
 
     <!-- Vehicle Configuration -->
@@ -916,6 +928,7 @@ function initMapCore(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
   if(la){map.setView([la,lo],13);addUserMarker();}
   updateMapMarkers();
+  map.on('click',gererClicCarte);
 }
 function addUserMarker(){
   if(!map)return;if(userMarker)userMarker.remove();
@@ -976,6 +989,11 @@ function hydraterIcones(){
   });
 }
 
+function changerPays(p){
+  if(p==='france')return;
+  try{localStorage.setItem('cr_pays',p);}catch(e){}
+  window.location.href='../'+p+'/';
+}
 function getLs(k){try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;}}
 // Échappe une chaîne avant insertion en HTML (protection XSS) — à utiliser pour toute donnée
 // venant de l'utilisateur (noms perso) ou d'une source externe (API gouvernementale) insérée via innerHTML.
@@ -1350,12 +1368,50 @@ function removeFav(id){var f=getFavs();delete f[id];setFavs(f);renderFavList();r
 function renderRepList(){
   var reps=getReps(),el=document.getElementById('repList');
   if(!reps.length){el.innerHTML='<div style="font-size:13px;color:var(--text-muted)">Aucun repère pour l\'instant</div>';return;}
-  el.innerHTML=reps.map(function(r,i){return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('pin','13px')+' '+echapperHTML(r.name)+'</div><div class="side-item-sub">'+r.lat.toFixed(4)+', '+r.lon.toFixed(4)+'</div></div><button class="del-btn" onclick="removeRep('+i+')">'+ic('close','13px')+'</button></div></div>';}).join('');
+  el.innerHTML=reps.map(function(r,i){return '<div class="side-item"><div class="side-item-row"><div><div class="side-item-name">'+ic('pin','13px')+' '+echapperHTML(r.name)+'</div><div class="side-item-sub">'+r.lat.toFixed(4)+', '+r.lon.toFixed(4)+'</div></div><div style="display:flex;gap:6px;align-items:center"><button class="del-btn" title="Rechercher ici" onclick="rechercherDepuisRepere('+i+')">'+ic('compass','13px')+'</button><button class="del-btn" onclick="removeRep('+i+')">'+ic('close','13px')+'</button></div></div></div>';}).join('');
 }
-function removeRep(i){var r=getReps();r.splice(i,1);setReps(r);renderRepList();synchroniserVersServeur();}
-function openAddRepere(){if(la===null){alert('Localise-toi d\'abord !');return;}document.getElementById('repName').value='';document.getElementById('repPos').textContent=la.toFixed(4)+', '+lo.toFixed(4);document.getElementById('repModal').classList.add('on');}
-function closeRepModal(){document.getElementById('repModal').classList.remove('on');}
-function saveRepere(){var nom=document.getElementById('repName').value.trim();if(!nom){alert('Entre un nom !');return;}var reps=getReps();reps.push({name:nom,lat:la,lon:lo});setReps(reps);closeRepModal();renderRepList();updateMapMarkers();synchroniserVersServeur();}
+function removeRep(i){var r=getReps();r.splice(i,1);setReps(r);renderRepList();updateMapMarkers();renderTrajetReperes();synchroniserVersServeur();}
+function rechercherDepuisRepere(i){
+  var r=getReps()[i];if(!r)return;
+  la=r.lat;lo=r.lon;
+  closeMenu();showPage('radar');
+  var btn=document.getElementById('locBtn');if(btn)btn.textContent='Actualiser';
+  if(map){map.setView([la,lo],13);addUserMarker();}
+  load();
+}
+var repereEnAttenteCoords=null;
+function openAddRepere(){if(la===null){alert('Localise-toi d\'abord !');return;}repereEnAttenteCoords=null;document.getElementById('repName').value='';document.getElementById('repPos').textContent=la.toFixed(4)+', '+lo.toFixed(4);document.getElementById('repModal').classList.add('on');}
+function closeRepModal(){document.getElementById('repModal').classList.remove('on');repereEnAttenteCoords=null;}
+function saveRepere(){
+  var nom=document.getElementById('repName').value.trim();if(!nom){alert('Entre un nom !');return;}
+  var coords=repereEnAttenteCoords||{lat:la,lon:lo};
+  var reps=getReps();reps.push({name:nom,lat:coords.lat,lon:coords.lon});setReps(reps);
+  repereEnAttenteCoords=null;closeRepModal();renderRepList();updateMapMarkers();renderTrajetReperes();synchroniserVersServeur();
+}
+// Clic sur la carte : proposer de rechercher à cet endroit ou d'y enregistrer un repère
+function gererClicCarte(e){
+  var clat=e.latlng.lat,clon=e.latlng.lng;
+  var contenu='<div style="text-align:center;min-width:170px">'+
+    '<div style="font-weight:700;margin-bottom:8px;font-size:12px">Point choisi</div>'+
+    '<button class="add-btn" style="margin-bottom:6px" onclick="rechercherDepuisClicCarte('+clat+','+clon+')">'+ic('compass','13px')+' Rechercher ici</button>'+
+    '<button class="add-btn" onclick="ouvrirAjoutRepereDepuisCarte('+clat+','+clon+')">'+ic('pin','13px')+' Enregistrer comme repère</button>'+
+    '</div>';
+  L.popup({closeButton:true}).setLatLng(e.latlng).setContent(contenu).openOn(map);
+}
+function rechercherDepuisClicCarte(clat,clon){
+  la=clat;lo=clon;
+  if(map)map.closePopup();
+  showPage('radar');
+  var btn=document.getElementById('locBtn');if(btn)btn.textContent='Actualiser';
+  load();
+}
+function ouvrirAjoutRepereDepuisCarte(clat,clon){
+  if(map)map.closePopup();
+  repereEnAttenteCoords={lat:clat,lon:clon};
+  document.getElementById('repName').value='';
+  document.getElementById('repPos').textContent=clat.toFixed(4)+', '+clon.toFixed(4);
+  document.getElementById('repModal').classList.add('on');
+}
 var renameCurrentId=null;
 function openRenameModal(id){renameCurrentId=id;document.getElementById('renameInput').value=getName(id)||'';document.getElementById('renameModal').classList.add('on');closeAllCtx();}
 function closeRenameModal(){document.getElementById('renameModal').classList.remove('on');renameCurrentId=null;}
@@ -1528,9 +1584,33 @@ document.addEventListener('click',function(e){
 });
 
 // Mode Trajet
+var trajetDestCoords=null,trajetDestLat=null,trajetDestLon=null;
 function initTrajetPage(){
   var info=getLs('cr_alert_info');
   document.getElementById('trajetCarb').value=(info&&info.carburant)?info.carburant:fu;
+  renderTrajetReperes();
+}
+function renderTrajetReperes(){
+  var reps=getReps(),el=document.getElementById('trajetReperes');
+  if(!el)return;
+  if(!reps.length){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='flex';
+  el.innerHTML=reps.map(function(r,i){
+    return '<button type="button" style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0" onclick="choisirRepereTrajet('+i+')">'+ic('pin','12px')+' '+echapperHTML(r.name)+'</button>';
+  }).join('');
+}
+function choisirRepereTrajet(i){
+  var r=getReps()[i];if(!r)return;
+  document.getElementById('trajetDest').value=r.name;
+  trajetDestCoords={lat:r.lat,lon:r.lon};
+  var sug=document.getElementById('suggestions');if(sug)sug.style.display='none';
+}
+function enregistrerDestinationCommeRepere(){
+  if(trajetDestLat===null)return;
+  var nom=document.getElementById('trajetDest').value.trim()||'Destination';
+  var reps=getReps();reps.push({name:nom,lat:trajetDestLat,lon:trajetDestLon});setReps(reps);
+  renderRepList();renderTrajetReperes();synchroniserVersServeur();
+  alert('Destination enregistrée comme repère !');
 }
 function lancerTrajet(){
   var dest=document.getElementById('trajetDest').value.trim();
@@ -1552,11 +1632,13 @@ function lancerTrajetSuite(dest){
   var btn=document.getElementById('trajetBtn'),res=document.getElementById('trajetResult');
   btn.textContent='Recherche en cours...';btn.disabled=true;
   res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Géocodage de la destination...</div></div>';
-  fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(dest)+'&countrycodes=fr&limit=1&format=json',{headers:{'Accept-Language':'fr'}})
-  .then(function(r){return r.json();})
+  (trajetDestCoords?Promise.resolve([{lat:trajetDestCoords.lat,lon:trajetDestCoords.lon}]):
+    fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(dest)+'&countrycodes=fr&limit=1&format=json',{headers:{'Accept-Language':'fr'}}).then(function(r){return r.json();})
+  )
   .then(function(geo){
     if(!geo||!geo.length)throw new Error('dest_not_found');
     var dLat=parseFloat(geo[0].lat),dLon=parseFloat(geo[0].lon);
+    trajetDestLat=dLat;trajetDestLon=dLon;
     res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Calcul du trajet direct...</div></div>';
     return fetch('https://router.project-osrm.org/route/v1/driving/'+lo+','+la+';'+dLon+','+dLat+'?overview=false')
     .then(function(r){return r.json();})
@@ -1614,7 +1696,8 @@ function lancerTrajetSuite(dest){
             '<div class="m"><div class="ml">Détour</div><div class="mv t">'+(detourMin!==null?(detourMin<=1?'Aucun':'+'+detourMin+' min'):'--')+'</div></div>'+
             '<div class="m"><div class="ml">Durée totale</div><div class="mv d">'+(dureeAvecMin!==null?dureeAvecMin+' min':'--')+'</div></div></div>'+
             '<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:10px">Trajet direct : '+dureeDirecteMin+' min · Score : '+best.score+'/100</div>'+
-            '<a class="go" href="'+navUrl+'" target="_blank">'+ic('compass','14px')+' Ouvrir l\'itinéraire complet</a></div>';
+            '<a class="go" href="'+navUrl+'" target="_blank">'+ic('compass','14px')+' Ouvrir l\'itinéraire complet</a>'+
+            '<button class="add-btn" style="margin-top:8px" onclick="enregistrerDestinationCommeRepere()">'+ic('pin','13px')+' Enregistrer cette destination comme repère</button></div>';
           btn.textContent='Trouver la meilleure station';btn.disabled=false;
         });
       });
