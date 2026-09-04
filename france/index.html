@@ -675,6 +675,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('mentions')"><span data-icon="file" data-icon-taille="14px"></span> Mentions légales</button>
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('confidentialite')"><span data-icon="lock" data-icon-taille="14px"></span> Politique de confidentialité</button>
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('contact')"><span data-icon="mail" data-icon-taille="14px"></span> Contact</button>
+    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();ouvrirTuto()"><span data-icon="info" data-icon-taille="14px"></span> Revoir le tutoriel</button>
     <button class="side-item" id="menuInstallBtn" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px;margin-bottom:0" onclick="installerApp()"><span data-icon="download" data-icon-taille="14px"></span> Installer l'application</button>
   </div>
   </div>
@@ -730,6 +731,20 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
   </div>
 </div>
 
+<div class="modal" id="tutoModal">
+  <div class="modal-box" style="max-width:360px;text-align:center">
+    <div id="tutoIcone" style="font-size:40px;margin-bottom:10px"></div>
+    <div class="modal-title" id="tutoTitre" style="margin-bottom:8px"></div>
+    <div id="tutoTexte" style="font-size:13px;color:var(--text-muted);margin-bottom:18px;line-height:1.5"></div>
+    <div style="display:flex;justify-content:center;gap:6px;margin-bottom:18px" id="tutoDots"></div>
+    <div class="modal-row" style="margin-bottom:10px">
+      <button class="modal-cancel" id="tutoPrecedent" onclick="tutoPrecedent()">Précédent</button>
+      <button class="modal-ok" id="tutoSuivant" onclick="tutoSuivant()">Suivant</button>
+    </div>
+    <button style="background:none;color:var(--text-muted);font-weight:600;font-size:12px;padding:6px;margin:0" onclick="fermerTuto()">Passer le tutoriel</button>
+  </div>
+</div>
+
 <script>
 var la=null,lo=null,fu=localStorage.getItem('cr_fu')||'Gazole',ra=parseInt(localStorage.getItem('cr_ra')||'5'),st=[];
 var PK={Gazole:'gazole_prix',SP95:'sp95_prix',SP98:'sp98_prix',E10:'e10_prix',E85:'e85_prix',GPLc:'gplc_prix'};
@@ -778,6 +793,7 @@ window.addEventListener('load',function(){
       document.getElementById('splash').style.display='none';
       // Écran de bienvenue au tout premier lancement (une seule fois), sauf si déjà connecté
       if(!getLs('cr_onboarding_vu')&&!estConnecte()){document.getElementById('onboardingModal').classList.add('on');}
+      else if(!getLs('cr_tuto_vu')){setTimeout(ouvrirTuto,300);}
     },500);
   },800);
   // Si déjà connecté sur cet appareil, récupère les dernières données synchronisées depuis un autre appareil
@@ -948,17 +964,56 @@ function installerApp(){
 function estEnModeStandalone(){
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
 }
-function fermerOnboarding(){
+function fermerOnboarding(sansTuto){
   setLs('cr_onboarding_vu',true);
   document.getElementById('onboardingModal').classList.remove('on');
+  if(!sansTuto&&!getLs('cr_tuto_vu'))setTimeout(ouvrirTuto,300);
 }
 function onboardingOuvrirCompte(mode){
-  fermerOnboarding();
+  fermerOnboarding(true);
   openMenu();
   document.getElementById('compteAcc').classList.add('open');
   document.getElementById('compteAccArrow').classList.add('open');
   basculerModeCompte(mode);
   setTimeout(function(){document.getElementById('compteEmail').focus();},300);
+}
+
+// ===== Tutoriel de démarrage =====
+var TUTO_ETAPES=[
+  {icone:'🔍',titre:'Recherche automatique',texte:"CarburantRadar compare en temps réel les stations autour de toi, à partir des prix officiels. Ajuste le rayon de recherche et le carburant en haut de l'écran Radar."},
+  {icone:'🔔',titre:'Alertes de prix',texte:"Active une alerte dans Menu > Compte pour être prévenu quand une station de ta zone passe sous ton seuil, ou atteint son meilleur prix depuis plusieurs jours."},
+  {icone:'📍',titre:'Repères & destinations',texte:"Enregistre les lieux que tu visites souvent (travail, famille...) dans Menu > Mes lieux. Tu pourras chercher des stations autour d'eux sans y être, même en cliquant directement sur la carte."},
+  {icone:'🧭',titre:'Mode Trajet',texte:"Trouve la meilleure station sur le chemin d'une destination plutôt qu'autour de toi, avec le vrai détour calculé — pas juste la plus proche à vol d'oiseau."},
+  {icone:'⚙️',titre:'Personnalisation',texte:"Dans Menu > Personnalisation : thème clair/sombre, pays, véhicule (pour calculer tes économies), carburant et rayon par défaut."},
+  {icone:'🎉',titre:"C'est prêt !",texte:'Tu peux revoir ce tutoriel à tout moment depuis Menu > Infos > "Revoir le tutoriel".'}
+];
+var tutoIndex=0;
+function ouvrirTuto(){
+  tutoIndex=0;
+  renderTutoEtape();
+  document.getElementById('tutoModal').classList.add('on');
+}
+function renderTutoEtape(){
+  var e=TUTO_ETAPES[tutoIndex];
+  document.getElementById('tutoIcone').textContent=e.icone;
+  document.getElementById('tutoTitre').textContent=e.titre;
+  document.getElementById('tutoTexte').textContent=e.texte;
+  document.getElementById('tutoDots').innerHTML=TUTO_ETAPES.map(function(_,i){
+    return '<div style="width:6px;height:6px;border-radius:50%;background:'+(i===tutoIndex?'var(--accent)':'var(--border)')+'"></div>';
+  }).join('');
+  document.getElementById('tutoPrecedent').style.visibility=(tutoIndex===0)?'hidden':'visible';
+  document.getElementById('tutoSuivant').textContent=(tutoIndex===TUTO_ETAPES.length-1)?'Terminer':'Suivant';
+}
+function tutoSuivant(){
+  if(tutoIndex<TUTO_ETAPES.length-1){tutoIndex++;renderTutoEtape();}
+  else{fermerTuto();}
+}
+function tutoPrecedent(){
+  if(tutoIndex>0){tutoIndex--;renderTutoEtape();}
+}
+function fermerTuto(){
+  try{setLs('cr_tuto_vu',true);}catch(e){}
+  document.getElementById('tutoModal').classList.remove('on');
 }
 
 function showPage(name){
