@@ -169,8 +169,6 @@ button{width:100%;padding:15px;background:var(--accent);color:#000;border:none;b
 .menu-tabs{display:flex;gap:4px;background:var(--bg-sunken);border-bottom:1px solid var(--border);padding:8px;overflow-x:auto}
 .menu-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px;border-radius:8px;background:transparent;border:none;color:var(--text-muted);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
 .menu-tab.a{background:var(--bg-surface);color:var(--accent)}
-.install-banner{position:fixed;left:12px;right:12px;bottom:12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:14px;padding:12px;display:none;align-items:center;justify-content:space-between;gap:10px;z-index:500;box-shadow:0 4px 20px rgba(0,0,0,.25)}
-.install-banner.on{display:flex}
 .side-item{background:var(--bg-sunken);border-radius:10px;padding:12px;margin-bottom:8px}
 .side-item-name{font-size:14px;font-weight:700;margin-bottom:2px}
 .side-item-sub{font-size:11px;color:var(--text-muted)}
@@ -676,7 +674,8 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('apropos')"><span data-icon="info" data-icon-taille="14px"></span> À propos</button>
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('mentions')"><span data-icon="file" data-icon-taille="14px"></span> Mentions légales</button>
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('confidentialite')"><span data-icon="lock" data-icon-taille="14px"></span> Politique de confidentialité</button>
-    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px;margin-bottom:0" onclick="closeMenu();showPage('contact')"><span data-icon="mail" data-icon-taille="14px"></span> Contact</button>
+    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('contact')"><span data-icon="mail" data-icon-taille="14px"></span> Contact</button>
+    <button class="side-item" id="menuInstallBtn" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px;margin-bottom:0" onclick="installerApp()"><span data-icon="download" data-icon-taille="14px"></span> Installer l'application</button>
   </div>
   </div>
 </div>
@@ -946,6 +945,9 @@ function installerApp(){
     alert('Pour installer l\'app : ouvre le menu de ton navigateur (⋮) puis "Ajouter à l\'écran d\'accueil" (ou l\'icône Partager puis "Sur l\'écran d\'accueil" sur iPhone).');
   }
 }
+function estEnModeStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+}
 function fermerOnboarding(){
   setLs('cr_onboarding_vu',true);
   document.getElementById('onboardingModal').classList.remove('on');
@@ -1147,7 +1149,7 @@ function switchMenuTab(tab){
   document.querySelectorAll('.menu-tab-group').forEach(function(g){g.style.display=(g.dataset.tab===tab)?'':'none';});
   document.querySelectorAll('.menu-tab').forEach(function(b){b.classList.remove('a');if(b.dataset.tab===tab)b.classList.add('a');});
 }
-function openMenu(){renderFavList();renderRepList();renderDestFavList();updateAlertUI();updateCompteUI();initSettings();switchMenuTab('compte');document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
+function openMenu(){renderFavList();renderRepList();renderDestFavList();updateAlertUI();updateCompteUI();initSettings();switchMenuTab('compte');var mib=document.getElementById('menuInstallBtn');if(mib)mib.style.display=estEnModeStandalone()?'none':'block';document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
 
 // ===== Compte utilisateur (connexion / synchronisation) =====
 var CR_TOKEN_KEY='cr_account_token',CR_EMAIL_KEY='cr_account_email';
@@ -2370,73 +2372,8 @@ function dessinerGraphique(dates,serieStation,serieMoy,periode,labelMain,labelRe
     if(e.touches.length===0){glisseDepartX=null;cacherSurvol();}
   };
 }
-// ===== Installation PWA (bandeau "Installer l'app") =====
-var deferredInstallPrompt=null;
-function estEnModeStandalone(){
-  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
-}
-function estIOS(){
-  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
-}
-function maybeShowInstallBanner(){
-  if(estEnModeStandalone())return;
-  var dismissedAt=parseInt(localStorage.getItem('cr_install_dismissed')||'0',10);
-  if(dismissedAt&&(Date.now()-dismissedAt)<14*24*3600*1000)return;
-  var banner=document.getElementById('installBanner');if(!banner)return;
-  if(deferredInstallPrompt){
-    document.getElementById('installBtnAndroid').style.display='block';
-    document.getElementById('installTexteAndroid').style.display='block';
-    document.getElementById('installTexteIOS').style.display='none';
-    banner.classList.add('on');
-  }else if(estIOS()){
-    document.getElementById('installBtnAndroid').style.display='none';
-    document.getElementById('installTexteAndroid').style.display='none';
-    document.getElementById('installTexteIOS').style.display='block';
-    banner.classList.add('on');
-  }
-}
-function lancerInstallation(){
-  if(!deferredInstallPrompt)return;
-  deferredInstallPrompt.prompt();
-  deferredInstallPrompt.userChoice.then(function(){
-    deferredInstallPrompt=null;
-    fermerInstallBanner();
-  });
-}
-function fermerInstallBanner(){
-  try{localStorage.setItem('cr_install_dismissed',String(Date.now()));}catch(e){}
-  var banner=document.getElementById('installBanner');if(banner)banner.classList.remove('on');
-}
-window.addEventListener('beforeinstallprompt',function(e){
-  e.preventDefault();
-  deferredInstallPrompt=e;
-  setTimeout(maybeShowInstallBanner,1500);
-});
-window.addEventListener('appinstalled',function(){
-  try{localStorage.setItem('cr_pwa_installed','1');}catch(e){}
-  var banner=document.getElementById('installBanner');if(banner)banner.classList.remove('on');
-});
-window.addEventListener('load',function(){
-  setTimeout(function(){
-    if(!deferredInstallPrompt&&estIOS())maybeShowInstallBanner();
-  },2500);
-});
 </script>
 <!-- Numéro de version - à incrémenter à chaque modification -->
-<div class="install-banner" id="installBanner">
-  <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-    <div style="font-size:22px;flex-shrink:0">⛽</div>
-    <div style="min-width:0">
-      <div style="font-weight:700;font-size:13px;color:var(--text)">Installer CarburantRadar</div>
-      <div id="installTexteIOS" style="display:none;font-size:11px;color:var(--text-muted)">Appuie sur <b>Partager</b> puis <b>Sur l'écran d'accueil</b></div>
-      <div id="installTexteAndroid" style="display:none;font-size:11px;color:var(--text-muted)">Accès rapide depuis ton écran d'accueil, sans passer par le navigateur</div>
-    </div>
-  </div>
-  <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-    <button id="installBtnAndroid" style="display:none;padding:8px 14px;background:var(--accent);color:var(--accent-text);border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;margin:0" onclick="lancerInstallation()">Installer</button>
-    <button onclick="fermerInstallBanner()" style="background:none;border:none;color:var(--text-muted);padding:6px;cursor:pointer;margin:0"><span data-icon="close" data-icon-taille="16px"></span></button>
-  </div>
-</div>
 <div style="position:fixed;bottom:0;right:0;background:rgba(0,0,0,0.5);color:var(--text-muted);font-size:10px;padding:2px 6px;border-top-left-radius:4px;z-index:9999">v2.1.0</div>
 </body>
 </html>
