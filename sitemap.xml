@@ -25,4 +25,49 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/marseille/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/allauch/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/aubagne/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/espagne/precio-carburante/madrid/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/espagne/precio-carburante/barcelona/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/espagne/precio-carburante/valencia/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/italie/prezzo-carburante/roma/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/italie/prezzo-carburante/milano/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/italie/prezzo-carburante/torino/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
 </urlset>
