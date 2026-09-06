@@ -1,1 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<link rel="icon" type="image/png" sizes="192x192" href="../../../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../../../icons/icon-192.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Precio del carburante en Barcelona en tiempo real | CarburantRadar</title>
+<meta name="description" content="Compara en tiempo real los precios de Gasóleo A, Gasolina 95, 98 y GLP en las gasolineras de Barcelona, a partir de datos oficiales.">
+<link rel="canonical" href="https://emilienzabu.github.io/CarburantRadar/espagne/precio-carburante/barcelona/">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CarburantRadar">
+<meta property="og:title" content="Precio del carburante en Barcelona en tiempo real | CarburantRadar">
+<meta property="og:description" content="Compara en tiempo real los precios de Gasóleo A, Gasolina 95, 98 y GLP en las gasolineras de Barcelona, a partir de datos oficiales.">
+<meta property="og:url" content="https://emilienzabu.github.io/CarburantRadar/espagne/precio-carburante/barcelona/">
+<meta property="og:image" content="https://emilienzabu.github.io/CarburantRadar/icons/icon-192.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Precio del carburante en Barcelona en tiempo real | CarburantRadar">
+<meta name="twitter:description" content="Compara en tiempo real los precios de Gasóleo A, Gasolina 95, 98 y GLP en las gasolineras de Barcelona, a partir de datos oficiales.">
+<meta name="twitter:image" content="https://emilienzabu.github.io/CarburantRadar/icons/icon-192.png">
+<meta name="theme-color" content="#f5a623">
+<meta name="color-scheme" content="dark">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type":"ListItem","position":1,"name":"CarburantRadar","item":"https://emilienzabu.github.io/CarburantRadar/"},
+    {"@type":"ListItem","position":2,"name":"España","item":"https://emilienzabu.github.io/CarburantRadar/espagne/"},
+    {"@type":"ListItem","position":3,"name":"Barcelona","item":"https://emilienzabu.github.io/CarburantRadar/espagne/precio-carburante/barcelona/"}
+  ]
+}
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-page:#0a0a0f;
+  --bg-surface:#16161f;
+  --border:#252535;
+  --text:#e8e8f0;
+  --text-muted:#6b6b8a;
+  --accent:#f5a623;
+}
+body{background:var(--bg-page);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6}
+.wrap{max-width:700px;margin:0 auto;padding:24px 20px 60px}
+header{margin-bottom:24px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);font-weight:700;font-size:16px;margin-bottom:20px}
+.brand span{color:var(--accent)}
+.breadcrumb{font-size:12px;color:var(--text-muted);margin-bottom:16px}
+.breadcrumb a{color:var(--text-muted)}
+h1{font-size:22px;margin-bottom:8px;line-height:1.3}
+.subtitle{color:var(--text-muted);font-size:14px;margin-bottom:8px}
+h2{font-size:17px;margin:28px 0 12px;color:var(--accent)}
+p{margin-bottom:14px;font-size:15px;color:var(--text)}
+ul{margin:0 0 14px 20px}
+li{margin-bottom:8px;font-size:15px}
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin:16px 0}
+.live-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
+.live-row:last-child{border-bottom:none}
+.live-name{font-weight:600;color:var(--text)}
+.live-addr{color:var(--text-muted);font-size:12px}
+.live-price{font-weight:800;color:var(--accent);font-size:15px;white-space:nowrap;margin-left:10px}
+.live-status{color:var(--text-muted);font-size:13px;text-align:center;padding:14px 0}
+.cta{display:block;text-align:center;background:var(--accent);color:#1a1200;font-weight:700;padding:14px;border-radius:12px;text-decoration:none;margin:20px 0;font-size:15px}
+footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--border);color:var(--text-muted);font-size:12px;text-align:center}
+footer a{color:var(--text-muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../../../"><span>⛽</span> CarburantRadar</a>
+    <div class="breadcrumb"><a href="../../../">Inicio</a> › <a href="../../">España</a> › Barcelona</div>
+    <h1>Precio del carburante en Barcelona</h1>
+    <div class="subtitle">Comparador en tiempo real — datos oficiales</div>
+  </header>
 
+  <p>Barcelona y su área metropolitana ofrecen una gran densidad de gasolineras. Estas son las más baratas actualmente en la zona, actualizadas en tiempo real a partir de datos oficiales.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">Gasolineras más baratas cerca (Gasóleo A)</h2>
+    <div id="live-data"><div class="live-status">Cargando precios en directo...</div></div>
+  </div>
+
+  <a class="cta" href="../../">Abrir CarburantRadar en esta zona →</a>
+
+  <h2>Por qué comparar antes de repostar</h2>
+  <p>En Barcelona, la proximidad de varias marcas en zonas densas suele traducirse en precios más competitivos. CarburantRadar utiliza exclusivamente los datos oficiales publicados por el Ministerio de Industria, actualizados de forma continua.</p>
+
+  <footer>
+    <a href="../../../">CarburantRadar</a> — comparador gratuito de precios de carburante
+  </footer>
+</div>
+<script>
+(function(){
+  var PROXY='https://carburant-proxy.emilienzabukovec09.workers.dev';
+  var ROUTE='/es';
+  var LAT=41.3874;
+  var LON=2.1686;
+  var PK={GasoleoA:'gasoleoA_prix',GasoleoPremium:'gasoleoPremium_prix',Gasolina95:'gasolina95_prix',Gasolina98:'gasolina98_prix',GLP:'glp_prix'};
+  var FUEL='GasoleoA';
+  var el=document.getElementById('live-data');
+  fetch(PROXY+ROUTE+'?lat='+LAT+'&lon='+LON+'&dist=12&limit=100').then(function(r){if(!r.ok)throw new Error();return r.json();})
+  .then(function(raw){
+    if(!raw||!Array.isArray(raw.results)||!raw.results.length){el.innerHTML='<div class="live-status">No hay datos disponibles por ahora en esta zona.</div>';return;}
+    var st=[];
+    raw.results.forEach(function(r){
+      var px=parseFloat(r[PK[FUEL]]);
+      if(isNaN(px)||px<=0)return;
+      st.push({adresse:r.adresse||'',ville:r.ville||'',prix:px});
+    });
+    if(!st.length){el.innerHTML='<div class="live-status">No hay datos disponibles por ahora en esta zona.</div>';return;}
+    st.sort(function(a,b){return a.prix-b.prix;});
+    var top=st.slice(0,5);
+    var html='';
+    top.forEach(function(s){
+      html+='<div class="live-row"><div><div class="live-name">'+(s.ville||s.adresse||'Station')+'</div><div class="live-addr">'+(s.adresse||'')+'</div></div><div class="live-price">'+s.prix.toFixed(3)+' €</div></div>';
+    });
+    el.innerHTML=html;
+  }).catch(function(){el.innerHTML='<div class="live-status">No se han podido cargar los precios en directo por ahora.</div>';});
+})();
+</script>
+</body>
+</html>
