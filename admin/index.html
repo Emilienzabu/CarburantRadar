@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CarburantRadar — Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--surface:#16161f;--border:#252535;--text:#e8e8f0;--muted:#6b6b8a;--accent:#f5a623}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:20px}
+.wrap{max-width:800px;margin:0 auto}
+h1{font-size:20px;margin-bottom:20px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:400px}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:15px;margin-bottom:10px}
+button{background:var(--accent);color:#1a1200;font-weight:700;border:none;padding:12px 18px;border-radius:10px;font-size:15px;cursor:pointer}
+.err{color:#ff6b6b;font-size:13px;margin-top:8px}
+#dashboard{display:none}
+.stats-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;flex:1;min-width:130px}
+.stat-card .n{font-size:26px;font-weight:800;color:var(--accent)}
+.stat-card .l{font-size:12px;color:var(--muted);margin-top:4px}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tab{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:8px 14px;border-radius:10px;font-size:13px;cursor:pointer}
+.tab.active{color:var(--accent);border-color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:20px}
+canvas{width:100%!important;max-height:260px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-weight:600}
+.refresh{font-size:12px;color:var(--muted);margin-bottom:10px;cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⛽ CarburantRadar — Admin</h1>
+
+  <div class="login-box" id="loginBox">
+    <input type="password" id="adminKey" placeholder="Clé admin">
+    <button onclick="seConnecter()">Se connecter</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+
+  <div id="dashboard">
+    <div class="stats-row">
+      <div class="stat-card"><div class="n" id="statToday">-</div><div class="l">Utilisateurs aujourd'hui</div></div>
+      <div class="stat-card"><div class="n" id="stat7">-</div><div class="l">Sur 7 jours</div></div>
+      <div class="stat-card"><div class="n" id="stat30">-</div><div class="l">Sur 30 jours</div></div>
+      <div class="stat-card"><div class="n" id="statTotal">-</div><div class="l">Depuis le début</div></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-range="7" onclick="changerVue(7)">7 jours</div>
+      <div class="tab" data-range="30" onclick="changerVue(30)">30 jours</div>
+    </div>
+
+    <div class="card">
+      <canvas id="chart"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="refresh" onclick="chargerUtilisateurs()">↻ Rafraîchir la liste</div>
+      <table>
+        <thead><tr><th>Email</th><th>Créé le</th></tr></thead>
+        <tbody id="usersBody"><tr><td colspan="2">Chargement...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+var PROXY='https://carburant-proxy.emilienzabukovec09.workers.dev';
+var adminKey='';
+var lastStats=null;
+var chartInstance=null;
+
+function seConnecter(){
+  adminKey=document.getElementById('adminKey').value.trim();
+  if(!adminKey){return;}
+  chargerStats();
+}
+
+async function appelAdmin(path){
+  var r=await fetch(PROXY+path,{headers:{'X-Admin-Key':adminKey}});
+  if(r.status===401){throw new Error('unauthorized');}
+  return r.json();
+}
+
+async function chargerStats(){
+  try{
+    var data=await appelAdmin('/admin/stats');
+    lastStats=data;
+    document.getElementById('loginBox').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+    document.getElementById('statToday').textContent=data.today;
+    var sum7=data.last7.reduce(function(a,d){return a+d.count;},0);
+    var sum30=data.last30.reduce(function(a,d){return a+d.count;},0);
+    document.getElementById('stat7').textContent=sum7;
+    document.getElementById('stat30').textContent=sum30;
+    document.getElementById('statTotal').textContent=data.totalUniqueSince;
+    changerVue(7);
+    chargerUtilisateurs();
+  }catch(e){
+    document.getElementById('loginErr').textContent='Clé incorrecte ou serveur indisponible.';
+  }
+}
+
+function changerVue(n){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.range==String(n));});
+  if(!lastStats)return;
+  var points = n===7 ? lastStats.last7 : lastStats.last30;
+  var labels = points.map(function(p){return p.date.slice(5);});
+  var valeurs = points.map(function(p){return p.count;});
+  var ctx=document.getElementById('chart').getContext('2d');
+  if(chartInstance)chartInstance.destroy();
+  chartInstance=new Chart(ctx,{
+    type:'line',
+    data:{labels:labels,datasets:[{label:'Utilisateurs actifs',data:valeurs,borderColor:'#f5a623',backgroundColor:'rgba(245,166,35,0.15)',fill:true,tension:0.3,pointRadius:2}]},
+    options:{responsive:true,scales:{x:{ticks:{color:'#6b6b8a'},grid:{color:'#252535'}},y:{beginAtZero:true,ticks:{color:'#6b6b8a'},grid:{color:'#252535'}}},plugins:{legend:{display:false}}}
+  });
+}
+
+async function chargerUtilisateurs(){
+  try{
+    var data=await appelAdmin('/admin/users');
+    var body=document.getElementById('usersBody');
+    if(!data.utilisateurs.length){body.innerHTML='<tr><td colspan="2">Aucun compte pour l\'instant.</td></tr>';return;}
+    body.innerHTML=data.utilisateurs.map(function(u){
+      var date=u.cree?new Date(u.cree).toLocaleDateString('fr-FR'):'-';
+      return '<tr><td>'+u.email+'</td><td>'+date+'</td></tr>';
+    }).join('');
+  }catch(e){
+    document.getElementById('usersBody').innerHTML='<tr><td colspan="2">Erreur de chargement.</td></tr>';
+  }
+}
+</script>
+</body>
+</html>
