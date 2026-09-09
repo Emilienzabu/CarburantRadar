@@ -6,6 +6,7 @@
     if(location.pathname.indexOf('/france/')!==-1)pays='france';
     else if(location.pathname.indexOf('/espagne/')!==-1)pays='espagne';
     else if(location.pathname.indexOf('/italie/')!==-1)pays='italie';
-    fetch('https://carburant-proxy.emilienzabukovec09.workers.dev/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:uid,pays:pays})}).catch(function(){});
+    var email=localStorage.getItem('cr_account_email')||null;
+    fetch('https://carburant-proxy.emilienzabukovec09.workers.dev/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:uid,pays:pays,email:email})}).catch(function(){});
   }catch(e){}
 })();
