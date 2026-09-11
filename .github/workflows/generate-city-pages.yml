@@ -1,0 +1,34 @@
+name: Générer les pages villes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'generator/villes.json'
+      - 'generator/template.html'
+      - 'generator/generate.py'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le repo
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Générer les pages villes
+        run: python3 generator/generate.py
+
+      - name: Commit et push automatique
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🤖 Régénération automatique des pages villes"
+          file_pattern: '*/prix-carburant/** */precio-carburante/** */prezzo-carburante/** sitemap.xml'
