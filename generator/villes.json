@@ -6,7 +6,14 @@
       "nom_pays": "France",
       "breadcrumb_home": "Accueil",
       "route": "",
-      "fuel_map": {"Gazole":"gazole_prix","SP95":"sp95_prix","SP98":"sp98_prix","E10":"e10_prix","E85":"e85_prix","GPLc":"gplc_prix"},
+      "fuel_map": {
+        "Gazole": "gazole_prix",
+        "SP95": "sp95_prix",
+        "SP98": "sp98_prix",
+        "E10": "e10_prix",
+        "E85": "e85_prix",
+        "GPLc": "gplc_prix"
+      },
       "fuel_defaut": "Gazole",
       "fuel_label": "Gazole",
       "title_tpl": "Prix du carburant à {ville} en direct — le moins cher | CarburantRadar",
@@ -47,7 +54,13 @@
       "nom_pays": "España",
       "breadcrumb_home": "Inicio",
       "route": "/es",
-      "fuel_map": {"GasoleoA":"gasoleoA_prix","GasoleoPremium":"gasoleoPremium_prix","Gasolina95":"gasolina95_prix","Gasolina98":"gasolina98_prix","GLP":"glp_prix"},
+      "fuel_map": {
+        "GasoleoA": "gasoleoA_prix",
+        "GasoleoPremium": "gasoleoPremium_prix",
+        "Gasolina95": "gasolina95_prix",
+        "Gasolina98": "gasolina98_prix",
+        "GLP": "glp_prix"
+      },
       "fuel_defaut": "GasoleoA",
       "fuel_label": "Gasóleo A",
       "title_tpl": "Precio del carburante en {ville} en directo — el más barato | CarburantRadar",
@@ -88,7 +101,12 @@
       "nom_pays": "Italia",
       "breadcrumb_home": "Home",
       "route": "/it",
-      "fuel_map": {"benzina":"benzina_prix","gasolio":"gasolio_prix","gpl":"gpl_prix","metano":"metano_prix"},
+      "fuel_map": {
+        "benzina": "benzina_prix",
+        "gasolio": "gasolio_prix",
+        "gpl": "gpl_prix",
+        "metano": "metano_prix"
+      },
       "fuel_defaut": "gasolio",
       "fuel_label": "Gasolio",
       "title_tpl": "Prezzo del carburante a {ville} in diretta — il più economico | CarburantRadar",
@@ -125,32 +143,2186 @@
     }
   },
   "villes": [
-    {"pays":"france","slug":"marseille","nom":"Marseille","lat":43.2965,"lon":5.3698,
-      "intro":"Marseille et son agglomération comptent un grand nombre de stations-service, avec des écarts de prix qui peuvent être significatifs entre le centre-ville, les quartiers périphériques et les axes autoroutiers.",
-      "why":"Les prix des stations d'une même agglomération peuvent varier de plusieurs centimes par litre selon l'enseigne et la concurrence locale. CarburantRadar utilise exclusivement les données officielles publiées par le gouvernement français, mises à jour en continu."},
-    {"pays":"france","slug":"allauch","nom":"Allauch","lat":43.3389,"lon":5.4886,
-      "intro":"Allauch est une commune résidentielle proche de Marseille, avec une offre de stations plus limitée que le centre-ville. Élargir la recherche aux communes voisines permet souvent de trouver un meilleur prix à quelques minutes de route seulement.",
-      "why":"Même sur une petite commune, les prix peuvent varier sensiblement en élargissant la recherche aux communes voisines. CarburantRadar compare automatiquement toutes les stations dans un rayon donné autour de la position choisie, à partir des données officielles du gouvernement français."},
-    {"pays":"france","slug":"aubagne","nom":"Aubagne","lat":43.2930,"lon":5.5701,
-      "intro":"Aubagne, entre Marseille et le reste du département, regroupe plusieurs enseignes commerciales et zones d'activité.",
-      "why":"Aubagne se situe à la croisée de plusieurs axes routiers vers Marseille et le reste du département, ce qui crée une concurrence locale entre enseignes. CarburantRadar utilise exclusivement les données officielles publiées par le gouvernement français, mises à jour en continu."},
-    {"pays":"espagne","slug":"valencia","nom":"Valencia","lat":39.4699,"lon":-0.3763,
-      "intro":"Valencia ofrece una oferta de gasolineras repartida entre el centro, la costa y las zonas industriales.",
-      "why":"Valencia combina zona urbana y costera, con una oferta de gasolineras variada según el barrio. CarburantRadar utiliza exclusivamente los datos oficiales publicados por el Ministerio de Industria, actualizados de forma continua."},
-    {"pays":"espagne","slug":"madrid","nom":"Madrid","lat":40.4168,"lon":-3.7038,
-      "intro":"Madrid concentra un gran número de gasolineras, con diferencias de precio notables entre el centro y las afueras.",
-      "why":"Los precios entre gasolineras de una misma ciudad pueden variar varios céntimos por litro según la zona y la competencia local. CarburantRadar utiliza exclusivamente los datos oficiales publicados por el Ministerio de Industria, actualizados de forma continua."},
-    {"pays":"espagne","slug":"barcelona","nom":"Barcelona","lat":41.3874,"lon":2.1686,
-      "intro":"Barcelona y su área metropolitana ofrecen una gran densidad de gasolineras.",
-      "why":"En Barcelona, la proximidad de varias marcas en zonas densas suele traducirse en precios más competitivos. CarburantRadar utiliza exclusivamente los datos oficiales publicados por el Ministerio de Industria, actualizados de forma continua."},
-    {"pays":"italie","slug":"torino","nom":"Torino","lat":45.0703,"lon":7.6869,
-      "intro":"Torino conta diversi distributori distribuiti tra il centro storico e le zone industriali.",
-      "why":"Torino, città industriale del nord-ovest, presenta un'offerta di distributori variabile a seconda del quartiere. CarburantRadar utilizza esclusivamente i dati ufficiali pubblicati dal Ministero, aggiornati continuamente."},
-    {"pays":"italie","slug":"roma","nom":"Roma","lat":41.9028,"lon":12.4964,
-      "intro":"Roma conta un gran numero di distributori, con differenze di prezzo significative tra il centro e le zone periferiche.",
-      "why":"I prezzi tra distributori della stessa città possono variare di diversi centesimi al litro a seconda della zona e della concorrenza locale. CarburantRadar utilizza esclusivamente i dati ufficiali pubblicati dal Ministero, aggiornati continuamente."},
-    {"pays":"italie","slug":"milano","nom":"Milano","lat":45.4642,"lon":9.19,
-      "intro":"Milano offre un'ampia rete di distributori, con differenze di prezzo tra il centro e l'hinterland.",
-      "why":"Milano, come grande polo economico, presenta una forte concorrenza tra insegne nelle zone centrali. CarburantRadar utilizza esclusivamente i dati ufficiali pubblicati dal Ministero, aggiornati continuamente."}
+    {
+      "pays": "france",
+      "slug": "marseille",
+      "nom": "Marseille",
+      "lat": 43.2965,
+      "lon": 5.3698,
+      "intro": "Marseille et son agglomération comptent un grand nombre de stations-service, avec des écarts de prix qui peuvent être significatifs entre le centre-ville, les quartiers périphériques et les axes autoroutiers.",
+      "why": "Les prix des stations d'une même agglomération peuvent varier de plusieurs centimes par litre selon l'enseigne et la concurrence locale. CarburantRadar utilise exclusivement les données officielles publiées par le gouvernement français, mises à jour en continu."
+    },
+    {
+      "pays": "france",
+      "slug": "allauch",
+      "nom": "Allauch",
+      "lat": 43.3389,
+      "lon": 5.4886,
+      "intro": "Allauch est une commune résidentielle proche de Marseille, avec une offre de stations plus limitée que le centre-ville. Élargir la recherche aux communes voisines permet souvent de trouver un meilleur prix à quelques minutes de route seulement.",
+      "why": "Même sur une petite commune, les prix peuvent varier sensiblement en élargissant la recherche aux communes voisines. CarburantRadar compare automatiquement toutes les stations dans un rayon donné autour de la position choisie, à partir des données officielles du gouvernement français."
+    },
+    {
+      "pays": "france",
+      "slug": "aubagne",
+      "nom": "Aubagne",
+      "lat": 43.293,
+      "lon": 5.5701,
+      "intro": "Aubagne, entre Marseille et le reste du département, regroupe plusieurs enseignes commerciales et zones d'activité.",
+      "why": "Aubagne se situe à la croisée de plusieurs axes routiers vers Marseille et le reste du département, ce qui crée une concurrence locale entre enseignes. CarburantRadar utilise exclusivement les données officielles publiées par le gouvernement français, mises à jour en continu."
+    },
+    {
+      "pays": "espagne",
+      "slug": "valencia",
+      "nom": "Valencia",
+      "lat": 39.4699,
+      "lon": -0.3763,
+      "intro": "Valencia ofrece una oferta de gasolineras repartida entre el centro, la costa y las zonas industriales.",
+      "why": "Valencia combina zona urbana y costera, con una oferta de gasolineras variada según el barrio. CarburantRadar utiliza exclusivamente los datos oficiales publicados por el Ministerio de Industria, actualizados de forma continua."
+    },
+    {
+      "pays": "espagne",
+      "slug": "madrid",
+      "nom": "Madrid",
+      "lat": 40.4168,
+      "lon": -3.7038,
+      "intro": "Madrid concentra un gran número de gasolineras, con diferencias de precio notables entre el centro y las afueras.",
+      "why": "Los precios entre gasolineras de una misma ciudad pueden variar varios céntimos por litro según la zona y la competencia local. CarburantRadar utiliza exclusivamente los datos oficiales publicados por el Ministerio de Industria, actualizados de forma continua."
+    },
+    {
+      "pays": "espagne",
+      "slug": "barcelona",
+      "nom": "Barcelona",
+      "lat": 41.3874,
+      "lon": 2.1686,
+      "intro": "Barcelona y su área metropolitana ofrecen una gran densidad de gasolineras.",
+      "why": "En Barcelona, la proximidad de varias marcas en zonas densas suele traducirse en precios más competitivos. CarburantRadar utiliza exclusivamente los datos oficiales publicados por el Ministerio de Industria, actualizados de forma continua."
+    },
+    {
+      "pays": "italie",
+      "slug": "torino",
+      "nom": "Torino",
+      "lat": 45.0703,
+      "lon": 7.6869,
+      "intro": "Torino conta diversi distributori distribuiti tra il centro storico e le zone industriali.",
+      "why": "Torino, città industriale del nord-ovest, presenta un'offerta di distributori variabile a seconda del quartiere. CarburantRadar utilizza esclusivamente i dati ufficiali pubblicati dal Ministero, aggiornati continuamente."
+    },
+    {
+      "pays": "italie",
+      "slug": "roma",
+      "nom": "Roma",
+      "lat": 41.9028,
+      "lon": 12.4964,
+      "intro": "Roma conta un gran numero di distributori, con differenze di prezzo significative tra il centro e le zone periferiche.",
+      "why": "I prezzi tra distributori della stessa città possono variare di diversi centesimi al litro a seconda della zona e della concorrenza locale. CarburantRadar utilizza esclusivamente i dati ufficiali pubblicati dal Ministero, aggiornati continuamente."
+    },
+    {
+      "pays": "italie",
+      "slug": "milano",
+      "nom": "Milano",
+      "lat": 45.4642,
+      "lon": 9.19,
+      "intro": "Milano offre un'ampia rete di distributori, con differenze di prezzo tra il centro e l'hinterland.",
+      "why": "Milano, come grande polo economico, presenta una forte concorrenza tra insegne nelle zone centrali. CarburantRadar utilizza esclusivamente i dati ufficiali pubblicati dal Ministero, aggiornati continuamente."
+    },
+    {
+      "pays": "france",
+      "slug": "paris",
+      "nom": "Paris",
+      "lat": 48.8566,
+      "lon": 2.3522
+    },
+    {
+      "pays": "france",
+      "slug": "lyon",
+      "nom": "Lyon",
+      "lat": 45.764,
+      "lon": 4.8357
+    },
+    {
+      "pays": "france",
+      "slug": "toulouse",
+      "nom": "Toulouse",
+      "lat": 43.6047,
+      "lon": 1.4442
+    },
+    {
+      "pays": "france",
+      "slug": "nice",
+      "nom": "Nice",
+      "lat": 43.7102,
+      "lon": 7.262
+    },
+    {
+      "pays": "france",
+      "slug": "nantes",
+      "nom": "Nantes",
+      "lat": 47.2184,
+      "lon": -1.5536
+    },
+    {
+      "pays": "france",
+      "slug": "montpellier",
+      "nom": "Montpellier",
+      "lat": 43.6108,
+      "lon": 3.8767
+    },
+    {
+      "pays": "france",
+      "slug": "strasbourg",
+      "nom": "Strasbourg",
+      "lat": 48.5734,
+      "lon": 7.7521
+    },
+    {
+      "pays": "france",
+      "slug": "bordeaux",
+      "nom": "Bordeaux",
+      "lat": 44.8378,
+      "lon": -0.5792
+    },
+    {
+      "pays": "france",
+      "slug": "lille",
+      "nom": "Lille",
+      "lat": 50.6292,
+      "lon": 3.0573
+    },
+    {
+      "pays": "france",
+      "slug": "rennes",
+      "nom": "Rennes",
+      "lat": 48.1173,
+      "lon": -1.6778
+    },
+    {
+      "pays": "france",
+      "slug": "reims",
+      "nom": "Reims",
+      "lat": 49.2583,
+      "lon": 4.0317
+    },
+    {
+      "pays": "france",
+      "slug": "le-havre",
+      "nom": "Le Havre",
+      "lat": 49.4944,
+      "lon": 0.1079
+    },
+    {
+      "pays": "france",
+      "slug": "saint-etienne",
+      "nom": "Saint-Étienne",
+      "lat": 45.4397,
+      "lon": 4.3872
+    },
+    {
+      "pays": "france",
+      "slug": "toulon",
+      "nom": "Toulon",
+      "lat": 43.1242,
+      "lon": 5.928
+    },
+    {
+      "pays": "france",
+      "slug": "grenoble",
+      "nom": "Grenoble",
+      "lat": 45.1885,
+      "lon": 5.7245
+    },
+    {
+      "pays": "france",
+      "slug": "dijon",
+      "nom": "Dijon",
+      "lat": 47.322,
+      "lon": 5.0415
+    },
+    {
+      "pays": "france",
+      "slug": "angers",
+      "nom": "Angers",
+      "lat": 47.4784,
+      "lon": -0.5632
+    },
+    {
+      "pays": "france",
+      "slug": "nimes",
+      "nom": "Nîmes",
+      "lat": 43.8367,
+      "lon": 4.3601
+    },
+    {
+      "pays": "france",
+      "slug": "villeurbanne",
+      "nom": "Villeurbanne",
+      "lat": 45.7719,
+      "lon": 4.8902
+    },
+    {
+      "pays": "france",
+      "slug": "saint-denis",
+      "nom": "Saint-Denis",
+      "lat": 48.9362,
+      "lon": 2.3574
+    },
+    {
+      "pays": "france",
+      "slug": "le-mans",
+      "nom": "Le Mans",
+      "lat": 48.0061,
+      "lon": 0.1996
+    },
+    {
+      "pays": "france",
+      "slug": "aix-en-provence",
+      "nom": "Aix-en-Provence",
+      "lat": 43.5297,
+      "lon": 5.4474
+    },
+    {
+      "pays": "france",
+      "slug": "clermont-ferrand",
+      "nom": "Clermont-Ferrand",
+      "lat": 45.7772,
+      "lon": 3.087
+    },
+    {
+      "pays": "france",
+      "slug": "brest",
+      "nom": "Brest",
+      "lat": 48.3904,
+      "lon": -4.4861
+    },
+    {
+      "pays": "france",
+      "slug": "tours",
+      "nom": "Tours",
+      "lat": 47.3941,
+      "lon": 0.6848
+    },
+    {
+      "pays": "france",
+      "slug": "limoges",
+      "nom": "Limoges",
+      "lat": 45.8336,
+      "lon": 1.2611
+    },
+    {
+      "pays": "france",
+      "slug": "amiens",
+      "nom": "Amiens",
+      "lat": 49.8942,
+      "lon": 2.2957
+    },
+    {
+      "pays": "france",
+      "slug": "annecy",
+      "nom": "Annecy",
+      "lat": 45.8992,
+      "lon": 6.1294
+    },
+    {
+      "pays": "france",
+      "slug": "perpignan",
+      "nom": "Perpignan",
+      "lat": 42.6986,
+      "lon": 2.8954
+    },
+    {
+      "pays": "france",
+      "slug": "besancon",
+      "nom": "Besançon",
+      "lat": 47.2378,
+      "lon": 6.0241
+    },
+    {
+      "pays": "france",
+      "slug": "metz",
+      "nom": "Metz",
+      "lat": 49.1193,
+      "lon": 6.1757
+    },
+    {
+      "pays": "france",
+      "slug": "boulogne-billancourt",
+      "nom": "Boulogne-Billancourt",
+      "lat": 48.8352,
+      "lon": 2.241
+    },
+    {
+      "pays": "france",
+      "slug": "orleans",
+      "nom": "Orléans",
+      "lat": 47.9029,
+      "lon": 1.9039
+    },
+    {
+      "pays": "france",
+      "slug": "mulhouse",
+      "nom": "Mulhouse",
+      "lat": 47.7508,
+      "lon": 7.3359
+    },
+    {
+      "pays": "france",
+      "slug": "rouen",
+      "nom": "Rouen",
+      "lat": 49.4431,
+      "lon": 1.0993
+    },
+    {
+      "pays": "france",
+      "slug": "caen",
+      "nom": "Caen",
+      "lat": 49.1829,
+      "lon": -0.3707
+    },
+    {
+      "pays": "france",
+      "slug": "nancy",
+      "nom": "Nancy",
+      "lat": 48.6921,
+      "lon": 6.1844
+    },
+    {
+      "pays": "france",
+      "slug": "argenteuil",
+      "nom": "Argenteuil",
+      "lat": 48.9474,
+      "lon": 2.2482
+    },
+    {
+      "pays": "france",
+      "slug": "montreuil",
+      "nom": "Montreuil",
+      "lat": 48.8638,
+      "lon": 2.4485
+    },
+    {
+      "pays": "france",
+      "slug": "roubaix",
+      "nom": "Roubaix",
+      "lat": 50.6942,
+      "lon": 3.1746
+    },
+    {
+      "pays": "france",
+      "slug": "tourcoing",
+      "nom": "Tourcoing",
+      "lat": 50.7239,
+      "lon": 3.1614
+    },
+    {
+      "pays": "france",
+      "slug": "nanterre",
+      "nom": "Nanterre",
+      "lat": 48.8924,
+      "lon": 2.2065
+    },
+    {
+      "pays": "france",
+      "slug": "avignon",
+      "nom": "Avignon",
+      "lat": 43.9493,
+      "lon": 4.8055
+    },
+    {
+      "pays": "france",
+      "slug": "vitry-sur-seine",
+      "nom": "Vitry-sur-Seine",
+      "lat": 48.7876,
+      "lon": 2.393
+    },
+    {
+      "pays": "france",
+      "slug": "creteil",
+      "nom": "Créteil",
+      "lat": 48.7904,
+      "lon": 2.4556
+    },
+    {
+      "pays": "france",
+      "slug": "dunkerque",
+      "nom": "Dunkerque",
+      "lat": 51.0343,
+      "lon": 2.3768
+    },
+    {
+      "pays": "france",
+      "slug": "poitiers",
+      "nom": "Poitiers",
+      "lat": 46.5802,
+      "lon": 0.3404
+    },
+    {
+      "pays": "france",
+      "slug": "asnieres-sur-seine",
+      "nom": "Asnières-sur-Seine",
+      "lat": 48.9145,
+      "lon": 2.2865
+    },
+    {
+      "pays": "france",
+      "slug": "courbevoie",
+      "nom": "Courbevoie",
+      "lat": 48.8975,
+      "lon": 2.256
+    },
+    {
+      "pays": "france",
+      "slug": "versailles",
+      "nom": "Versailles",
+      "lat": 48.8014,
+      "lon": 2.1301
+    },
+    {
+      "pays": "france",
+      "slug": "colombes",
+      "nom": "Colombes",
+      "lat": 48.9231,
+      "lon": 2.254
+    },
+    {
+      "pays": "france",
+      "slug": "aulnay-sous-bois",
+      "nom": "Aulnay-sous-Bois",
+      "lat": 48.9384,
+      "lon": 2.493
+    },
+    {
+      "pays": "france",
+      "slug": "rueil-malmaison",
+      "nom": "Rueil-Malmaison",
+      "lat": 48.8779,
+      "lon": 2.1806
+    },
+    {
+      "pays": "france",
+      "slug": "pau",
+      "nom": "Pau",
+      "lat": 43.2951,
+      "lon": -0.3708
+    },
+    {
+      "pays": "france",
+      "slug": "aubervilliers",
+      "nom": "Aubervilliers",
+      "lat": 48.9145,
+      "lon": 2.3833
+    },
+    {
+      "pays": "france",
+      "slug": "champigny-sur-marne",
+      "nom": "Champigny-sur-Marne",
+      "lat": 48.8172,
+      "lon": 2.4953
+    },
+    {
+      "pays": "france",
+      "slug": "antibes",
+      "nom": "Antibes",
+      "lat": 43.5808,
+      "lon": 7.1239
+    },
+    {
+      "pays": "france",
+      "slug": "la-rochelle",
+      "nom": "La Rochelle",
+      "lat": 46.1603,
+      "lon": -1.1511
+    },
+    {
+      "pays": "france",
+      "slug": "calais",
+      "nom": "Calais",
+      "lat": 50.9513,
+      "lon": 1.8587
+    },
+    {
+      "pays": "france",
+      "slug": "cannes",
+      "nom": "Cannes",
+      "lat": 43.5528,
+      "lon": 7.0174
+    },
+    {
+      "pays": "france",
+      "slug": "beziers",
+      "nom": "Béziers",
+      "lat": 43.3442,
+      "lon": 3.2158
+    },
+    {
+      "pays": "france",
+      "slug": "colmar",
+      "nom": "Colmar",
+      "lat": 48.0794,
+      "lon": 7.3585
+    },
+    {
+      "pays": "france",
+      "slug": "saint-maur-des-fosses",
+      "nom": "Saint-Maur-des-Fossés",
+      "lat": 48.8,
+      "lon": 2.49
+    },
+    {
+      "pays": "france",
+      "slug": "bourges",
+      "nom": "Bourges",
+      "lat": 47.081,
+      "lon": 2.3987
+    },
+    {
+      "pays": "france",
+      "slug": "drancy",
+      "nom": "Drancy",
+      "lat": 48.9256,
+      "lon": 2.4453
+    },
+    {
+      "pays": "france",
+      "slug": "merignac",
+      "nom": "Mérignac",
+      "lat": 44.8333,
+      "lon": -0.65
+    },
+    {
+      "pays": "france",
+      "slug": "ajaccio",
+      "nom": "Ajaccio",
+      "lat": 41.9192,
+      "lon": 8.7386
+    },
+    {
+      "pays": "france",
+      "slug": "valence",
+      "nom": "Valence",
+      "lat": 44.9334,
+      "lon": 4.8924
+    },
+    {
+      "pays": "france",
+      "slug": "quimper",
+      "nom": "Quimper",
+      "lat": 47.996,
+      "lon": -4.1024
+    },
+    {
+      "pays": "france",
+      "slug": "noisy-le-grand",
+      "nom": "Noisy-le-Grand",
+      "lat": 48.8489,
+      "lon": 2.5533
+    },
+    {
+      "pays": "france",
+      "slug": "villejuif",
+      "nom": "Villejuif",
+      "lat": 48.793,
+      "lon": 2.363
+    },
+    {
+      "pays": "france",
+      "slug": "cergy",
+      "nom": "Cergy",
+      "lat": 49.0364,
+      "lon": 2.0768
+    },
+    {
+      "pays": "france",
+      "slug": "la-seyne-sur-mer",
+      "nom": "La Seyne-sur-Mer",
+      "lat": 43.1,
+      "lon": 5.883
+    },
+    {
+      "pays": "france",
+      "slug": "ivry-sur-seine",
+      "nom": "Ivry-sur-Seine",
+      "lat": 48.8144,
+      "lon": 2.3861
+    },
+    {
+      "pays": "france",
+      "slug": "troyes",
+      "nom": "Troyes",
+      "lat": 48.2973,
+      "lon": 4.0744
+    },
+    {
+      "pays": "france",
+      "slug": "chambery",
+      "nom": "Chambéry",
+      "lat": 45.5646,
+      "lon": 5.9178
+    },
+    {
+      "pays": "france",
+      "slug": "niort",
+      "nom": "Niort",
+      "lat": 46.3239,
+      "lon": -0.459
+    },
+    {
+      "pays": "france",
+      "slug": "sarcelles",
+      "nom": "Sarcelles",
+      "lat": 48.9964,
+      "lon": 2.3811
+    },
+    {
+      "pays": "france",
+      "slug": "pessac",
+      "nom": "Pessac",
+      "lat": 44.8058,
+      "lon": -0.6314
+    },
+    {
+      "pays": "france",
+      "slug": "venissieux",
+      "nom": "Vénissieux",
+      "lat": 45.6969,
+      "lon": 4.8869
+    },
+    {
+      "pays": "france",
+      "slug": "antony",
+      "nom": "Antony",
+      "lat": 48.7539,
+      "lon": 2.2977
+    },
+    {
+      "pays": "france",
+      "slug": "clichy",
+      "nom": "Clichy",
+      "lat": 48.9042,
+      "lon": 2.3059
+    },
+    {
+      "pays": "france",
+      "slug": "epinay-sur-seine",
+      "nom": "Épinay-sur-Seine",
+      "lat": 48.954,
+      "lon": 2.311
+    },
+    {
+      "pays": "france",
+      "slug": "le-blanc-mesnil",
+      "nom": "Le Blanc-Mesnil",
+      "lat": 48.9351,
+      "lon": 2.455
+    },
+    {
+      "pays": "france",
+      "slug": "chalon-sur-saone",
+      "nom": "Chalon-sur-Saône",
+      "lat": 46.7806,
+      "lon": 4.8523
+    },
+    {
+      "pays": "france",
+      "slug": "narbonne",
+      "nom": "Narbonne",
+      "lat": 43.1839,
+      "lon": 3.004
+    },
+    {
+      "pays": "france",
+      "slug": "vannes",
+      "nom": "Vannes",
+      "lat": 47.6582,
+      "lon": -2.7603
+    },
+    {
+      "pays": "france",
+      "slug": "charleville-mezieres",
+      "nom": "Charleville-Mézières",
+      "lat": 49.7729,
+      "lon": 4.7196
+    },
+    {
+      "pays": "france",
+      "slug": "bayonne",
+      "nom": "Bayonne",
+      "lat": 43.4933,
+      "lon": -1.4749
+    },
+    {
+      "pays": "france",
+      "slug": "arles",
+      "nom": "Arles",
+      "lat": 43.6768,
+      "lon": 4.628
+    },
+    {
+      "pays": "france",
+      "slug": "cholet",
+      "nom": "Cholet",
+      "lat": 47.0605,
+      "lon": -0.8791
+    },
+    {
+      "pays": "france",
+      "slug": "laval",
+      "nom": "Laval",
+      "lat": 48.0733,
+      "lon": -0.7689
+    },
+    {
+      "pays": "france",
+      "slug": "evry-courcouronnes",
+      "nom": "Évry-Courcouronnes",
+      "lat": 48.628,
+      "lon": 2.4297
+    },
+    {
+      "pays": "france",
+      "slug": "meaux",
+      "nom": "Meaux",
+      "lat": 48.9602,
+      "lon": 2.8783
+    },
+    {
+      "pays": "france",
+      "slug": "chelles",
+      "nom": "Chelles",
+      "lat": 48.883,
+      "lon": 2.594
+    },
+    {
+      "pays": "france",
+      "slug": "frejus",
+      "nom": "Fréjus",
+      "lat": 43.4332,
+      "lon": 6.737
+    },
+    {
+      "pays": "france",
+      "slug": "angouleme",
+      "nom": "Angoulême",
+      "lat": 45.6484,
+      "lon": 0.1562
+    },
+    {
+      "pays": "france",
+      "slug": "saint-nazaire",
+      "nom": "Saint-Nazaire",
+      "lat": 47.2733,
+      "lon": -2.2138
+    },
+    {
+      "pays": "france",
+      "slug": "belfort",
+      "nom": "Belfort",
+      "lat": 47.6386,
+      "lon": 6.8631
+    },
+    {
+      "pays": "france",
+      "slug": "evreux",
+      "nom": "Évreux",
+      "lat": 49.0246,
+      "lon": 1.1509
+    },
+    {
+      "pays": "espagne",
+      "slug": "sevilla",
+      "nom": "Sevilla",
+      "lat": 37.3891,
+      "lon": -5.9845
+    },
+    {
+      "pays": "espagne",
+      "slug": "zaragoza",
+      "nom": "Zaragoza",
+      "lat": 41.6488,
+      "lon": -0.8891
+    },
+    {
+      "pays": "espagne",
+      "slug": "malaga",
+      "nom": "Málaga",
+      "lat": 36.7213,
+      "lon": -4.4213
+    },
+    {
+      "pays": "espagne",
+      "slug": "murcia",
+      "nom": "Murcia",
+      "lat": 37.9922,
+      "lon": -1.1307
+    },
+    {
+      "pays": "espagne",
+      "slug": "palma-de-mallorca",
+      "nom": "Palma de Mallorca",
+      "lat": 39.5696,
+      "lon": 2.6502
+    },
+    {
+      "pays": "espagne",
+      "slug": "las-palmas-de-gran-canaria",
+      "nom": "Las Palmas de Gran Canaria",
+      "lat": 28.1235,
+      "lon": -15.4363
+    },
+    {
+      "pays": "espagne",
+      "slug": "bilbao",
+      "nom": "Bilbao",
+      "lat": 43.263,
+      "lon": -2.935
+    },
+    {
+      "pays": "espagne",
+      "slug": "alicante",
+      "nom": "Alicante",
+      "lat": 38.3452,
+      "lon": -0.481
+    },
+    {
+      "pays": "espagne",
+      "slug": "cordoba",
+      "nom": "Córdoba",
+      "lat": 37.8882,
+      "lon": -4.7794
+    },
+    {
+      "pays": "espagne",
+      "slug": "valladolid",
+      "nom": "Valladolid",
+      "lat": 41.6523,
+      "lon": -4.7245
+    },
+    {
+      "pays": "espagne",
+      "slug": "vigo",
+      "nom": "Vigo",
+      "lat": 42.2406,
+      "lon": -8.7207
+    },
+    {
+      "pays": "espagne",
+      "slug": "gijon",
+      "nom": "Gijón",
+      "lat": 43.5322,
+      "lon": -5.6611
+    },
+    {
+      "pays": "espagne",
+      "slug": "vitoria-gasteiz",
+      "nom": "Vitoria-Gasteiz",
+      "lat": 42.8467,
+      "lon": -2.6716
+    },
+    {
+      "pays": "espagne",
+      "slug": "a-coruna",
+      "nom": "A Coruña",
+      "lat": 43.3623,
+      "lon": -8.4115
+    },
+    {
+      "pays": "espagne",
+      "slug": "elche",
+      "nom": "Elche",
+      "lat": 38.2622,
+      "lon": -0.7011
+    },
+    {
+      "pays": "espagne",
+      "slug": "granada",
+      "nom": "Granada",
+      "lat": 37.1773,
+      "lon": -3.5986
+    },
+    {
+      "pays": "espagne",
+      "slug": "terrassa",
+      "nom": "Terrassa",
+      "lat": 41.5615,
+      "lon": 2.0084
+    },
+    {
+      "pays": "espagne",
+      "slug": "badalona",
+      "nom": "Badalona",
+      "lat": 41.45,
+      "lon": 2.2474
+    },
+    {
+      "pays": "espagne",
+      "slug": "oviedo",
+      "nom": "Oviedo",
+      "lat": 43.3603,
+      "lon": -5.8448
+    },
+    {
+      "pays": "espagne",
+      "slug": "cartagena",
+      "nom": "Cartagena",
+      "lat": 37.6257,
+      "lon": -0.9966
+    },
+    {
+      "pays": "espagne",
+      "slug": "jerez-de-la-frontera",
+      "nom": "Jerez de la Frontera",
+      "lat": 36.685,
+      "lon": -6.1261
+    },
+    {
+      "pays": "espagne",
+      "slug": "sabadell",
+      "nom": "Sabadell",
+      "lat": 41.5463,
+      "lon": 2.1086
+    },
+    {
+      "pays": "espagne",
+      "slug": "mostoles",
+      "nom": "Móstoles",
+      "lat": 40.3225,
+      "lon": -3.8649
+    },
+    {
+      "pays": "espagne",
+      "slug": "santa-cruz-de-tenerife",
+      "nom": "Santa Cruz de Tenerife",
+      "lat": 28.4636,
+      "lon": -16.2518
+    },
+    {
+      "pays": "espagne",
+      "slug": "pamplona",
+      "nom": "Pamplona",
+      "lat": 42.8125,
+      "lon": -1.6458
+    },
+    {
+      "pays": "espagne",
+      "slug": "almeria",
+      "nom": "Almería",
+      "lat": 36.834,
+      "lon": -2.4637
+    },
+    {
+      "pays": "espagne",
+      "slug": "alcala-de-henares",
+      "nom": "Alcalá de Henares",
+      "lat": 40.4818,
+      "lon": -3.3644
+    },
+    {
+      "pays": "espagne",
+      "slug": "fuenlabrada",
+      "nom": "Fuenlabrada",
+      "lat": 40.283,
+      "lon": -3.794
+    },
+    {
+      "pays": "espagne",
+      "slug": "leganes",
+      "nom": "Leganés",
+      "lat": 40.3272,
+      "lon": -3.7635
+    },
+    {
+      "pays": "espagne",
+      "slug": "donostia-san-sebastian",
+      "nom": "Donostia-San Sebastián",
+      "lat": 43.3183,
+      "lon": -1.9812
+    },
+    {
+      "pays": "espagne",
+      "slug": "getafe",
+      "nom": "Getafe",
+      "lat": 40.3057,
+      "lon": -3.7327
+    },
+    {
+      "pays": "espagne",
+      "slug": "burgos",
+      "nom": "Burgos",
+      "lat": 42.3439,
+      "lon": -3.6969
+    },
+    {
+      "pays": "espagne",
+      "slug": "albacete",
+      "nom": "Albacete",
+      "lat": 38.9943,
+      "lon": -1.8585
+    },
+    {
+      "pays": "espagne",
+      "slug": "santander",
+      "nom": "Santander",
+      "lat": 43.4623,
+      "lon": -3.8099
+    },
+    {
+      "pays": "espagne",
+      "slug": "castellon-de-la-plana",
+      "nom": "Castellón de la Plana",
+      "lat": 39.9864,
+      "lon": -0.0513
+    },
+    {
+      "pays": "espagne",
+      "slug": "alcorcon",
+      "nom": "Alcorcón",
+      "lat": 40.3459,
+      "lon": -3.8248
+    },
+    {
+      "pays": "espagne",
+      "slug": "san-cristobal-de-la-laguna",
+      "nom": "San Cristóbal de La Laguna",
+      "lat": 28.4874,
+      "lon": -16.3156
+    },
+    {
+      "pays": "espagne",
+      "slug": "logrono",
+      "nom": "Logroño",
+      "lat": 42.4627,
+      "lon": -2.4449
+    },
+    {
+      "pays": "espagne",
+      "slug": "badajoz",
+      "nom": "Badajoz",
+      "lat": 38.8794,
+      "lon": -6.9707
+    },
+    {
+      "pays": "espagne",
+      "slug": "salamanca",
+      "nom": "Salamanca",
+      "lat": 40.9701,
+      "lon": -5.6635
+    },
+    {
+      "pays": "espagne",
+      "slug": "huelva",
+      "nom": "Huelva",
+      "lat": 37.2614,
+      "lon": -6.9447
+    },
+    {
+      "pays": "espagne",
+      "slug": "marbella",
+      "nom": "Marbella",
+      "lat": 36.5099,
+      "lon": -4.885
+    },
+    {
+      "pays": "espagne",
+      "slug": "lleida",
+      "nom": "Lleida",
+      "lat": 41.6176,
+      "lon": 0.62
+    },
+    {
+      "pays": "espagne",
+      "slug": "tarragona",
+      "nom": "Tarragona",
+      "lat": 41.1189,
+      "lon": 1.2445
+    },
+    {
+      "pays": "espagne",
+      "slug": "leon",
+      "nom": "León",
+      "lat": 42.5987,
+      "lon": -5.5671
+    },
+    {
+      "pays": "espagne",
+      "slug": "cadiz",
+      "nom": "Cádiz",
+      "lat": 36.5164,
+      "lon": -6.2994
+    },
+    {
+      "pays": "espagne",
+      "slug": "jaen",
+      "nom": "Jaén",
+      "lat": 37.7796,
+      "lon": -3.7849
+    },
+    {
+      "pays": "espagne",
+      "slug": "ourense",
+      "nom": "Ourense",
+      "lat": 42.3358,
+      "lon": -7.8639
+    },
+    {
+      "pays": "espagne",
+      "slug": "girona",
+      "nom": "Girona",
+      "lat": 41.9794,
+      "lon": 2.8214
+    },
+    {
+      "pays": "espagne",
+      "slug": "lugo",
+      "nom": "Lugo",
+      "lat": 43.0097,
+      "lon": -7.5567
+    },
+    {
+      "pays": "espagne",
+      "slug": "caceres",
+      "nom": "Cáceres",
+      "lat": 39.4753,
+      "lon": -6.3724
+    },
+    {
+      "pays": "espagne",
+      "slug": "guadalajara",
+      "nom": "Guadalajara",
+      "lat": 40.6333,
+      "lon": -3.1669
+    },
+    {
+      "pays": "espagne",
+      "slug": "toledo",
+      "nom": "Toledo",
+      "lat": 39.8628,
+      "lon": -4.0273
+    },
+    {
+      "pays": "espagne",
+      "slug": "pontevedra",
+      "nom": "Pontevedra",
+      "lat": 42.431,
+      "lon": -8.6444
+    },
+    {
+      "pays": "espagne",
+      "slug": "santiago-de-compostela",
+      "nom": "Santiago de Compostela",
+      "lat": 42.8782,
+      "lon": -8.5448
+    },
+    {
+      "pays": "espagne",
+      "slug": "reus",
+      "nom": "Reus",
+      "lat": 41.1561,
+      "lon": 1.1069
+    },
+    {
+      "pays": "espagne",
+      "slug": "telde",
+      "nom": "Telde",
+      "lat": 27.993,
+      "lon": -15.4194
+    },
+    {
+      "pays": "espagne",
+      "slug": "baracaldo",
+      "nom": "Baracaldo",
+      "lat": 43.2969,
+      "lon": -2.9906
+    },
+    {
+      "pays": "espagne",
+      "slug": "torrejon-de-ardoz",
+      "nom": "Torrejón de Ardoz",
+      "lat": 40.4553,
+      "lon": -3.4771
+    },
+    {
+      "pays": "espagne",
+      "slug": "parla",
+      "nom": "Parla",
+      "lat": 40.2378,
+      "lon": -3.7671
+    },
+    {
+      "pays": "espagne",
+      "slug": "mataro",
+      "nom": "Mataró",
+      "lat": 41.5381,
+      "lon": 2.4445
+    },
+    {
+      "pays": "espagne",
+      "slug": "algeciras",
+      "nom": "Algeciras",
+      "lat": 36.1408,
+      "lon": -5.4562
+    },
+    {
+      "pays": "espagne",
+      "slug": "alcobendas",
+      "nom": "Alcobendas",
+      "lat": 40.5478,
+      "lon": -3.642
+    },
+    {
+      "pays": "espagne",
+      "slug": "manresa",
+      "nom": "Manresa",
+      "lat": 41.7287,
+      "lon": 1.8261
+    },
+    {
+      "pays": "espagne",
+      "slug": "san-sebastian-de-los-reyes",
+      "nom": "San Sebastián de los Reyes",
+      "lat": 40.5474,
+      "lon": -3.628
+    },
+    {
+      "pays": "espagne",
+      "slug": "ferrol",
+      "nom": "Ferrol",
+      "lat": 43.483,
+      "lon": -8.2359
+    },
+    {
+      "pays": "espagne",
+      "slug": "rivas-vaciamadrid",
+      "nom": "Rivas-Vaciamadrid",
+      "lat": 40.3277,
+      "lon": -3.5254
+    },
+    {
+      "pays": "espagne",
+      "slug": "talavera-de-la-reina",
+      "nom": "Talavera de la Reina",
+      "lat": 39.9631,
+      "lon": -4.8302
+    },
+    {
+      "pays": "espagne",
+      "slug": "palencia",
+      "nom": "Palencia",
+      "lat": 42.0096,
+      "lon": -4.5288
+    },
+    {
+      "pays": "espagne",
+      "slug": "zamora",
+      "nom": "Zamora",
+      "lat": 41.5033,
+      "lon": -5.7446
+    },
+    {
+      "pays": "espagne",
+      "slug": "ciudad-real",
+      "nom": "Ciudad Real",
+      "lat": 38.9848,
+      "lon": -3.9273
+    },
+    {
+      "pays": "espagne",
+      "slug": "avila",
+      "nom": "Ávila",
+      "lat": 40.6566,
+      "lon": -4.6817
+    },
+    {
+      "pays": "espagne",
+      "slug": "segovia",
+      "nom": "Segovia",
+      "lat": 40.9429,
+      "lon": -4.1088
+    },
+    {
+      "pays": "espagne",
+      "slug": "huesca",
+      "nom": "Huesca",
+      "lat": 42.1401,
+      "lon": -0.4089
+    },
+    {
+      "pays": "espagne",
+      "slug": "soria",
+      "nom": "Soria",
+      "lat": 41.7636,
+      "lon": -2.4649
+    },
+    {
+      "pays": "espagne",
+      "slug": "teruel",
+      "nom": "Teruel",
+      "lat": 40.3436,
+      "lon": -1.1064
+    },
+    {
+      "pays": "espagne",
+      "slug": "cuenca",
+      "nom": "Cuenca",
+      "lat": 40.0704,
+      "lon": -2.1374
+    },
+    {
+      "pays": "espagne",
+      "slug": "melilla",
+      "nom": "Melilla",
+      "lat": 35.2923,
+      "lon": -2.9381
+    },
+    {
+      "pays": "espagne",
+      "slug": "ceuta",
+      "nom": "Ceuta",
+      "lat": 35.8894,
+      "lon": -5.3213
+    },
+    {
+      "pays": "espagne",
+      "slug": "sant-cugat-del-valles",
+      "nom": "Sant Cugat del Vallès",
+      "lat": 41.4727,
+      "lon": 2.0863
+    },
+    {
+      "pays": "espagne",
+      "slug": "rubi",
+      "nom": "Rubí",
+      "lat": 41.4936,
+      "lon": 2.0326
+    },
+    {
+      "pays": "espagne",
+      "slug": "vilanova-i-la-geltru",
+      "nom": "Vilanova i la Geltrú",
+      "lat": 41.2241,
+      "lon": 1.7256
+    },
+    {
+      "pays": "espagne",
+      "slug": "el-puerto-de-santa-maria",
+      "nom": "El Puerto de Santa María",
+      "lat": 36.5939,
+      "lon": -6.2333
+    },
+    {
+      "pays": "espagne",
+      "slug": "chiclana-de-la-frontera",
+      "nom": "Chiclana de la Frontera",
+      "lat": 36.4197,
+      "lon": -6.1478
+    },
+    {
+      "pays": "espagne",
+      "slug": "dos-hermanas",
+      "nom": "Dos Hermanas",
+      "lat": 37.2828,
+      "lon": -5.9225
+    },
+    {
+      "pays": "espagne",
+      "slug": "alcazar-de-san-juan",
+      "nom": "Alcázar de San Juan",
+      "lat": 39.3907,
+      "lon": -3.2103
+    },
+    {
+      "pays": "espagne",
+      "slug": "linares",
+      "nom": "Linares",
+      "lat": 38.0946,
+      "lon": -3.6357
+    },
+    {
+      "pays": "espagne",
+      "slug": "utrera",
+      "nom": "Utrera",
+      "lat": 37.1842,
+      "lon": -5.781
+    },
+    {
+      "pays": "espagne",
+      "slug": "ecija",
+      "nom": "Écija",
+      "lat": 37.5406,
+      "lon": -5.0827
+    },
+    {
+      "pays": "espagne",
+      "slug": "motril",
+      "nom": "Motril",
+      "lat": 36.7444,
+      "lon": -3.5197
+    },
+    {
+      "pays": "espagne",
+      "slug": "roquetas-de-mar",
+      "nom": "Roquetas de Mar",
+      "lat": 36.7642,
+      "lon": -2.6146
+    },
+    {
+      "pays": "espagne",
+      "slug": "el-ejido",
+      "nom": "El Ejido",
+      "lat": 36.7764,
+      "lon": -2.8145
+    },
+    {
+      "pays": "espagne",
+      "slug": "benidorm",
+      "nom": "Benidorm",
+      "lat": 38.5411,
+      "lon": -0.1225
+    },
+    {
+      "pays": "espagne",
+      "slug": "torrevieja",
+      "nom": "Torrevieja",
+      "lat": 37.9787,
+      "lon": -0.6822
+    },
+    {
+      "pays": "espagne",
+      "slug": "orihuela",
+      "nom": "Orihuela",
+      "lat": 38.0847,
+      "lon": -0.9445
+    },
+    {
+      "pays": "espagne",
+      "slug": "gandia",
+      "nom": "Gandia",
+      "lat": 38.9679,
+      "lon": -0.1817
+    },
+    {
+      "pays": "espagne",
+      "slug": "sagunto",
+      "nom": "Sagunto",
+      "lat": 39.6833,
+      "lon": -0.2667
+    },
+    {
+      "pays": "espagne",
+      "slug": "irun",
+      "nom": "Irún",
+      "lat": 43.3382,
+      "lon": -1.7889
+    },
+    {
+      "pays": "espagne",
+      "slug": "barakaldo",
+      "nom": "Barakaldo",
+      "lat": 43.2969,
+      "lon": -2.9906
+    },
+    {
+      "pays": "espagne",
+      "slug": "estepona",
+      "nom": "Estepona",
+      "lat": 36.4275,
+      "lon": -5.1447
+    },
+    {
+      "pays": "italie",
+      "slug": "napoli",
+      "nom": "Napoli",
+      "lat": 40.8518,
+      "lon": 14.2681
+    },
+    {
+      "pays": "italie",
+      "slug": "palermo",
+      "nom": "Palermo",
+      "lat": 38.1157,
+      "lon": 13.3615
+    },
+    {
+      "pays": "italie",
+      "slug": "genova",
+      "nom": "Genova",
+      "lat": 44.4056,
+      "lon": 8.9463
+    },
+    {
+      "pays": "italie",
+      "slug": "bologna",
+      "nom": "Bologna",
+      "lat": 44.4949,
+      "lon": 11.3426
+    },
+    {
+      "pays": "italie",
+      "slug": "firenze",
+      "nom": "Firenze",
+      "lat": 43.7696,
+      "lon": 11.2558
+    },
+    {
+      "pays": "italie",
+      "slug": "bari",
+      "nom": "Bari",
+      "lat": 41.1171,
+      "lon": 16.8719
+    },
+    {
+      "pays": "italie",
+      "slug": "catania",
+      "nom": "Catania",
+      "lat": 37.5079,
+      "lon": 15.083
+    },
+    {
+      "pays": "italie",
+      "slug": "venezia",
+      "nom": "Venezia",
+      "lat": 45.4408,
+      "lon": 12.3155
+    },
+    {
+      "pays": "italie",
+      "slug": "verona",
+      "nom": "Verona",
+      "lat": 45.4384,
+      "lon": 10.9916
+    },
+    {
+      "pays": "italie",
+      "slug": "messina",
+      "nom": "Messina",
+      "lat": 38.1938,
+      "lon": 15.554
+    },
+    {
+      "pays": "italie",
+      "slug": "padova",
+      "nom": "Padova",
+      "lat": 45.4064,
+      "lon": 11.8768
+    },
+    {
+      "pays": "italie",
+      "slug": "trieste",
+      "nom": "Trieste",
+      "lat": 45.6495,
+      "lon": 13.7768
+    },
+    {
+      "pays": "italie",
+      "slug": "taranto",
+      "nom": "Taranto",
+      "lat": 40.4644,
+      "lon": 17.247
+    },
+    {
+      "pays": "italie",
+      "slug": "brescia",
+      "nom": "Brescia",
+      "lat": 45.5416,
+      "lon": 10.2118
+    },
+    {
+      "pays": "italie",
+      "slug": "prato",
+      "nom": "Prato",
+      "lat": 43.8777,
+      "lon": 11.1023
+    },
+    {
+      "pays": "italie",
+      "slug": "reggio-calabria",
+      "nom": "Reggio Calabria",
+      "lat": 38.1113,
+      "lon": 15.6619
+    },
+    {
+      "pays": "italie",
+      "slug": "modena",
+      "nom": "Modena",
+      "lat": 44.6471,
+      "lon": 10.9252
+    },
+    {
+      "pays": "italie",
+      "slug": "reggio-emilia",
+      "nom": "Reggio Emilia",
+      "lat": 44.6989,
+      "lon": 10.6297
+    },
+    {
+      "pays": "italie",
+      "slug": "perugia",
+      "nom": "Perugia",
+      "lat": 43.1122,
+      "lon": 12.3888
+    },
+    {
+      "pays": "italie",
+      "slug": "livorno",
+      "nom": "Livorno",
+      "lat": 43.5485,
+      "lon": 10.3106
+    },
+    {
+      "pays": "italie",
+      "slug": "ravenna",
+      "nom": "Ravenna",
+      "lat": 44.4184,
+      "lon": 12.2035
+    },
+    {
+      "pays": "italie",
+      "slug": "cagliari",
+      "nom": "Cagliari",
+      "lat": 39.2238,
+      "lon": 9.1217
+    },
+    {
+      "pays": "italie",
+      "slug": "foggia",
+      "nom": "Foggia",
+      "lat": 41.4621,
+      "lon": 15.5444
+    },
+    {
+      "pays": "italie",
+      "slug": "rimini",
+      "nom": "Rimini",
+      "lat": 44.0678,
+      "lon": 12.5695
+    },
+    {
+      "pays": "italie",
+      "slug": "salerno",
+      "nom": "Salerno",
+      "lat": 40.6824,
+      "lon": 14.7681
+    },
+    {
+      "pays": "italie",
+      "slug": "ferrara",
+      "nom": "Ferrara",
+      "lat": 44.8381,
+      "lon": 11.6198
+    },
+    {
+      "pays": "italie",
+      "slug": "sassari",
+      "nom": "Sassari",
+      "lat": 40.7259,
+      "lon": 8.559
+    },
+    {
+      "pays": "italie",
+      "slug": "latina",
+      "nom": "Latina",
+      "lat": 41.4676,
+      "lon": 12.9037
+    },
+    {
+      "pays": "italie",
+      "slug": "giugliano-in-campania",
+      "nom": "Giugliano in Campania",
+      "lat": 40.9282,
+      "lon": 14.1934
+    },
+    {
+      "pays": "italie",
+      "slug": "monza",
+      "nom": "Monza",
+      "lat": 45.5845,
+      "lon": 9.2744
+    },
+    {
+      "pays": "italie",
+      "slug": "siracusa",
+      "nom": "Siracusa",
+      "lat": 37.0755,
+      "lon": 15.2866
+    },
+    {
+      "pays": "italie",
+      "slug": "pescara",
+      "nom": "Pescara",
+      "lat": 42.4643,
+      "lon": 14.2142
+    },
+    {
+      "pays": "italie",
+      "slug": "bergamo",
+      "nom": "Bergamo",
+      "lat": 45.6983,
+      "lon": 9.6773
+    },
+    {
+      "pays": "italie",
+      "slug": "forli",
+      "nom": "Forlì",
+      "lat": 44.2226,
+      "lon": 12.0407
+    },
+    {
+      "pays": "italie",
+      "slug": "trento",
+      "nom": "Trento",
+      "lat": 46.0748,
+      "lon": 11.1217
+    },
+    {
+      "pays": "italie",
+      "slug": "vicenza",
+      "nom": "Vicenza",
+      "lat": 45.5455,
+      "lon": 11.5354
+    },
+    {
+      "pays": "italie",
+      "slug": "terni",
+      "nom": "Terni",
+      "lat": 42.5636,
+      "lon": 12.6427
+    },
+    {
+      "pays": "italie",
+      "slug": "bolzano",
+      "nom": "Bolzano",
+      "lat": 46.4983,
+      "lon": 11.3548
+    },
+    {
+      "pays": "italie",
+      "slug": "novara",
+      "nom": "Novara",
+      "lat": 45.4469,
+      "lon": 8.6198
+    },
+    {
+      "pays": "italie",
+      "slug": "piacenza",
+      "nom": "Piacenza",
+      "lat": 45.0526,
+      "lon": 9.6929
+    },
+    {
+      "pays": "italie",
+      "slug": "ancona",
+      "nom": "Ancona",
+      "lat": 43.6158,
+      "lon": 13.5189
+    },
+    {
+      "pays": "italie",
+      "slug": "andria",
+      "nom": "Andria",
+      "lat": 41.2306,
+      "lon": 16.2939
+    },
+    {
+      "pays": "italie",
+      "slug": "arezzo",
+      "nom": "Arezzo",
+      "lat": 43.4633,
+      "lon": 11.8797
+    },
+    {
+      "pays": "italie",
+      "slug": "udine",
+      "nom": "Udine",
+      "lat": 46.0711,
+      "lon": 13.2346
+    },
+    {
+      "pays": "italie",
+      "slug": "cesena",
+      "nom": "Cesena",
+      "lat": 44.1391,
+      "lon": 12.2431
+    },
+    {
+      "pays": "italie",
+      "slug": "lecce",
+      "nom": "Lecce",
+      "lat": 40.3515,
+      "lon": 18.175
+    },
+    {
+      "pays": "italie",
+      "slug": "pesaro",
+      "nom": "Pesaro",
+      "lat": 43.9102,
+      "lon": 12.9133
+    },
+    {
+      "pays": "italie",
+      "slug": "barletta",
+      "nom": "Barletta",
+      "lat": 41.3181,
+      "lon": 16.2807
+    },
+    {
+      "pays": "italie",
+      "slug": "alessandria",
+      "nom": "Alessandria",
+      "lat": 44.9133,
+      "lon": 8.6154
+    },
+    {
+      "pays": "italie",
+      "slug": "la-spezia",
+      "nom": "La Spezia",
+      "lat": 44.1024,
+      "lon": 9.8241
+    },
+    {
+      "pays": "italie",
+      "slug": "pisa",
+      "nom": "Pisa",
+      "lat": 43.7228,
+      "lon": 10.4017
+    },
+    {
+      "pays": "italie",
+      "slug": "catanzaro",
+      "nom": "Catanzaro",
+      "lat": 38.9098,
+      "lon": 16.5877
+    },
+    {
+      "pays": "italie",
+      "slug": "pistoia",
+      "nom": "Pistoia",
+      "lat": 43.9333,
+      "lon": 10.9171
+    },
+    {
+      "pays": "italie",
+      "slug": "guidonia-montecelio",
+      "nom": "Guidonia Montecelio",
+      "lat": 42.0086,
+      "lon": 12.7256
+    },
+    {
+      "pays": "italie",
+      "slug": "lucca",
+      "nom": "Lucca",
+      "lat": 43.8429,
+      "lon": 10.5027
+    },
+    {
+      "pays": "italie",
+      "slug": "brindisi",
+      "nom": "Brindisi",
+      "lat": 40.632,
+      "lon": 17.937
+    },
+    {
+      "pays": "italie",
+      "slug": "torre-del-greco",
+      "nom": "Torre del Greco",
+      "lat": 40.7873,
+      "lon": 14.3623
+    },
+    {
+      "pays": "italie",
+      "slug": "como",
+      "nom": "Como",
+      "lat": 45.8081,
+      "lon": 9.0852
+    },
+    {
+      "pays": "italie",
+      "slug": "grosseto",
+      "nom": "Grosseto",
+      "lat": 42.7603,
+      "lon": 11.1136
+    },
+    {
+      "pays": "italie",
+      "slug": "varese",
+      "nom": "Varese",
+      "lat": 45.8206,
+      "lon": 8.825
+    },
+    {
+      "pays": "italie",
+      "slug": "cremona",
+      "nom": "Cremona",
+      "lat": 45.1335,
+      "lon": 10.0224
+    },
+    {
+      "pays": "italie",
+      "slug": "fiumicino",
+      "nom": "Fiumicino",
+      "lat": 41.7686,
+      "lon": 12.2318
+    },
+    {
+      "pays": "italie",
+      "slug": "massa",
+      "nom": "Massa",
+      "lat": 44.0359,
+      "lon": 10.1411
+    },
+    {
+      "pays": "italie",
+      "slug": "carpi",
+      "nom": "Carpi",
+      "lat": 44.7833,
+      "lon": 10.8833
+    },
+    {
+      "pays": "italie",
+      "slug": "quartu-sant-elena",
+      "nom": "Quartu Sant'Elena",
+      "lat": 39.2358,
+      "lon": 9.1867
+    },
+    {
+      "pays": "italie",
+      "slug": "trapani",
+      "nom": "Trapani",
+      "lat": 38.0176,
+      "lon": 12.5365
+    },
+    {
+      "pays": "italie",
+      "slug": "vittoria",
+      "nom": "Vittoria",
+      "lat": 36.95,
+      "lon": 14.5333
+    },
+    {
+      "pays": "italie",
+      "slug": "imola",
+      "nom": "Imola",
+      "lat": 44.3521,
+      "lon": 11.7143
+    },
+    {
+      "pays": "italie",
+      "slug": "viterbo",
+      "nom": "Viterbo",
+      "lat": 42.4207,
+      "lon": 12.1077
+    },
+    {
+      "pays": "italie",
+      "slug": "gela",
+      "nom": "Gela",
+      "lat": 37.0653,
+      "lon": 14.247
+    },
+    {
+      "pays": "italie",
+      "slug": "sesto-san-giovanni",
+      "nom": "Sesto San Giovanni",
+      "lat": 45.535,
+      "lon": 9.235
+    },
+    {
+      "pays": "italie",
+      "slug": "cinisello-balsamo",
+      "nom": "Cinisello Balsamo",
+      "lat": 45.5525,
+      "lon": 9.2178
+    },
+    {
+      "pays": "italie",
+      "slug": "aprilia",
+      "nom": "Aprilia",
+      "lat": 41.5886,
+      "lon": 12.6503
+    },
+    {
+      "pays": "italie",
+      "slug": "asti",
+      "nom": "Asti",
+      "lat": 44.9007,
+      "lon": 8.2064
+    },
+    {
+      "pays": "italie",
+      "slug": "cosenza",
+      "nom": "Cosenza",
+      "lat": 39.2986,
+      "lon": 16.2536
+    },
+    {
+      "pays": "italie",
+      "slug": "pavia",
+      "nom": "Pavia",
+      "lat": 45.1847,
+      "lon": 9.1582
+    },
+    {
+      "pays": "italie",
+      "slug": "ragusa",
+      "nom": "Ragusa",
+      "lat": 36.9257,
+      "lon": 14.7297
+    },
+    {
+      "pays": "italie",
+      "slug": "caserta",
+      "nom": "Caserta",
+      "lat": 41.073,
+      "lon": 14.3313
+    },
+    {
+      "pays": "italie",
+      "slug": "marsala",
+      "nom": "Marsala",
+      "lat": 37.7973,
+      "lon": 12.4353
+    },
+    {
+      "pays": "italie",
+      "slug": "matera",
+      "nom": "Matera",
+      "lat": 40.6664,
+      "lon": 16.6043
+    },
+    {
+      "pays": "italie",
+      "slug": "crotone",
+      "nom": "Crotone",
+      "lat": 39.0808,
+      "lon": 17.1269
+    },
+    {
+      "pays": "italie",
+      "slug": "lamezia-terme",
+      "nom": "Lamezia Terme",
+      "lat": 38.9646,
+      "lon": 16.3126
+    },
+    {
+      "pays": "italie",
+      "slug": "chieti",
+      "nom": "Chieti",
+      "lat": 42.3512,
+      "lon": 14.1678
+    },
+    {
+      "pays": "italie",
+      "slug": "savona",
+      "nom": "Savona",
+      "lat": 44.3084,
+      "lon": 8.4805
+    },
+    {
+      "pays": "italie",
+      "slug": "benevento",
+      "nom": "Benevento",
+      "lat": 41.1298,
+      "lon": 14.7826
+    },
+    {
+      "pays": "italie",
+      "slug": "lecco",
+      "nom": "Lecco",
+      "lat": 45.8566,
+      "lon": 9.3931
+    },
+    {
+      "pays": "italie",
+      "slug": "molfetta",
+      "nom": "Molfetta",
+      "lat": 41.2005,
+      "lon": 16.6021
+    },
+    {
+      "pays": "italie",
+      "slug": "legnano",
+      "nom": "Legnano",
+      "lat": 45.596,
+      "lon": 8.9159
+    },
+    {
+      "pays": "italie",
+      "slug": "rho",
+      "nom": "Rho",
+      "lat": 45.5297,
+      "lon": 9.0369
+    },
+    {
+      "pays": "italie",
+      "slug": "faenza",
+      "nom": "Faenza",
+      "lat": 44.2856,
+      "lon": 11.8828
+    },
+    {
+      "pays": "italie",
+      "slug": "vigevano",
+      "nom": "Vigevano",
+      "lat": 45.3168,
+      "lon": 8.8551
+    },
+    {
+      "pays": "italie",
+      "slug": "cerignola",
+      "nom": "Cerignola",
+      "lat": 41.2678,
+      "lon": 15.9022
+    },
+    {
+      "pays": "italie",
+      "slug": "potenza",
+      "nom": "Potenza",
+      "lat": 40.642,
+      "lon": 15.8057
+    },
+    {
+      "pays": "italie",
+      "slug": "campobasso",
+      "nom": "Campobasso",
+      "lat": 41.5636,
+      "lon": 14.6558
+    },
+    {
+      "pays": "italie",
+      "slug": "aosta",
+      "nom": "Aosta",
+      "lat": 45.7372,
+      "lon": 7.3201
+    },
+    {
+      "pays": "italie",
+      "slug": "fano",
+      "nom": "Fano",
+      "lat": 43.8437,
+      "lon": 13.0157
+    },
+    {
+      "pays": "italie",
+      "slug": "carrara",
+      "nom": "Carrara",
+      "lat": 44.0793,
+      "lon": 10.0977
+    },
+    {
+      "pays": "italie",
+      "slug": "agrigento",
+      "nom": "Agrigento",
+      "lat": 37.3111,
+      "lon": 13.5765
+    },
+    {
+      "pays": "italie",
+      "slug": "avellino",
+      "nom": "Avellino",
+      "lat": 40.9143,
+      "lon": 14.7889
+    },
+    {
+      "pays": "italie",
+      "slug": "l-aquila",
+      "nom": "L'Aquila",
+      "lat": 42.3498,
+      "lon": 13.3995
+    }
   ]
 }
