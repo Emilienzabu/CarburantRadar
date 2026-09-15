@@ -25,10 +25,15 @@ button{background:var(--accent);color:#1a1200;font-weight:700;border:none;paddin
 .tab.active{color:var(--accent);border-color:var(--accent)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:20px}
 canvas{width:100%!important;max-height:260px}
+.chart-hint{font-size:11px;color:var(--muted);margin-top:8px;text-align:center}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--border)}
 th{color:var(--muted);font-weight:600}
 .refresh{font-size:12px;color:var(--muted);margin-bottom:10px;cursor:pointer;text-decoration:underline}
+#dayDetail{display:none}
+#dayDetail .titre{font-weight:700;font-size:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+#dayDetail .fermer{font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;font-weight:400}
+.badge-anon{color:var(--muted);font-style:italic}
 </style>
 </head>
 <body>
@@ -56,13 +61,22 @@ th{color:var(--muted);font-weight:600}
 
     <div class="card">
       <canvas id="chart"></canvas>
+      <div class="chart-hint">Clique sur un point du graphique pour voir le détail de ce jour</div>
+    </div>
+
+    <div class="card" id="dayDetail">
+      <div class="titre"><span id="dayDetailTitre"></span><span class="fermer" onclick="fermerDetailJour()">Fermer ✕</span></div>
+      <table>
+        <thead><tr><th>Email</th><th>Ville</th><th>Pays</th></tr></thead>
+        <tbody id="dayDetailBody"></tbody>
+      </table>
     </div>
 
     <div class="card">
       <div class="refresh" onclick="chargerUtilisateurs()">↻ Rafraîchir la liste</div>
       <table>
-        <thead><tr><th>Email</th><th>Créé le</th></tr></thead>
-        <tbody id="usersBody"><tr><td colspan="2">Chargement...</td></tr></tbody>
+        <thead><tr><th>Email</th><th>Ville</th><th>Créé le</th></tr></thead>
+        <tbody id="usersBody"><tr><td colspan="3">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -108,30 +122,66 @@ async function chargerStats(){
 
 function changerVue(n){
   document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.range==String(n));});
+  fermerDetailJour();
   if(!lastStats)return;
   var points = n===7 ? lastStats.last7 : lastStats.last30;
   var labels = points.map(function(p){return p.date.slice(5);});
   var valeurs = points.map(function(p){return p.count;});
+  var dates = points.map(function(p){return p.date;});
   var ctx=document.getElementById('chart').getContext('2d');
   if(chartInstance)chartInstance.destroy();
   chartInstance=new Chart(ctx,{
     type:'line',
-    data:{labels:labels,datasets:[{label:'Utilisateurs actifs',data:valeurs,borderColor:'#f5a623',backgroundColor:'rgba(245,166,35,0.15)',fill:true,tension:0.3,pointRadius:2}]},
-    options:{responsive:true,scales:{x:{ticks:{color:'#6b6b8a'},grid:{color:'#252535'}},y:{beginAtZero:true,ticks:{color:'#6b6b8a'},grid:{color:'#252535'}}},plugins:{legend:{display:false}}}
+    data:{labels:labels,datasets:[{label:'Utilisateurs actifs',data:valeurs,borderColor:'#f5a623',backgroundColor:'rgba(245,166,35,0.15)',fill:true,tension:0.3,pointRadius:3,pointHoverRadius:6}]},
+    options:{
+      responsive:true,
+      scales:{x:{ticks:{color:'#6b6b8a'},grid:{color:'#252535'}},y:{beginAtZero:true,ticks:{color:'#6b6b8a'},grid:{color:'#252535'}}},
+      plugins:{legend:{display:false}},
+      onClick:function(evt, elements){
+        if(!elements.length)return;
+        var idx=elements[0].index;
+        chargerDetailJour(dates[idx], labels[idx]);
+      }
+    }
   });
+}
+
+async function chargerDetailJour(jourIso, labelAffiche){
+  var carte=document.getElementById('dayDetail');
+  var corps=document.getElementById('dayDetailBody');
+  document.getElementById('dayDetailTitre').textContent='Connexions du ' + labelAffiche;
+  carte.style.display='block';
+  corps.innerHTML='<tr><td colspan="3">Chargement...</td></tr>';
+  try{
+    var data=await appelAdmin('/admin/day-users?jour=' + encodeURIComponent(jourIso));
+    if(!data.utilisateurs.length){
+      corps.innerHTML='<tr><td colspan="3">Aucune connexion ce jour-là.</td></tr>';
+      return;
+    }
+    corps.innerHTML=data.utilisateurs.map(function(u){
+      var email=u.email ? u.email : '<span class="badge-anon">anonyme</span>';
+      return '<tr><td>'+email+'</td><td>'+(u.ville||'-')+'</td><td>'+(u.pays||'-')+'</td></tr>';
+    }).join('');
+  }catch(e){
+    corps.innerHTML='<tr><td colspan="3">Erreur de chargement.</td></tr>';
+  }
+}
+
+function fermerDetailJour(){
+  document.getElementById('dayDetail').style.display='none';
 }
 
 async function chargerUtilisateurs(){
   try{
     var data=await appelAdmin('/admin/users');
     var body=document.getElementById('usersBody');
-    if(!data.utilisateurs.length){body.innerHTML='<tr><td colspan="2">Aucun compte pour l\'instant.</td></tr>';return;}
+    if(!data.utilisateurs.length){body.innerHTML='<tr><td colspan="3">Aucun compte pour l\'instant.</td></tr>';return;}
     body.innerHTML=data.utilisateurs.map(function(u){
       var date=u.cree?new Date(u.cree).toLocaleDateString('fr-FR'):'-';
-      return '<tr><td>'+u.email+'</td><td>'+date+'</td></tr>';
+      return '<tr><td>'+u.email+'</td><td>'+(u.derniereVille||'-')+'</td><td>'+date+'</td></tr>';
     }).join('');
   }catch(e){
-    document.getElementById('usersBody').innerHTML='<tr><td colspan="2">Erreur de chargement.</td></tr>';
+    document.getElementById('usersBody').innerHTML='<tr><td colspan="3">Erreur de chargement.</td></tr>';
   }
 }
 </script>
