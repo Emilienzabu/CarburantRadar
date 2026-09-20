@@ -502,6 +502,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     <h1><span data-icon="mail" data-icon-taille="18px"></span> Contact</h1>
     <p>Une question, un signalement de prix erroné, une suggestion d'amélioration ? N'hésite pas à nous écrire, nous répondons avec plaisir.</p>
     <a class="contact-btn" id="contactMailBtn" href="#"><span data-icon="mail" data-icon-taille="14px"></span> Envoyer un email</a>
+    <a class="contact-btn" style="background:var(--input-bg);color:var(--text)" href="https://www.snapchat.com/add/carburantradar?share_id=aiopHXyl9jc&amp;locale=fr-FR" target="_blank" rel="noopener">👻 Ajouter sur Snapchat</a>
     <div class="info-card">
       <div class="info-field">Adresse e-mail</div>
       <div class="info-value" id="contactEmailDisplay"></div>
@@ -586,8 +587,8 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
   </div>
   </div>
   <div class="menu-tab-group" data-tab="perso" style="display:none">
-  <div class="acc-header" onclick="toggleAcc('settingsAcc')"><div class="acc-title"><span data-icon="settings" data-icon-taille="14px"></span> Paramètres</div><div class="acc-arrow" id="settingsAccArrow">▼</div></div>
-  <div class="acc-body" id="settingsAcc">
+  <div class="acc-title" style="padding:16px 16px 0"><span data-icon="settings" data-icon-taille="14px"></span> Paramètres</div>
+  <div class="acc-body open" id="settingsAcc">
     <!-- Fuel Type Selection -->
     <div class="side-item">
       <div class="side-item-name">Carburant préféré</div>
@@ -669,8 +670,8 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
   </div>
   </div>
   <div class="menu-tab-group" data-tab="infos" style="display:none">
-  <div class="acc-header" onclick="toggleAcc('aboutAcc')"><div class="acc-title"><span data-icon="info" data-icon-taille="14px"></span> Informations</div><div class="acc-arrow" id="aboutAccArrow">▼</div></div>
-  <div class="acc-body" id="aboutAcc">
+  <div class="acc-title" style="padding:16px 16px 0"><span data-icon="info" data-icon-taille="14px"></span> Informations</div>
+  <div class="acc-body open" id="aboutAcc">
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('apropos')"><span data-icon="info" data-icon-taille="14px"></span> À propos</button>
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('mentions')"><span data-icon="file" data-icon-taille="14px"></span> Mentions légales</button>
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('confidentialite')"><span data-icon="lock" data-icon-taille="14px"></span> Politique de confidentialité</button>
@@ -1188,7 +1189,7 @@ function isOpen(horairesStr){
 
 // Accordéon exclusif
 function toggleAcc(id){
-  var allIds=['compteAcc','favAcc','repAcc','destAcc','alertAcc','settingsAcc','aboutAcc'];
+  var allIds=['compteAcc','favAcc','repAcc','destAcc','alertAcc'];
   var isOpen=document.getElementById(id).classList.contains('open');
   allIds.forEach(function(a){
     document.getElementById(a).classList.remove('open');
