@@ -1594,8 +1594,12 @@ function locate(){
   var btn=document.getElementById('locBtn');btn.disabled=true;btn.textContent='Localisation...';sstat('Acces a ta position...');
   obtenirPosition(function(){
     btn.textContent='Actualiser';btn.disabled=false;if(map){map.setView([la,lo],13);addUserMarker();}load();
-  },function(){
-    sstat('Erreur - verifie les permissions');btn.disabled=false;btn.textContent='Me localiser';
+  },function(err){
+    var msg='Erreur de localisation';
+    if(err&&err.code===1)msg='Localisation refusee - autorise-la dans les reglages de ton navigateur pour ce site';
+    else if(err&&err.code===2)msg='Position indisponible - verifie que la localisation est activee sur ton telephone';
+    else if(err&&err.code===3)msg='Localisation trop longue - reessaie (signal GPS faible ?)';
+    sstat(msg);btn.disabled=false;btn.textContent='Me localiser';
   },true);
 }
 // Récupère la position actuelle. Par défaut réutilise la position déjà connue si elle existe
@@ -1603,10 +1607,10 @@ function locate(){
 // (utilisé par le bouton "Actualiser" du Radar).
 function obtenirPosition(succes,erreur,forcer){
   if(la!==null&&!forcer){succes();return;}
-  if(!navigator.geolocation){if(erreur)erreur();return;}
+  if(!navigator.geolocation){if(erreur)erreur({code:2});return;}
   navigator.geolocation.getCurrentPosition(
     function(p){la=p.coords.latitude;lo=p.coords.longitude;succes();},
-    function(){if(erreur)erreur();},
+    function(err){if(erreur)erreur(err);},
     {enableHighAccuracy:true,timeout:30000}
   );
 }
