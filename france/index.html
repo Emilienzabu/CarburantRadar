@@ -1594,6 +1594,7 @@ function locate(){
   var btn=document.getElementById('locBtn');btn.disabled=true;btn.textContent='Localisation...';sstat('Acces a ta position...');
   obtenirPosition(function(){
     btn.textContent='Actualiser';btn.disabled=false;if(map){map.setView([la,lo],13);addUserMarker();}load();
+    signalerVillePrecise(la,lo);
   },function(err){
     var msg='Erreur de localisation';
     if(err&&err.code===1)msg='Localisation refusee - autorise-la dans les reglages de ton navigateur pour ce site';
@@ -1601,6 +1602,23 @@ function locate(){
     else if(err&&err.code===3)msg='Localisation trop longue - reessaie (signal GPS faible ?)';
     sstat(msg);btn.disabled=false;btn.textContent='Me localiser';
   },true);
+}
+// Une fois la position GPS precise obtenue, on la transforme en nom de commune (geocodage
+// inverse) et on remonte ce nom au serveur de stats, bien plus precis qu'une localisation
+// par IP. Best-effort : aucune erreur ici n'affecte l'experience utilisateur.
+function signalerVillePrecise(lat,lon){
+  try{
+    var uid=localStorage.getItem('cr_uid');
+    if(!uid)return;
+    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon+'&zoom=14&addressdetails=1',{headers:{'Accept-Language':'fr'}})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var a=(d&&d.address)||{};
+        var villePrecise=a.village||a.town||a.city||a.municipality||a.county||null;
+        if(!villePrecise)return;
+        fetch(PROXY+'/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:uid,pays:'france',ville:villePrecise})}).catch(function(){});
+      }).catch(function(){});
+  }catch(e){}
 }
 // Récupère la position actuelle. Par défaut réutilise la position déjà connue si elle existe
 // (utile pour le mode Trajet) ; passer forcer=true pour toujours redemander une position fraîche
