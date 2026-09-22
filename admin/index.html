@@ -135,6 +135,7 @@ function changerVue(n){
     data:{labels:labels,datasets:[{label:'Utilisateurs actifs',data:valeurs,borderColor:'#f5a623',backgroundColor:'rgba(245,166,35,0.15)',fill:true,tension:0.3,pointRadius:3,pointHoverRadius:6}]},
     options:{
       responsive:true,
+      interaction:{mode:'index',intersect:false},
       scales:{x:{ticks:{color:'#6b6b8a'},grid:{color:'#252535'}},y:{beginAtZero:true,ticks:{color:'#6b6b8a'},grid:{color:'#252535'}}},
       plugins:{legend:{display:false}},
       onClick:function(evt, elements){
