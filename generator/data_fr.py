@@ -3,7 +3,7 @@ import gzip
 import json
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 URL = ("https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/"
        "prix-des-carburants-en-france-flux-instantane-v2/exports/json")
@@ -15,6 +15,9 @@ SLUG_FUEL = {v: k for k, v in FUEL_SLUG.items()}
 # Bornes de cohérence : une valeur hors bornes est ignorée (erreur de saisie probable), jamais corrigée.
 RANGE = {"gazole": (0.8, 4.0), "sp95": (0.8, 4.0), "sp98": (0.8, 4.0), "e10": (0.8, 4.0),
          "e85": (0.3, 2.5), "gplc": (0.3, 2.5)}
+# Un prix dont la dernière mise à jour remonte à plus de MAX_AGE_DAYS jours (par rapport à la mise à jour la plus récente
+# du jeu de données) est ignoré : il fausserait les classements (le jeu contient des prix vieux de plus d'un an).
+MAX_AGE_DAYS = 30
 DISPO_KEY = {"gazole": "gazole", "sp95": "sp95", "sp98": "sp98", "e10": "e10", "e85": "e85", "gplc": "gplc", "gpl": "gplc"}
 
 
@@ -84,8 +87,17 @@ def _dispo(v):
 
 def normalize(raw):
     """Liste brute -> liste de stations compactes + horodatage de référence des données."""
-    stations = []
     latest = None
+    for r in raw:  # passe 1 : mise à jour la plus récente (référence pour juger l'ancienneté des prix)
+        for f in FUELS:
+            p = _num(r.get(f"{f}_prix"))
+            lo, hi = RANGE[f]
+            if p is not None and lo <= p <= hi:
+                d = parse_ts(r.get(f"{f}_maj"))
+                if d and (latest is None or d > latest):
+                    latest = d
+    limit = latest - timedelta(days=MAX_AGE_DAYS) if latest else None
+    stations = []
     for r in raw:
         lat, lon = _coords(r)
         if lat is None:
@@ -95,12 +107,12 @@ def normalize(raw):
             p = _num(r.get(f"{f}_prix"))
             lo, hi = RANGE[f]
             if p is not None and lo <= p <= hi:
-                prices[f] = round(p, 3)
                 m = r.get(f"{f}_maj")
-                maj[f] = m if isinstance(m, str) else None
                 d = parse_ts(m)
-                if d and (latest is None or d > latest):
-                    latest = d
+                if d and limit and d < limit:
+                    continue  # prix trop ancien : ignoré
+                prices[f] = round(p, 3)
+                maj[f] = m if isinstance(m, str) else None
         auto = str(r.get("horaires_automate_24_24") or "").strip().lower() in ("oui", "true", "1", "yes")
         stations.append({
             "id": str(r.get("id") or "").replace(" ", ""),
