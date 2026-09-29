@@ -1,4 +1,5 @@
 """Récupération et normalisation des prix officiels (data.economie.gouv.fr, flux instantané v2)."""
+import gzip
 import json
 import time
 import urllib.request
@@ -24,7 +25,10 @@ def fetch(url=URL, tries=3, timeout=180):
             req = urllib.request.Request(url, headers={"User-Agent": "CarburantRadar-SEO-generator/2.0",
                                                        "Accept": "application/json"})
             with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.loads(r.read().decode("utf-8"))
+                body = r.read()
+            if body[:2] == b"\x1f\x8b":  # réponse compressée en gzip (l'export officiel peut l'être)
+                body = gzip.decompress(body)
+            return json.loads(body.decode("utf-8"))
         except Exception as e:  # réseau, JSON... : on retente puis on échoue proprement
             last = e
             time.sleep(5 * (i + 1))
