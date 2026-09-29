@@ -1,131 +1,344 @@
 #!/usr/bin/env python3
 """
-Génère automatiquement toutes les pages "prix carburant par ville"
-à partir d'un seul template + d'un fichier de données (villes.json).
+Générateur CarburantRadar — pages SEO (France enrichie avec les prix officiels ; Espagne/Italie inchangées).
 
-Usage : python3 generator/generate.py
-(exécuté automatiquement par la GitHub Action à chaque modif de villes.json)
+Usage :
+    python3 generate.py                      # depuis la racine du dépôt (télécharge les prix officiels)
+    python3 generator/generate.py --data F   # utiliser un export JSON local (tests hors ligne)
+    python3 generator/generate.py --root D   # écrire dans un autre dossier (tests)
+
+Principes : aucune donnée inventée, sortie déterministe (mêmes données => mêmes pages), échec sans rien écrire
+si les données officielles ne peuvent pas être récupérées.
 """
+import argparse
+import hashlib
 import json
 import os
-import hashlib
+import re
+import sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(BASE)
-SITE_URL = "https://emilienzabu.github.io/CarburantRadar"
+sys.path.insert(0, BASE)
 
-with open(os.path.join(BASE, "villes.json"), encoding="utf-8") as f:
-    data = json.load(f)
+import audit  # noqa: E402
+import data_fr  # noqa: E402
+import stats_fr as S  # noqa: E402
+from render_common import SITE_URL  # noqa: E402
+from render_fr import render_city, render_fuel_page  # noqa: E402
+from render_geo import render_dep, render_region, render_hub_fr, render_hub_simple  # noqa: E402
+from data_fr import FUELS, FUEL_SLUG  # noqa: E402
 
-with open(os.path.join(BASE, "template.html"), encoding="utf-8") as f:
-    TEMPLATE = f.read()
 
-PAYS_CFG = data["pays"]
-VILLES = data["villes"]
+GENERATED = []
 
+
+def write(root, urlpath, html):
+    GENERATED.append(urlpath)
+    d = os.path.join(root, urlpath.strip("/"))
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "index.html"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(html)
+
+
+# ---------------------------------------------------------------- Espagne / Italie : pipeline historique inchangé
 
 def pick_variant(variants, slug):
-    """Choisit toujours la même variante pour une ville donnée (stable),
-    répartie entre les variantes disponibles."""
-    idx = int(hashlib.md5(slug.encode("utf-8")).hexdigest(), 16) % len(variants)
-    return variants[idx]
+    return variants[int(hashlib.md5(slug.encode("utf-8")).hexdigest(), 16) % len(variants)]
 
 
 def js_str(value):
-    """Échappe une chaîne pour une insertion sûre dans du JavaScript
-    (gère guillemets, apostrophes, tout caractère spécial automatiquement)."""
     return json.dumps(value, ensure_ascii=False)
 
 
-sitemap_urls = [
-    (f"{SITE_URL}/", "weekly", "1.0"),
-    (f"{SITE_URL}/france/", "weekly", "1.0"),
-    (f"{SITE_URL}/espagne/", "weekly", "1.0"),
-    (f"{SITE_URL}/italie/", "weekly", "1.0"),
-    (f"{SITE_URL}/guide/", "monthly", "0.8"),
-]
-
-generated = []
-
-for v in VILLES:
-    pays = v["pays"]
-    cfg = PAYS_CFG[pays]
-    ville = v["nom"]
-    slug = v["slug"]
-
+def legacy_page(v, cfg, template):
+    pays, ville, slug = v["pays"], v["nom"], v["slug"]
     intro = v.get("intro") or pick_variant(cfg["intro_generic_variants"], slug).format(ville=ville)
     why = v.get("why") or cfg["why_generic_tpl"]
     url = f"{SITE_URL}/{pays}/{cfg['dossier']}/{slug}/"
-    url_pays = f"{SITE_URL}/{pays}/"
-
-    benefits = cfg["benefits"]
-
-    html = TEMPLATE
-    replacements = {
-        "%%LANG%%": cfg["lang"],
-        "%%TITLE%%": cfg["title_tpl"].format(ville=ville),
-        "%%META_DESC%%": cfg["meta_desc_tpl"].format(ville=ville),
-        "%%CANONICAL_URL%%": url,
-        "%%BREADCRUMB_HOME%%": cfg["breadcrumb_home"],
-        "%%NOM_PAYS%%": cfg["nom_pays"],
-        "%%URL_PAYS%%": url_pays,
-        "%%VILLE%%": ville,
-        "%%H1%%": cfg["h1_tpl"].format(ville=ville),
-        "%%SUBTITLE%%": cfg["subtitle"],
-        "%%BADGE_GRATUIT%%": cfg["badge_gratuit"],
-        "%%BADGE_SANS_COMPTE%%": cfg["badge_sans_compte"],
-        "%%BADGE_DONNEES_OFFICIELLES%%": cfg["badge_donnees"],
-        "%%HERO_LABEL%%": cfg["hero_label"],
-        "%%CTA_TOP_TXT%%": cfg["cta_top_txt"],
-        "%%H2_LIVE%%": cfg["h2_live_tpl"].format(ville=ville, fuel_label=cfg["fuel_label"]),
-        "%%LOADING_TXT%%": cfg["loading_txt"],
-        "%%H2_BENEFITS%%": cfg["h2_benefits"],
-        "%%BENEFIT_1%%": benefits[0],
-        "%%BENEFIT_2%%": benefits[1],
-        "%%BENEFIT_3%%": benefits[2],
-        "%%BENEFIT_4%%": benefits[3],
-        "%%CTA_BOTTOM_TXT%%": cfg["cta_bottom_txt"],
-        "%%H2_WHY%%": cfg["h2_why"],
-        "%%INTRO%%": intro,
-        "%%WHY_TXT%%": why,
-        "%%CTA_FINAL_TXT%%": cfg["cta_final_txt"],
-        "%%FOOTER_TXT%%": cfg["footer_txt"],
-        "%%LAT%%": str(v["lat"]),
-        "%%LON%%": str(v["lon"]),
-        "%%FUEL_MAP_JSON%%": json.dumps(cfg["fuel_map"], ensure_ascii=False),
-        # Tokens injectés en tant que chaînes JS déjà échappées (voir js_str) :
-        "%%ROUTE_JS%%": js_str(cfg["route"]),
-        "%%FUEL_DEFAUT_JS%%": js_str(cfg["fuel_defaut"]),
-        "%%FUEL_LABEL_JS%%": js_str(cfg["fuel_label"]),
-        "%%HERO_SUFFIX_JS%%": js_str(cfg["hero_suffix"]),
-        "%%NO_DATA_TXT_JS%%": js_str(cfg["no_data_txt"]),
-        "%%ERROR_TXT_JS%%": js_str(cfg["error_txt"]),
+    b = cfg["benefits"]
+    rep = {
+        "%%LANG%%": cfg["lang"], "%%TITLE%%": cfg["title_tpl"].format(ville=ville),
+        "%%META_DESC%%": cfg["meta_desc_tpl"].format(ville=ville), "%%CANONICAL_URL%%": url,
+        "%%BREADCRUMB_HOME%%": cfg["breadcrumb_home"], "%%NOM_PAYS%%": cfg["nom_pays"], "%%URL_PAYS%%": f"{SITE_URL}/{pays}/",
+        "%%VILLE%%": ville, "%%H1%%": cfg["h1_tpl"].format(ville=ville), "%%SUBTITLE%%": cfg["subtitle"],
+        "%%BADGE_GRATUIT%%": cfg["badge_gratuit"], "%%BADGE_SANS_COMPTE%%": cfg["badge_sans_compte"],
+        "%%BADGE_DONNEES_OFFICIELLES%%": cfg["badge_donnees"], "%%HERO_LABEL%%": cfg["hero_label"],
+        "%%CTA_TOP_TXT%%": cfg["cta_top_txt"], "%%H2_LIVE%%": cfg["h2_live_tpl"].format(ville=ville, fuel_label=cfg["fuel_label"]),
+        "%%LOADING_TXT%%": cfg["loading_txt"], "%%H2_BENEFITS%%": cfg["h2_benefits"],
+        "%%BENEFIT_1%%": b[0], "%%BENEFIT_2%%": b[1], "%%BENEFIT_3%%": b[2], "%%BENEFIT_4%%": b[3],
+        "%%CTA_BOTTOM_TXT%%": cfg["cta_bottom_txt"], "%%H2_WHY%%": cfg["h2_why"], "%%INTRO%%": intro, "%%WHY_TXT%%": why,
+        "%%CTA_FINAL_TXT%%": cfg["cta_final_txt"], "%%FOOTER_TXT%%": cfg["footer_txt"],
+        "%%LAT%%": str(v["lat"]), "%%LON%%": str(v["lon"]), "%%FUEL_MAP_JSON%%": json.dumps(cfg["fuel_map"], ensure_ascii=False),
+        "%%ROUTE_JS%%": js_str(cfg["route"]), "%%FUEL_DEFAUT_JS%%": js_str(cfg["fuel_defaut"]),
+        "%%FUEL_LABEL_JS%%": js_str(cfg["fuel_label"]), "%%HERO_SUFFIX_JS%%": js_str(cfg["hero_suffix"]),
+        "%%NO_DATA_TXT_JS%%": js_str(cfg["no_data_txt"]), "%%ERROR_TXT_JS%%": js_str(cfg["error_txt"]),
     }
+    html = template
+    for k, val in rep.items():
+        html = html.replace(k, val)
+    left = [k for k in rep if k in html]
+    if left:
+        raise SystemExit(f"ERREUR : tokens non remplacés dans {pays}/{slug} : {left}")
+    return html
 
-    for token, value in replacements.items():
-        html = html.replace(token, value)
 
-    remaining = [t for t in replacements if t in html]
-    if remaining:
-        raise SystemExit(f"ERREUR : tokens non remplacés dans {pays}/{slug} : {remaining}")
+# ---------------------------------------------------------------- nettoyage des pages qui ne sont plus générées
 
-    out_dir = os.path.join(ROOT, pays, cfg["dossier"], slug)
-    os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "index.html")
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(html)
+MANIFEST = os.path.join("generator", "generated_pages.json")
 
-    generated.append(out_path)
-    sitemap_urls.append((url, "monthly", "0.7"))
-    print(f"Généré : {pays}/{cfg['dossier']}/{slug}/index.html")
 
-# Régénération complète du sitemap (racine + pays + guide + toutes les villes)
-sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-for loc, freq, prio in sitemap_urls:
-    sitemap += f"  <url>\n    <loc>{loc}</loc>\n    <changefreq>{freq}</changefreq>\n    <priority>{prio}</priority>\n  </url>\n"
-sitemap += "</urlset>\n"
+def prune_stale(root):
+    """Supprime les pages écrites par un run précédent (manifeste) mais absentes de celui-ci, puis réécrit le manifeste."""
+    mp = os.path.join(root, MANIFEST)
+    old = json.load(open(mp, encoding="utf-8")) if os.path.isfile(mp) else []
+    removed = 0
+    for up in sorted(set(old) - set(GENERATED)):
+        d = os.path.join(root, up.strip("/"))
+        f = os.path.join(d, "index.html")
+        if os.path.isfile(f):
+            os.remove(f)
+            removed += 1
+        try:
+            os.rmdir(d)
+        except OSError:
+            pass
+    with open(mp, "w", encoding="utf-8", newline="\n") as fh:
+        json.dump(sorted(set(GENERATED)), fh, indent=0)
+        fh.write("\n")
+    if removed:
+        print(f"{removed} page(s) obsolète(s) supprimée(s).")
 
-with open(os.path.join(ROOT, "sitemap.xml"), "w", encoding="utf-8") as f:
-    f.write(sitemap)
 
-print(f"\n{len(generated)} page(s) ville générée(s). sitemap.xml mis à jour ({len(sitemap_urls)} URLs).")
+# ---------------------------------------------------------------- sitemap / robots
+
+def write_sitemap(root, entries):
+    out = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for loc, freq, prio, lastmod in entries:
+        out += f"  <url>\n    <loc>{loc}</loc>\n" + (f"    <lastmod>{lastmod}</lastmod>\n" if lastmod else "") \
+               + f"    <changefreq>{freq}</changefreq>\n    <priority>{prio}</priority>\n  </url>\n"
+    out += "</urlset>\n"
+    with open(os.path.join(root, "sitemap_1.xml"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(out)
+    rp = os.path.join(root, "robots.txt")
+    txt = open(rp, encoding="utf-8").read() if os.path.isfile(rp) else "User-agent: *\nAllow: /\nDisallow: /admin/\n"
+    line = f"Sitemap: {SITE_URL}/sitemap_1.xml"
+    txt = re.sub(r"(?im)^sitemap:.*$", line, txt) if re.search(r"(?im)^sitemap:", txt) else txt.rstrip("\n") + "\n\n" + line + "\n"
+    with open(rp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(txt)
+
+
+# ---------------------------------------------------------------- rapport
+
+def write_report(root, ctx, stats, aud, sim):
+    info = aud["info"]
+    gen = {p: i for p, i in info.items() if i["type"] in ("city", "fuel", "geo", "hub")}
+    types = {t: [p for p, i in gen.items() if i["type"] == t] for t in ("city", "fuel", "geo", "hub")}
+    dep_paths = {f"/france/{d['slug']}/" for d in stats["dep_list"]}
+    reg_paths = {f"/france/{r['slug']}/" for r in stats["reg_list"]}
+    L = []
+    a = L.append
+    a("# SEO_REPORT — pages générées\n")
+    a(f"Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : "
+      f"{stats['latest_txt']}. Rapport déterministe (aucun horodatage de génération).\n")
+    a("## Volumétrie\n")
+    a("| Indicateur | Valeur |\n|---|---|")
+    a(f"| Pages France générées par le nouveau système | {len(gen)} |")
+    a(f"| Pages villes (France) | {len(types['city'])} dont {stats['n_index']} indexables et {stats['n_noindex']} en noindex |")
+    a(f"| Pages départements | {len(dep_paths)} |")
+    a(f"| Pages régions | {len(reg_paths)} |")
+    a(f"| Pages ville + carburant | {len(types['fuel'])} |")
+    for f in FUELS:
+        a(f"| — dont {data_fr.FUEL_LABEL[f]} | {sum(1 for x in stats['fuel_pages'] if x[0] == f)} |")
+    a(f"| Pages hub (liste des villes France) | {len(types['hub'])} |")
+    a(f"| Pages Espagne / Italie (pipeline inchangé) | {sum(1 for i in info.values() if i['type'].startswith('city_'))} villes, "
+      f"{sum(1 for i in info.values() if i['type'].startswith('hub_'))} hubs |")
+    a(f"| URLs dans le sitemap | {len(aud['sitemap'])} |")
+    a(f"| Stations analysées (jeu de données) | {stats['n_stations']} |\n")
+    a("## Unicité des balises (pages générées France)\n")
+    def uniq(key):
+        vals = [gen[p][key] for p in gen]
+        return f"{len(set(vals))} / {len(vals)}"
+    a("| Balise | Valeurs distinctes / pages |\n|---|---|")
+    for lab, key in (("Titles", "title"), ("Meta descriptions", "desc"), ("H1", "h1"), ("Canonicals", "canonical")):
+        a(f"| {lab} | {uniq(key)} |")
+    a("")
+    a("## Qualité du contenu\n")
+    cities = [c for c in stats["cities"]]
+    thin_words = [p for p in gen if gen[p]["words"] < audit.MIN_WORDS and gen[p]["type"] != "hub"]
+    a(f"- Pages avec moins de {audit.MIN_WORDS} mots (zone principale) : {len(thin_words)}")
+    a(f"- Pages villes avec peu de données (score < {S.MIN_SCORE_INDEX} ou < {S.MIN_STATIONS_INDEX} stations ou < {S.MIN_FUELS_INDEX} carburants → noindex) : {stats['n_noindex']}")
+    a(f"- Pages villes sans station : {sum(1 for c in cities if c['n_rad'] == 0)} (rayon de 12 km)")
+    a(f"- Pages villes sans prix : {sum(1 for c in cities if not c['fuels'])}")
+    a(f"- Pages villes sans ville voisine affichée : {sum(1 for c in cities if not c['neighbors_shown'])}")
+    a(f"- Pages villes sans département identifié : {sum(1 for c in cities if not c['dep_code'])}")
+    if stats["no_dep"]:
+        a("  - " + ", ".join(sorted(stats["no_dep"])))
+    a("")
+    a("## Maillage interne (pages France générées)\n")
+    tot = sum(gen[p]["n_links"] for p in gen)
+    a(f"- Liens internes distincts au total : {tot} ; moyenne par page : {tot / max(1, len(gen)):.1f}")
+    a(f"- Pages orphelines indexables : {len(aud['orphans'])} ; pages noindex non liées : {len(aud['noindex_orphans'])}\n")
+    a("## Pages les plus / moins riches (villes)\n")
+    ranked = sorted(cities, key=lambda c: (-c["score"], c["slug"]))
+    a("| Plus riches | Score | Stations | Carburants |\n|---|---|---|---|")
+    for c in ranked[:5]:
+        a(f"| {c['nom']} | {c['score']} | {c['n_scope']} | {len(c['fuels'])} |")
+    a("\n| Moins riches | Score | Stations | Carburants |\n|---|---|---|---|")
+    for c in ranked[-5:][::-1]:
+        a(f"| {c['nom']} | {c['score']} | {c['n_scope']} | {len(c['fuels'])} |")
+    a("")
+    a("## Doublons de contenu (zone principale, séquences de 6 mots)\n")
+    for ty, lab in (("city", "villes"), ("fuel", "ville + carburant"), ("geo", "départements / régions")):
+        s = sim.get(ty)
+        if not s:
+            continue
+        vals = list(s["unique_pct"].values())
+        a(f"- Pages {lab} : contenu unique moyen {sum(vals) / len(vals):.0f} % (min {min(vals):.0f} %) ; "
+          f"paires quasi identiques (Jaccard ≥ {audit.DUP_JACCARD}) : {len(s['dups'])}")
+        for j, x, y in s["dups"][:10]:
+            a(f"  - {j} : {x} ↔ {y}")
+    a("")
+    a("## Validation\n")
+    a(f"- Erreurs : {len(aud['errors'])} ; avertissements : {len(aud['warnings'])}")
+    for e in aud["errors"][:50]:
+        a(f"  - ERREUR {e}")
+    for w in aud["warnings"][:30]:
+        a(f"  - avertissement {w}")
+    sp = aud["special"]
+    if sp:
+        a(f"- Test lien France : `{sp[0]}` + `../../` → `{sp[1]}` ({'OK' if sp[2] and sp[1] == '/france/' else 'ÉCHEC'})")
+    a("")
+    with open(os.path.join(root, "SEO_REPORT.md"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(L) + "\n")
+
+
+# ---------------------------------------------------------------- principal
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--data", help="export JSON local du flux officiel (sinon téléchargement)")
+    ap.add_argument("--root", help="dossier de sortie (défaut : racine du dépôt)")
+    args = ap.parse_args()
+    root = os.path.abspath(args.root) if args.root else os.path.dirname(BASE)
+
+    conf = json.load(open(os.path.join(BASE, "villes.json"), encoding="utf-8"))
+    pays_cfg, villes = conf["pays"], conf["villes"]
+    template = open(os.path.join(BASE, "template.html"), encoding="utf-8").read()
+
+    # 1) données officielles : en cas d'échec on s'arrête AVANT d'écrire quoi que ce soit
+    try:
+        stations, latest = data_fr.load(args.data)
+    except Exception as e:
+        print(f"ERREUR : données officielles indisponibles ({e}). Aucune page modifiée.", file=sys.stderr)
+        return 2
+
+    fr_cfg = pays_cfg["france"]
+    fr_villes = [v for v in villes if v["pays"] == "france"]
+    nat = S.national(stations)
+    dep_info, reg_info = S.build_geo(stations)
+
+    # 2) villes
+    cities = [S.build_city(v, stations) for v in fr_villes]
+    by_slug = {c["slug"]: c for c in cities}
+    cand = S.neighbor_candidates(cities)
+    for c in cities:
+        viable = lambda o: o["n_scope"] >= S.MIN_STATIONS_INDEX and len(o["fuels"]) >= S.MIN_FUELS_INDEX
+        c["neighbors"] = [(d, s) for d, s in cand[c["slug"]] if viable(by_slug[s])]
+        dep = dep_info.get(c["dep_code"])
+        c["compare_dep"] = bool(dep) and any(f in dep["stats"]["fuels"] and dep["stats"]["fuels"][f]["n"] >= S.MIN_DEP_COMPARE
+                                             and c["fuels"][f]["n"] >= 3 for f in c["fuels"])
+        S.score_city(c, dep_info, nat)
+    idx = [c for c in cities if c["indexable"]]
+    idx_slugs = {c["slug"] for c in idx}
+    for c in cities:
+        c["neighbors_shown"] = []
+        for d, s in cand[c["slug"]]:
+            if s in idx_slugs and len(c["neighbors_shown"]) < S.NEIGHBOR_MAX:
+                o = by_slug[s]
+                c["neighbors_shown"].append({"slug": s, "nom": o["nom"], "dist": d, "fuels": o["fuels"]})
+        shown = {n["slug"] for n in c["neighbors_shown"]} | {c["slug"]}
+        c["others_dep"] = sorted((o for o in idx if o["dep_code"] and o["dep_code"] == c["dep_code"] and o["slug"] not in shown),
+                                 key=lambda o: (-o["n_scope"], o["nom"]))[:10]
+
+    # 3) départements / régions éligibles
+    dep_pages = {}
+    for code, d in dep_info.items():
+        cs = [c for c in idx if c["dep_code"] == code]
+        if cs and d["stats"]["n"] >= S.MIN_DEP_STATIONS:
+            dep_pages[code] = True
+    reg_pages = {}
+    for code, r in reg_info.items():
+        ds = [d for c_, d in dep_info.items() if dep_pages.get(c_) and d["reg_code"] == code]
+        if ds and r["stats"]["n"] >= S.MIN_DEP_STATIONS:
+            reg_pages[code] = True
+    fuel_pages = {(f, c["slug"]) for c in idx if c["scope"] == "commune" for f in c["fuels"] if c["fuels"][f]["n"] >= S.MIN_FUEL_PAGE}
+
+    ctx = {"cfg": fr_cfg, "dep_info": dep_info, "reg_info": reg_info, "dep_pages": dep_pages, "reg_pages": reg_pages,
+           "nat": nat, "latest": latest, "fuel_pages": fuel_pages, "min_dep_compare": S.MIN_DEP_COMPARE}
+
+    # 4) écriture des pages
+    lastmod = latest.astimezone(__import__("datetime").timezone.utc).strftime("%Y-%m-%d")
+    entries = [(f"{SITE_URL}/", "weekly", "1.0", None), (f"{SITE_URL}/france/", "weekly", "1.0", None),
+               (f"{SITE_URL}/espagne/", "weekly", "1.0", None), (f"{SITE_URL}/italie/", "weekly", "1.0", None),
+               (f"{SITE_URL}/guide/", "monthly", "0.8", None)]
+
+    dep_list = [dep_info[k] for k in sorted(dep_pages, key=lambda k: dep_info[k]["name"])]
+    reg_list = [reg_info[k] for k in sorted(reg_pages, key=lambda k: reg_info[k]["name"])]
+
+    html, _, _ = render_hub_fr(ctx, sorted(idx, key=lambda c: c["nom"]), dep_list, reg_list)
+    write(root, "/france/prix-carburant/", html)
+    entries.append((f"{SITE_URL}/france/prix-carburant/", "weekly", "0.9", lastmod))
+
+    for r in reg_list:
+        deps = [d for d in dep_list if d["reg_code"] == r["code"]]
+        cs = sorted((c for c in idx if c["reg_code"] == r["code"]), key=lambda c: (-c["n_scope"], c["nom"]))
+        html, _, _ = render_region(r, deps, cs, ctx)
+        write(root, f"/france/{r['slug']}/", html)
+        entries.append((f"{SITE_URL}/france/{r['slug']}/", "daily", "0.8", lastmod))
+    for d in dep_list:
+        cs = sorted((c for c in idx if c["dep_code"] == d["code"]), key=lambda c: (-c["n_scope"], c["nom"]))
+        html, _, _ = render_dep(d, cs, ctx)
+        write(root, f"/france/{d['slug']}/", html)
+        entries.append((f"{SITE_URL}/france/{d['slug']}/", "daily", "0.8", lastmod))
+    for c in cities:
+        html, _, _ = render_city(c, ctx)
+        write(root, f"/france/prix-carburant/{c['slug']}/", html)
+        if c["indexable"]:
+            entries.append((f"{SITE_URL}/france/prix-carburant/{c['slug']}/", "daily", "0.7", lastmod))
+    for (f, slug) in sorted(fuel_pages, key=lambda x: (x[1], FUELS.index(x[0]))):
+        html, _, _ = render_fuel_page(by_slug[slug], f, ctx)
+        write(root, f"/france/prix-carburant/{slug}/{FUEL_SLUG[f]}/", html)
+        entries.append((f"{SITE_URL}/france/prix-carburant/{slug}/{FUEL_SLUG[f]}/", "daily", "0.6", lastmod))
+
+    # Espagne / Italie : pages historiques + hub
+    for pays in ("espagne", "italie"):
+        cfg = pays_cfg[pays]
+        vs = [v for v in villes if v["pays"] == pays]
+        html, _, _ = render_hub_simple(pays, vs, cfg)
+        write(root, f"/{pays}/{cfg['dossier']}/", html)
+        entries.append((f"{SITE_URL}/{pays}/{cfg['dossier']}/", "monthly", "0.6", None))
+        for v in vs:
+            write(root, f"/{pays}/{cfg['dossier']}/{v['slug']}/", legacy_page(v, cfg, template))
+            entries.append((f"{SITE_URL}/{pays}/{cfg['dossier']}/{v['slug']}/", "monthly", "0.7", None))
+
+    write_sitemap(root, entries)
+    prune_stale(root)
+
+    # 5) audit + rapport
+    aud = audit.audit(root)
+    sim = audit.similarity(aud["info"])
+    latest_txt = latest.astimezone(__import__("datetime").timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
+    stats = {"latest_txt": latest_txt, "n_index": len(idx), "n_noindex": len(cities) - len(idx), "fuel_pages": fuel_pages,
+             "dep_list": dep_list, "reg_list": reg_list, "cities": cities, "n_stations": len(stations),
+             "no_dep": [c["nom"] for c in cities if not c["dep_code"]]}
+    write_report(root, ctx, stats, aud, sim)
+    print(f"{len(cities)} villes FR ({len(idx)} indexables), {len(dep_list)} départements, {len(reg_list)} régions, "
+          f"{len(fuel_pages)} pages carburant, {len(entries)} URLs au sitemap.")
+    print(f"Audit : {len(aud['errors'])} erreur(s), {len(aud['warnings'])} avertissement(s). Rapport : SEO_REPORT.md")
+    for e in aud["errors"][:40]:
+        print("ERREUR", e)
+    return 1 if aud["errors"] else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
