@@ -1,6 +1,6 @@
 // Service Worker CarburantRadar — gère le cache, les notifications push et le clic dessus.
 // Version du cache : à incrémenter à chaque modification majeure pour forcer la mise à jour
-const CACHE_NAME = 'carburant-radar-v2.1.0';
+const CACHE_NAME = 'carburant-radar-v2.1.1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -42,7 +42,9 @@ self.addEventListener('activate', function(event) {
   self.clients.claim();
 });
 
-// Interception des requêtes : stratégie cache-first avec fallback réseau
+// Interception des requêtes.
+// - Pages HTML (navigation) : network-first, pour toujours avoir la dernière version quand il y a du réseau.
+// - Reste (icônes, manifest...) : cache-first, comme avant, pour la rapidité et le mode hors-ligne.
 self.addEventListener('fetch', function(event) {
   // Ne pas intercepter les requêtes vers des domaines externes (API, etc.)
   if (event.request.url.startsWith('http://') || event.request.url.startsWith('https://')) {
@@ -51,18 +53,39 @@ self.addEventListener('fetch', function(event) {
     }
   }
 
+  var estNavigation = event.request.mode === 'navigate' ||
+    (event.request.method === 'GET' && event.request.headers.get('accept') && event.request.headers.get('accept').indexOf('text/html') !== -1);
+
+  if (estNavigation) {
+    // Network-first : on tente toujours le réseau d'abord pour avoir la dernière version du site.
+    event.respondWith(
+      fetch(event.request)
+        .then(function(networkResponse) {
+          var responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(function(cache) {
+            cache.put(event.request, responseClone);
+          });
+          return networkResponse;
+        })
+        .catch(function() {
+          // Hors ligne : on retombe sur le cache.
+          return caches.match(event.request).then(function(cached) {
+            return cached || caches.match('./index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache-first pour le reste (icônes, manifest, etc.)
   event.respondWith(
     caches.match(event.request)
       .then(function(response) {
-        // Si trouvé dans le cache, retourner la réponse
         if (response) {
           return response;
         }
-
-        // Sinon, faire la requête réseau
         return fetch(event.request)
           .then(function(networkResponse) {
-            // Mettre à jour le cache avec la nouvelle réponse (si c'est une requête GET)
             if (event.request.method === 'GET') {
               const responseClone = networkResponse.clone();
               caches.open(CACHE_NAME)
@@ -73,7 +96,6 @@ self.addEventListener('fetch', function(event) {
             return networkResponse;
           })
           .catch(function() {
-            // Si réseau échoue et pas dans le cache, retourner une réponse par défaut
             return caches.match('./index.html');
           });
       })
