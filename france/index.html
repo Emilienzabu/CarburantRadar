@@ -102,15 +102,15 @@ html[data-theme="light"]{
   --warning-bg:#fdf1de;
   --toggle-off:#c9c2b2;
 }
-body{background:var(--bg-page);color:var(--text);font-family:sans-serif;padding-bottom:70px;transition:background .2s,color .2s}
+body{background:var(--bg-page);color:var(--text);font-family:sans-serif;padding-bottom:100px;transition:background .2s,color .2s}
 header{background:var(--bg-surface);border-bottom:1px solid var(--border);padding:16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
 .ico{width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
 .h1{font-size:17px;font-weight:800}.h1 span{color:var(--accent)}
 .sub{font-size:10px;color:var(--text-muted)}
 .menu-btn{width:36px;height:36px;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;margin-left:auto;padding:0;display:flex;align-items:center;justify-content:center}
-.nav-bar{position:fixed;bottom:0;left:0;right:0;background:var(--bg-surface);border-top:1px solid var(--border);display:flex;z-index:9999;height:60px}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:none;border:none;color:var(--text-muted);font-size:10px;cursor:pointer;padding:8px 0;margin:0;border-radius:0;gap:3px}
-.nav-btn.active{color:var(--accent)}
+.nav-bar{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:420px;height:64px;padding:4px;background:var(--nav-glass);border:1px solid var(--nav-glass-border);border-radius:20px;backdrop-filter:blur(24px) saturate(190%);-webkit-backdrop-filter:blur(24px) saturate(190%);box-shadow:var(--nav-shadow);display:flex;z-index:9999}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:none;border:none;color:var(--text-muted);font-size:10px;cursor:pointer;padding:8px 0;margin:0;border-radius:16px;gap:3px}
+.nav-btn.active{color:var(--accent-text);font-weight:700}
 .nav-btn span{font-size:20px;line-height:1}
 .page{display:none;padding:20px}
 .page.active{display:block}
@@ -121,8 +121,8 @@ button{width:100%;padding:15px;background:var(--accent);color:#000;border:none;b
 .fuels,.radii{display:flex;gap:4px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:10px;overflow-x:auto}
 .fuels::-webkit-scrollbar,.radii::-webkit-scrollbar{display:none}
 .fb,.rb{padding:8px 12px;border-radius:8px;background:transparent;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;white-space:nowrap}
-.fb.a{background:var(--danger);color:#fff;font-weight:700}
-.rb.a{background:var(--accent);color:#000;font-weight:700}
+.fb.a{color:#fff;font-weight:700}
+.rb.a{color:#000;font-weight:700}
 #status{display:none;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--text-muted);margin-bottom:12px}
 #status.on{display:block}
 .stats{display:none;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
@@ -153,10 +153,10 @@ button{width:100%;padding:15px;background:var(--accent);color:#000;border:none;b
 .ctx-menu{position:absolute;right:16px;top:44px;background:var(--input-bg);border-radius:10px;z-index:50;min-width:160px;box-shadow:var(--shadow-modal);overflow:hidden}
 .ctx-item{display:block;width:100%;padding:12px 16px;background:none;border:none;color:var(--text);font-size:14px;text-align:left;cursor:pointer;margin:0;border-radius:0}
 .ctx-divider{height:1px;background:var(--bg-surface)}
-.overlay{display:none;position:fixed;inset:0;background:var(--overlay);z-index:200}
-.overlay.on{display:block}
-.side-menu{position:fixed;right:0;top:0;bottom:0;width:80%;max-width:320px;background:var(--bg-surface);z-index:201;transform:translateX(100%);transition:transform .25s;overflow-y:auto}
-.side-menu.on{transform:translateX(0)}
+.overlay{display:block;opacity:0;pointer-events:none;position:fixed;inset:0;background:var(--overlay);z-index:200;transition:opacity .35s}
+.overlay.on{opacity:1;pointer-events:auto}
+.side-menu{position:fixed;right:0;top:0;bottom:0;width:80%;max-width:320px;background:var(--bg-surface);z-index:201;transform:translateX(100%);transition:transform .42s cubic-bezier(.32,.72,0,1),box-shadow .42s;box-shadow:none;overflow-y:auto}
+.side-menu.on{transform:translateX(0);box-shadow:-12px 0 40px rgba(0,0,0,0.45)}
 .side-header{background:var(--bg-sunken);padding:20px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
 .side-title{font-size:16px;font-weight:800}
 .close-btn{background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;width:auto;margin:0;padding:4px}
@@ -164,11 +164,14 @@ button{width:100%;padding:15px;background:var(--accent);color:#000;border:none;b
 .acc-title{font-size:13px;font-weight:700;color:var(--text)}
 .acc-arrow{font-size:12px;color:var(--text-muted);transition:transform .2s}
 .acc-arrow.open{transform:rotate(180deg)}
-.acc-body{display:none;padding:16px;border-bottom:1px solid var(--border)}
-.acc-body.open{display:block}
+.acc-body{display:grid;grid-template-rows:0fr;border-bottom:1px solid transparent;transition:grid-template-rows .4s cubic-bezier(.32,.72,0,1),border-color .3s}
+.acc-body.open{grid-template-rows:1fr;border-bottom-color:var(--border)}
+.acc-inner{min-height:0;overflow:hidden}
+.acc-pad{padding:16px;opacity:0;transform:translateY(-8px);transition:opacity .3s,transform .4s cubic-bezier(.32,.72,0,1)}
+.acc-body.open .acc-pad{opacity:1;transform:none}
 .menu-tabs{display:flex;gap:4px;background:var(--bg-sunken);border-bottom:1px solid var(--border);padding:8px;overflow-x:auto}
 .menu-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px;border-radius:8px;background:transparent;border:none;color:var(--text-muted);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
-.menu-tab.a{background:var(--bg-surface);color:var(--accent)}
+.menu-tab.a{color:var(--accent)}
 .side-item{background:var(--bg-sunken);border-radius:10px;padding:12px;margin-bottom:8px}
 .side-item-name{font-size:14px;font-weight:700;margin-bottom:2px}
 .side-item-sub{font-size:11px;color:var(--text-muted)}
@@ -259,6 +262,66 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 .app-footer .footer-links a{color:var(--text-muted);text-decoration:none;cursor:pointer}
 .app-footer .footer-links a:hover{color:var(--accent)}
 .app-footer .footer-sep{color:var(--input-border)}
+
+/* ===== Curseurs qui glissent + tab bar flottante en verre ===== */
+:root{--nav-glass:rgba(255,255,255,0.07);--nav-glass-border:rgba(255,255,255,0.2);--nav-shadow:0 10px 28px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.2)}
+html[data-theme="light"]{--nav-glass:rgba(255,255,255,0.55);--nav-glass-border:rgba(255,255,255,0.7);--nav-shadow:0 10px 28px rgba(60,50,30,0.22),inset 0 1px 0 rgba(255,255,255,0.8)}
+.fuels,.radii,.seg,.menu-tabs{position:relative}
+.fb,.rb,.menu-tab,.nav-btn{position:relative;z-index:1;transition:color .2s,transform .12s ease}
+.cr-slider{position:absolute;left:0;top:0;width:0;height:0;z-index:0;pointer-events:none;transition:transform .32s cubic-bezier(.4,1.4,.4,1),width .32s cubic-bezier(.4,1.4,.4,1),height .32s cubic-bezier(.4,1.4,.4,1),top .32s cubic-bezier(.4,1.4,.4,1),opacity .2s}
+.cr-slider.no-anim{transition:none}
+
+/* ===== Animations ===== */
+@keyframes pageIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes pageSlide{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:none}}
+@keyframes itemIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes accDrop{from{opacity:0;clip-path:inset(0 0 100% 0);transform:translateY(-6px)}to{opacity:1;clip-path:inset(0);transform:none}}
+.page.active{animation:pageIn .38s cubic-bezier(.2,.8,.2,1)}
+#page-map.active{animation:fadeIn .3s ease}
+#page-apropos.active,#page-mentions.active,#page-confidentialite.active,#page-contact.active{animation:pageSlide .42s cubic-bezier(.32,.72,0,1)}
+.modal.on{animation:fadeIn .22s ease}
+.modal.on .modal-box{animation:popIn .34s cubic-bezier(.2,1.25,.4,1)}
+.side-menu.on .menu-tab-group>*{animation:itemIn .45s cubic-bezier(.2,.8,.2,1) both}
+.side-menu.on .menu-tab-group>*:nth-child(2){animation-delay:.05s}
+.side-menu.on .menu-tab-group>*:nth-child(3){animation-delay:.1s}
+.side-menu.on .menu-tab-group>*:nth-child(4){animation-delay:.15s}
+.side-menu.on .menu-tab-group>*:nth-child(5){animation-delay:.2s}
+.side-menu.on .menu-tab-group>*:nth-child(6){animation-delay:.25s}
+.acc-open{animation:accDrop .4s cubic-bezier(.32,.72,0,1)}
+button{transition:transform .12s ease}
+button:active{transform:scale(.97)}
+.acc-arrow{transition:transform .35s cubic-bezier(.32,.72,0,1)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* ===== Fenêtre "Télécharger l'application" ===== */
+.inst-btn{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border-radius:12px;background:var(--input-bg);color:var(--text);border:1px solid var(--border);font-size:15px;font-weight:700;margin-bottom:10px;text-align:left}
+.inst-btn svg{width:26px;height:26px;flex:0 0 auto}
+.inst-tag{display:none;margin-left:auto;font-size:10px;font-weight:800;background:var(--accent);color:var(--accent-text);padding:3px 9px;border-radius:20px}
+.inst-back{background:none;border:none;color:var(--accent);font-size:13px;font-weight:700;width:auto;padding:4px 0;margin:0}
+.inst-close{background:none;color:var(--text-muted);font-weight:600;font-size:13px;padding:8px;margin:4px 0 0}
+.inst-step{display:flex;gap:10px;margin-bottom:16px}
+.inst-num{flex:0 0 26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-text);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+.inst-step .t{font-size:13px;line-height:1.5;flex:1;min-width:0}
+.inst-illus{margin-top:8px;border-radius:12px;overflow:hidden;border:1px solid var(--border)}
+.inst-illus svg{display:block;width:100%;height:auto}
+.inst-status{font-size:13px;line-height:1.5;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:16px}
+.s-bg{fill:var(--bg-sunken)}.s-card{fill:var(--bg-surface);stroke:var(--border);stroke-width:1}
+.s-ico{fill:none;stroke:var(--text);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.s-ring{fill:rgba(245,166,35,.18);stroke:var(--accent);stroke-width:3}
+.s-arrow{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.s-label{fill:var(--accent);font-size:13px;font-weight:800}
+.s-txt{fill:var(--text);font-size:13px}.s-bold{font-weight:700}.s-dim{fill:var(--text-muted)}
+.s-grab{fill:var(--border)}.s-hl{fill:rgba(245,166,35,.18);stroke:var(--accent);stroke-width:2.5}
+.s-btn{fill:var(--accent)}.s-btntxt{fill:var(--accent-text);font-size:12px;font-weight:800}
+.s-app{fill:var(--accent)}.s-field{fill:var(--bg-sunken);stroke:var(--border)}
+@keyframes pulseRing{0%,100%{transform:scale(1);opacity:.95}50%{transform:scale(1.14);opacity:.6}}
+@keyframes bobD{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+@keyframes bobU{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes bobR{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+.pulse{transform-box:fill-box;transform-origin:center;animation:pulseRing 1.6s ease-in-out infinite}
+.bob-d{animation:bobD 1.2s ease-in-out infinite}.bob-u{animation:bobU 1.2s ease-in-out infinite}.bob-r{animation:bobR 1.2s ease-in-out infinite}
 </style>
 <script type="application/ld+json">
 {
@@ -391,7 +454,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 
 <div class="page" id="page-apropos">
   <div style="padding:20px" class="info-page">
-    <button class="info-back" onclick="showPage('radar')"><span data-icon="back" data-icon-taille="14px"></span> Retour</button>
+    <button class="info-back" onclick="retourInfo()"><span data-icon="back" data-icon-taille="14px"></span> Retour</button>
     <h1><span data-icon="info" data-icon-taille="18px"></span> À propos de CarburantRadar</h1>
     <div class="info-sub">Version 1.2</div>
 
@@ -431,7 +494,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 
 <div class="page" id="page-mentions">
   <div style="padding:20px" class="info-page">
-    <button class="info-back" onclick="showPage('radar')"><span data-icon="back" data-icon-taille="14px"></span> Retour</button>
+    <button class="info-back" onclick="retourInfo()"><span data-icon="back" data-icon-taille="14px"></span> Retour</button>
     <h1><span data-icon="file" data-icon-taille="18px"></span> Mentions légales</h1>
 
     <div class="info-card">
@@ -466,7 +529,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 
 <div class="page" id="page-confidentialite">
   <div style="padding:20px" class="info-page">
-    <button class="info-back" onclick="showPage('radar')"><span data-icon="back" data-icon-taille="14px"></span> Retour</button>
+    <button class="info-back" onclick="retourInfo()"><span data-icon="back" data-icon-taille="14px"></span> Retour</button>
     <h1><span data-icon="lock" data-icon-taille="18px"></span> Politique de confidentialité</h1>
     <div class="info-sub">CarburantRadar respecte ta vie privée</div>
 
@@ -498,7 +561,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 
 <div class="page" id="page-contact">
   <div style="padding:20px" class="info-page">
-    <button class="info-back" onclick="showPage('radar')"><span data-icon="back" data-icon-taille="14px"></span> Retour</button>
+    <button class="info-back" onclick="retourInfo()"><span data-icon="back" data-icon-taille="14px"></span> Retour</button>
     <h1><span data-icon="mail" data-icon-taille="18px"></span> Contact</h1>
     <p>Une question, un signalement de prix erroné, une suggestion d'amélioration ? N'hésite pas à nous écrire, nous répondons avec plaisir.</p>
     <a class="contact-btn" id="contactMailBtn" href="#"><span data-icon="mail" data-icon-taille="14px"></span> Envoyer un email</a>
@@ -541,7 +604,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     </div>
     <div id="compteFormulaire">
       <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Crée un compte pour retrouver tes favoris, repères et noms personnalisés sur un autre appareil.</div>
-      <div style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:10px">
+      <div class="seg" style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:10px">
         <button class="rb a" id="ongletConnexion" style="flex:1" onclick="basculerModeCompte('login')">Se connecter</button>
         <button class="rb" id="ongletCreation" style="flex:1" onclick="basculerModeCompte('creer')">Créer un compte</button>
       </div>
@@ -672,12 +735,12 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
   <div class="menu-tab-group" data-tab="infos" style="display:none">
   <div class="acc-title" style="padding:16px 16px 0"><span data-icon="info" data-icon-taille="14px"></span> Informations</div>
   <div class="acc-body open" id="aboutAcc">
-    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('apropos')"><span data-icon="info" data-icon-taille="14px"></span> À propos</button>
-    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('mentions')"><span data-icon="file" data-icon-taille="14px"></span> Mentions légales</button>
-    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('confidentialite')"><span data-icon="lock" data-icon-taille="14px"></span> Politique de confidentialité</button>
-    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();showPage('contact')"><span data-icon="mail" data-icon-taille="14px"></span> Contact</button>
+    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="ouvrirInfoDepuisMenu('apropos')"><span data-icon="info" data-icon-taille="14px"></span> À propos</button>
+    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="ouvrirInfoDepuisMenu('mentions')"><span data-icon="file" data-icon-taille="14px"></span> Mentions légales</button>
+    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="ouvrirInfoDepuisMenu('confidentialite')"><span data-icon="lock" data-icon-taille="14px"></span> Politique de confidentialité</button>
+    <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="ouvrirInfoDepuisMenu('contact')"><span data-icon="mail" data-icon-taille="14px"></span> Contact</button>
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();ouvrirTuto()"><span data-icon="info" data-icon-taille="14px"></span> Revoir le tutoriel</button>
-    <button class="side-item" id="menuInstallBtn" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px;margin-bottom:0" onclick="installerApp()"><span data-icon="download" data-icon-taille="14px"></span> Installer l'application</button>
+    <button class="side-item" id="menuInstallBtn" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px;margin-bottom:0" onclick="installerApp()"><span data-icon="download" data-icon-taille="14px"></span> Télécharger l'application</button>
   </div>
   </div>
 </div>
@@ -727,7 +790,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
     <div style="font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:18px">Crée un compte pour retrouver tes favoris et repères sur tous tes appareils — ou continue sans compte, tu pourras le faire plus tard.</div>
     <button style="background:var(--accent);color:var(--accent-text);margin-bottom:8px" onclick="onboardingOuvrirCompte('creer')"><span data-icon="user" data-icon-taille="15px"></span> Créer un compte</button>
     <button style="background:var(--input-bg);color:var(--text);margin-bottom:8px" onclick="onboardingOuvrirCompte('login')">J'ai déjà un compte</button>
-    <button id="btnOnboardingInstall" style="background:var(--input-bg);color:var(--text);margin-bottom:12px;display:none" onclick="installerApp()"><span data-icon="download" data-icon-taille="15px"></span> Installer l'application</button>
+    <button id="btnOnboardingInstall" style="background:var(--input-bg);color:var(--text);margin-bottom:12px;display:none" onclick="installerApp()"><span data-icon="download" data-icon-taille="15px"></span> Télécharger l'application</button>
     <button style="background:none;color:var(--text-muted);font-weight:600;font-size:13px;padding:6px" onclick="fermerOnboarding()">Continuer sans compte</button>
   </div>
 </div>
@@ -954,14 +1017,47 @@ window.addEventListener('beforeinstallprompt',function(e){
   e.preventDefault();evenementInstallDiffere=e;
   var btn=document.getElementById('btnOnboardingInstall');if(btn)btn.style.display='block';
 });
-function installerApp(){
-  if(evenementInstallDiffere){
-    evenementInstallDiffere.prompt();
-    evenementInstallDiffere.userChoice.then(function(){evenementInstallDiffere=null;});
-  }else{
-    alert('Pour installer l\'app : ouvre le menu de ton navigateur (⋮) puis "Ajouter à l\'écran d\'accueil" (ou l\'icône Partager puis "Sur l\'écran d\'accueil" sur iPhone).');
-  }
+var APK_URL='../CarburantRadar.apk';
+function estAndroid(){return /Android/i.test(navigator.userAgent);}
+function estIOS(){return /iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
+function montrerVueInstall(v){
+  ['Choix','Android','Apple'].forEach(function(n){
+    var e=document.getElementById('installVue'+n);
+    if(e)e.style.display=(n.toLowerCase()===v)?'block':'none';
+  });
+  var box=document.querySelector('#installModal .modal-box');if(box)box.scrollTop=0;
 }
+function ouvrirModalInstall(){
+  montrerVueInstall('choix');
+  var ta=document.getElementById('instTagAndroid'),ti=document.getElementById('instTagApple');
+  if(ta)ta.style.display=estAndroid()?'inline-block':'none';
+  if(ti)ti.style.display=estIOS()?'inline-block':'none';
+  document.getElementById('installModal').classList.add('on');
+}
+function fermerModalInstall(){document.getElementById('installModal').classList.remove('on');}
+function telechargerApk(){
+  var a=document.createElement('a');a.href=APK_URL;a.download='CarburantRadar.apk';
+  document.body.appendChild(a);a.click();a.remove();
+}
+function installChoisirAndroid(){
+  montrerVueInstall('android');
+  var st=document.getElementById('installAndroidStatus');
+  st.textContent='Vérification du fichier…';
+  fetch(APK_URL,{method:'HEAD',cache:'no-store'}).then(function(r){
+    if(!r.ok)throw new Error('absent');
+    telechargerApk();
+    st.textContent='✅ Téléchargement lancé. Ouvre le fichier quand il est terminé.';
+  }).catch(function(){
+    if(evenementInstallDiffere){
+      st.textContent='Le fichier APK n\'est pas disponible, mais ton navigateur propose une installation directe : valide la fenêtre qui s\'ouvre.';
+      evenementInstallDiffere.prompt();
+      evenementInstallDiffere.userChoice.then(function(){evenementInstallDiffere=null;});
+    }else{
+      st.textContent='Le fichier APK n\'est pas encore disponible. En attendant : menu ⋮ du navigateur → « Ajouter à l\'écran d\'accueil ».';
+    }
+  });
+}
+function installerApp(){ouvrirModalInstall();}
 function estEnModeStandalone(){
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
 }
@@ -1929,6 +2025,7 @@ function toggleAnalyseItem(id){
   if(analyseOpenId===id){analyseOpenId=null;renderAnalyseListe();return;}
   if(!analyseItems[id])analyseItems[id]=etatParDefaut();
   analyseOpenId=id;
+  window._animAcc=id;setTimeout(function(){window._animAcc=null;},500);
   renderAnalyseListe();
   chargerAnalyseItem(id);
 }
@@ -1938,19 +2035,19 @@ function setCarburantItem(id,c){analyseItems[id].carburant=c;renderAnalyseListe(
 
 function selecteurPeriode(id,periodeActuelle){
   var opts=[[7,'7 jours'],[30,'1 mois'],[90,'3 mois'],[365,'1 an']];
-  return '<div style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:8px;overflow-x:auto">'+
+  return '<div class="seg" data-seg="periode-'+id+'" style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:8px;overflow-x:auto">'+
     opts.map(function(o){return '<button class="rb'+(o[0]===periodeActuelle?' a':'')+'" onclick="event.stopPropagation();setPeriodeItem(\''+id+'\','+o[0]+')">'+o[1]+'</button>';}).join('')+
     '</div>';
 }
 function selecteurRayon(id,rayonActuel){
   var opts=[5,10,20,50];
-  return '<div style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:8px;overflow-x:auto">'+
+  return '<div class="seg" data-seg="rayon-'+id+'" style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:8px;overflow-x:auto">'+
     opts.map(function(r){return '<button class="rb'+(r===rayonActuel?' a':'')+'" onclick="event.stopPropagation();setRayonItem(\''+id+'\','+r+')">'+r+' km</button>';}).join('')+
     '</div>';
 }
 function selecteurCarburant(id,carburantActuel){
   var opts=Object.keys(FL);
-  return '<div style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:10px;overflow-x:auto">'+
+  return '<div class="seg" data-seg="carburant-'+id+'" style="display:flex;gap:4px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:10px;overflow-x:auto">'+
     opts.map(function(c){return '<button class="fb'+(c===carburantActuel?' a':'')+'" onclick="event.stopPropagation();setCarburantItem(\''+id+'\',\''+c+'\')">'+FL[c]+'</button>';}).join('')+
     '</div>';
 }
@@ -1968,7 +2065,7 @@ function renderAnalyseListe(){
   var html='<button class="fav-analyse-btn'+(zoneOuverte?' active':'')+'" style="border-color:var(--purple)" onclick="toggleAnalyseItem(\'ZONE\')">'+
     (zoneOuverte?'▼ ':'▶ ')+ic('chart','14px')+' Moyenne zone ('+etatZone.rayon+' km, '+FL[etatZone.carburant]+')</button>';
   if(zoneOuverte){
-    html+='<div style="background:var(--bg-sunken);border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid var(--border);border-top:none">'+
+    html+='<div class="'+(window._animAcc==='ZONE'?'acc-open':'')+'" style="background:var(--bg-sunken);border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid var(--border);border-top:none">'+
       selecteurPeriode('ZONE',etatZone.periode)+selecteurRayon('ZONE',etatZone.rayon)+selecteurCarburant('ZONE',etatZone.carburant)+panneauSquelette()+'</div>';
   }
   html+='<div style="font-size:11px;color:var(--text-muted);margin:14px 0 8px;text-transform:uppercase;letter-spacing:1px">Stations favorites</div>';
@@ -1985,7 +2082,7 @@ function renderAnalyseListe(){
       if(ouvert){
         // Pas de sélecteur de zone ici : la zone ne sert que pour l'item "Moyenne zone" tout en haut.
         // La station utilise un rayon fixe (5km) juste pour tracer la courbe de référence, discrète, sur le graphique.
-        html+='<div style="background:var(--bg-sunken);border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid var(--border);border-top:none">'+
+        html+='<div class="'+(window._animAcc===id?'acc-open':'')+'" style="background:var(--bg-sunken);border-radius:0 0 10px 10px;margin:-6px 0 12px;padding:12px;border:1px solid var(--border);border-top:none">'+
           selecteurPeriode(id,etat.periode)+selecteurCarburant(id,etat.carburant)+panneauSquelette()+'</div>';
       }
     });
@@ -2451,8 +2548,169 @@ function dessinerGraphique(dates,serieStation,serieMoy,periode,labelMain,labelRe
   };
 }
 </script>
-<!-- Numéro de version - à incrémenter à chaque modification -->
-<div style="position:fixed;bottom:0;right:0;background:rgba(0,0,0,0.5);color:var(--text-muted);font-size:10px;padding:2px 6px;border-top-left-radius:4px;z-index:9999">v2.1.0</div>
+<script>
+(function(){
+  document.querySelectorAll('.acc-body').forEach(function(b){
+    if(b.querySelector(':scope > .acc-inner'))return;
+    var inner=document.createElement('div');inner.className='acc-inner';
+    var pad=document.createElement('div');pad.className='acc-pad';
+    while(b.firstChild)pad.appendChild(b.firstChild);
+    inner.appendChild(pad);b.appendChild(inner);
+  });
+})();
+</script>
+<script>
+/* Curseurs qui glissent derrière le bouton actif (carburants, rayons, onglets du menu, tab bar) */
+(function(){
+  var GROUPES=[
+    {sel:'.fuels,.radii,.seg', actif:'button.a', couleur:function(c){return c.classList.contains('fb')?'var(--danger)':'var(--accent)';}},
+    {sel:'.menu-tabs', actif:'.menu-tab.a', couleur:function(){return 'var(--bg-surface)';}},
+    {sel:'.nav-bar', actif:'.nav-btn.active', couleur:function(){return 'var(--accent)';}}
+  ];
+  var POS={};
+  function placer(cont,g){
+    var sl=null;
+    for(var i=0;i<cont.children.length;i++){if(cont.children[i].classList&&cont.children[i].classList.contains('cr-slider')){sl=cont.children[i];break;}}
+    var cle=cont.getAttribute('data-seg');
+    if(!sl){
+      sl=document.createElement('div');sl.className='cr-slider no-anim';cont.insertBefore(sl,cont.firstChild);
+      var p=cle&&POS[cle];
+      if(p){ /* conteneur recréé par un nouveau rendu : on repart de l'ancienne position pour que le curseur glisse */
+        sl.style.opacity='1';sl.style.background=p.bg;sl.style.borderRadius=p.br;
+        sl.style.width=p.w+'px';sl.style.height=p.h+'px';sl.style.top=p.t+'px';sl.style.transform='translateX('+p.l+'px)';
+        sl.dataset.pose='1';
+        void sl.offsetWidth;
+        sl.classList.remove('no-anim');
+      }
+    }
+    var chip=cont.querySelector(g.actif);
+    if(!chip||!cont.offsetWidth||!chip.offsetWidth){sl.style.opacity='0';sl.dataset.pose='';return;}
+    var premiere=!sl.dataset.pose;
+    if(premiere)sl.classList.add('no-anim');
+    var bg=g.couleur(chip),br=getComputedStyle(chip).borderRadius;
+    sl.style.opacity='1';
+    sl.style.background=bg;
+    sl.style.borderRadius=br;
+    sl.style.width=chip.offsetWidth+'px';
+    sl.style.height=chip.offsetHeight+'px';
+    sl.style.top=chip.offsetTop+'px';
+    sl.style.transform='translateX('+chip.offsetLeft+'px)';
+    sl.dataset.pose='1';
+    if(cle)POS[cle]={bg:bg,br:br,w:chip.offsetWidth,h:chip.offsetHeight,t:chip.offsetTop,l:chip.offsetLeft};
+    if(premiere){void sl.offsetWidth;requestAnimationFrame(function(){sl.classList.remove('no-anim');});}
+  }
+  function maj(){GROUPES.forEach(function(g){document.querySelectorAll(g.sel).forEach(function(c){placer(c,g);});});}
+  var attente=false;
+  function planifier(){if(attente)return;attente=true;requestAnimationFrame(function(){attente=false;maj();});}
+  document.addEventListener('click',planifier,true);
+  window.addEventListener('resize',planifier);
+  window.addEventListener('load',function(){planifier();setTimeout(planifier,400);setTimeout(planifier,1200);});
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(planifier);
+  new MutationObserver(planifier).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+  planifier();
+})();
+</script>
+<div class="modal" id="installModal" onclick="if(event.target===this)fermerModalInstall()">
+  <div class="modal-box" style="max-width:380px;max-height:90vh;overflow-y:auto">
+
+    <div id="installVueChoix">
+      <div style="text-align:center;margin-bottom:6px"><img src="../icons/icon-96.png" alt="" width="56" height="56" style="border-radius:14px" onerror="this.style.display='none'"></div>
+      <div class="modal-title" style="text-align:center;margin-bottom:6px">Télécharger l'application</div>
+      <div style="font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:16px">Choisis ton téléphone :</div>
+      <button class="inst-btn" onclick="installChoisirAndroid()"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18c0 .55.45 1 1 1h1v3.5a1.5 1.5 0 0 0 3 0V19h2v3.5a1.5 1.5 0 0 0 3 0V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8A1.5 1.5 0 0 0 2 9.5v7a1.5 1.5 0 0 0 3 0v-7A1.5 1.5 0 0 0 3.5 8zm17 0A1.5 1.5 0 0 0 19 9.5v7a1.5 1.5 0 0 0 3 0v-7A1.5 1.5 0 0 0 20.5 8zm-4.97-5.84l1.3-1.3c.2-.2.2-.51 0-.71-.2-.2-.51-.2-.71 0l-1.48 1.48A5.84 5.84 0 0 0 12 1c-.96 0-1.86.23-2.66.63L7.85.15c-.2-.2-.51-.2-.71 0-.2.2-.2.51 0 .71l1.31 1.31A5.983 5.983 0 0 0 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/></svg><span>Android</span><span class="inst-tag" id="instTagAndroid">Ton appareil</span></button>
+      <button class="inst-btn" onclick="montrerVueInstall('apple')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg><span>iPhone / iPad</span><span class="inst-tag" id="instTagApple">Ton appareil</span></button>
+      <button class="inst-close" onclick="fermerModalInstall()">Fermer</button>
+    </div>
+
+    <div id="installVueAndroid" style="display:none">
+      <button class="inst-back" onclick="montrerVueInstall('choix')">‹ Retour</button>
+      <div style="display:flex;align-items:center;gap:10px;margin:8px 0 14px"><span style="width:28px;height:28px;display:inline-flex;color:var(--text)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18c0 .55.45 1 1 1h1v3.5a1.5 1.5 0 0 0 3 0V19h2v3.5a1.5 1.5 0 0 0 3 0V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8A1.5 1.5 0 0 0 2 9.5v7a1.5 1.5 0 0 0 3 0v-7A1.5 1.5 0 0 0 3.5 8zm17 0A1.5 1.5 0 0 0 19 9.5v7a1.5 1.5 0 0 0 3 0v-7A1.5 1.5 0 0 0 20.5 8zm-4.97-5.84l1.3-1.3c.2-.2.2-.51 0-.71-.2-.2-.51-.2-.71 0l-1.48 1.48A5.84 5.84 0 0 0 12 1c-.96 0-1.86.23-2.66.63L7.85.15c-.2-.2-.51-.2-.71 0-.2.2-.2.51 0 .71l1.31 1.31A5.983 5.983 0 0 0 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/></svg></span><div class="modal-title" style="margin:0">Installer sur Android</div></div>
+      <div id="installAndroidStatus" class="inst-status">…</div>
+      <div class="inst-step"><span class="inst-num">1</span><div class="t">Ouvre le fichier <b>CarburantRadar.apk</b> une fois téléchargé (notification, ou dossier Téléchargements).</div></div>
+      <div class="inst-step"><span class="inst-num">2</span><div class="t">Si Android le demande, autorise l'installation depuis ce navigateur : active <b>« Autoriser depuis cette source »</b>.</div></div>
+      <div class="inst-step"><span class="inst-num">3</span><div class="t">Appuie sur <b>Installer</b>. Si Play Protect affiche un avertissement, choisis <b>« Installer quand même »</b>.</div></div>
+      <button style="background:var(--input-bg);color:var(--text);margin-bottom:6px" onclick="installChoisirAndroid()">Télécharger à nouveau</button>
+      <button class="inst-close" onclick="fermerModalInstall()">Fermer</button>
+    </div>
+
+    <div id="installVueApple" style="display:none">
+      <button class="inst-back" onclick="montrerVueInstall('choix')">‹ Retour</button>
+      <div style="display:flex;align-items:center;gap:10px;margin:8px 0 14px"><span style="width:28px;height:28px;display:inline-flex;color:var(--text)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg></span><div class="modal-title" style="margin:0">Installer sur iPhone / iPad</div></div>
+      <div class="inst-step"><span class="inst-num">1</span><div class="t">Ouvre CarburantRadar dans <b>Safari</b> (le navigateur bleu avec la boussole).</div></div>
+      <div class="inst-step"><span class="inst-num">2</span><div class="t">Appuie sur le bouton <b>Partager</b> en bas de l'écran. <span style="color:var(--text-muted)">Sur iPad, il est en haut à droite.</span>
+        <div class="inst-illus"><svg viewBox="0 0 320 130" role="img" aria-label="Le bouton Partager est en bas de l'écran de Safari">
+  <rect class="s-bg" x="0" y="0" width="320" height="130"/>
+  <text class="s-label" x="170" y="15" text-anchor="middle">Partager</text>
+  <g transform="translate(10,0)"><g class="bob-d"><path class="s-arrow" d="M160 22 V54"/><path class="s-arrow" d="M150 44 L160 58 L170 44"/></g></g>
+  <rect class="s-card" x="10" y="70" width="300" height="50" rx="16"/>
+  <path class="s-ico" d="M54 86 L44 96 L54 106"/>
+  <path class="s-ico" d="M106 86 L116 96 L106 106"/>
+  <circle class="s-ring pulse" cx="170" cy="96" r="21"/>
+  <path class="s-ico" d="M161 96 V107 A3 3 0 0 0 164 110 H176 A3 3 0 0 0 179 107 V96"/>
+  <path class="s-ico" d="M170 102 V84"/>
+  <path class="s-ico" d="M163 90 L170 83 L177 90"/>
+  <path class="s-ico" d="M216 88 H229 V106 H216 Z M231 88 H244 V106 H231 Z"/>
+  <rect class="s-ico" x="268" y="88" width="14" height="14" rx="3"/>
+  <rect class="s-ico" x="273" y="93" width="14" height="14" rx="3"/>
+</svg></div></div></div>
+      <div class="inst-step"><span class="inst-num">3</span><div class="t">Fais défiler la liste vers le haut et appuie sur <b>« Sur l'écran d'accueil »</b>.
+        <div class="inst-illus"><svg viewBox="0 0 320 178" role="img" aria-label="Choisis Sur l'écran d'accueil dans la liste">
+  <rect class="s-bg" x="0" y="0" width="320" height="178"/>
+  <rect class="s-grab" x="140" y="8" width="40" height="5" rx="2.5"/>
+  <rect class="s-card" x="30" y="22" width="280" height="34" rx="9"/>
+  <text class="s-txt" x="44" y="44">Copier</text>
+  <rect class="s-card" x="30" y="60" width="280" height="34" rx="9"/>
+  <text class="s-txt" x="44" y="82">Ajouter aux favoris</text>
+  <rect class="s-hl" x="30" y="98" width="280" height="34" rx="9"/>
+  <text class="s-txt s-bold" x="44" y="120">Sur l'écran d'accueil</text>
+  <rect class="s-ico" x="276" y="105" width="20" height="20" rx="5"/>
+  <path class="s-ico" d="M286 110 V120 M281 115 H291"/>
+  <g class="bob-r"><path class="s-arrow" d="M2 115 H22"/><path class="s-arrow" d="M14 106 L26 115 L14 124"/></g>
+  <rect class="s-card" x="30" y="136" width="280" height="34" rx="9"/>
+  <text class="s-txt" x="44" y="158">Rechercher dans la page</text>
+</svg></div></div></div>
+      <div class="inst-step"><span class="inst-num">4</span><div class="t">Appuie sur <b>« Ajouter »</b> en haut à droite.
+        <div class="inst-illus"><svg viewBox="0 0 320 150" role="img" aria-label="Appuie sur Ajouter en haut à droite">
+  <rect class="s-bg" x="0" y="0" width="320" height="150"/>
+  <rect class="s-card" x="10" y="8" width="300" height="136" rx="14"/>
+  <text class="s-txt s-dim" x="24" y="38">Annuler</text>
+  <rect class="s-btn pulse" x="238" y="20" width="62" height="26" rx="13"/>
+  <text class="s-btntxt" x="269" y="38" text-anchor="middle">Ajouter</text>
+  <text class="s-txt s-bold" x="34" y="66" style="font-size:12px">Ajouter à l'écran d'accueil</text>
+  <rect class="s-app" x="26" y="80" width="46" height="46" rx="12"/>
+  <image href="../icons/icon-96.png" x="26" y="80" width="46" height="46" style="clip-path:inset(0 round 12px)"/>
+  <rect class="s-field" x="86" y="86" width="126" height="34" rx="8"/>
+  <text class="s-txt s-bold" x="98" y="108">CarburantRadar</text>
+  <g class="bob-u"><path class="s-arrow" d="M269 118 V62"/><path class="s-arrow" d="M259 72 L269 56 L279 72"/></g>
+</svg></div></div></div>
+      <div class="inst-step"><span class="inst-num">✓</span><div class="t">C'est fini ! L'icône <b>CarburantRadar</b> est sur ton écran d'accueil : ouvre-la, elle s'affiche en plein écran comme une vraie app.</div></div>
+      <button class="inst-close" onclick="fermerModalInstall()">Fermer</button>
+    </div>
+
+  </div>
+</div>
+<script>
+/* Navigation des pages d'information : le bouton Retour ramène là où on était */
+var PAGES_INFO=['apropos','mentions','confidentialite','contact'];
+var pageAvantInfo='radar',retourVersMenu=false;
+function pageActuelle(){var p=document.querySelector('.page.active');return p?p.id.replace('page-',''):'radar';}
+(function(){
+  var precedent=showPage;
+  showPage=function(name){
+    var cur=pageActuelle();
+    if(PAGES_INFO.indexOf(name)>-1&&PAGES_INFO.indexOf(cur)===-1){pageAvantInfo=cur;retourVersMenu=false;}
+    precedent(name);
+  };
+})();
+function ouvrirInfoDepuisMenu(name){closeMenu();showPage(name);retourVersMenu=true;}
+function retourInfo(){
+  var versMenu=retourVersMenu;retourVersMenu=false;
+  showPage(pageAvantInfo||'radar');
+  if(versMenu){openMenu();switchMenuTab('infos');}
+}
+/* Bouton de téléchargement de l'app (fenêtre d'accueil) : visible tant que l'app n'est pas installée */
+if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall');if(bo)bo.style.display='block';}
+</script>
 <script src="../track.js"></script>
 </body>
 </html>
