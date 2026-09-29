@@ -1,44 +1,53 @@
-# Générateur de pages villes
+# Générateur de pages SEO
 
-Ce dossier génère automatiquement toutes les pages "prix carburant à [ville]"
-à partir d'un seul template (`template.html`) et d'un fichier de données (`villes.json`).
+Un seul point d'entrée : `python3 generate.py` (à la racine du dépôt). Il produit, de façon déterministe
+(mêmes données ⇒ mêmes pages, aucun texte aléatoire) :
 
-## Ajouter une nouvelle ville (aucune compétence technique requise)
+| Pages | URL | Contenu |
+|---|---|---|
+| Villes France (103, URLs inchangées) | `/france/prix-carburant/{ville}/` | prix min/moyen/max par carburant, stations les moins chères, comparaisons, économie sur un plein, villes voisines, FAQ, date des données |
+| Ville + carburant | `/france/prix-carburant/{ville}/{gazole,sp95,sp98,e10,e85,gpl}/` | seulement pour les communes ayant ≥ 8 stations avec un prix pour ce carburant |
+| Départements | `/france/{departement}/` | stats du département, stations les moins chères, communes, villes couvertes |
+| Régions | `/france/{region}/` | stats, départements, villes |
+| Hubs | `/france/prix-carburant/`, `/espagne/precio-carburante/`, `/italie/prezzo-carburante/` | listes de villes (maillage depuis l'accueil) |
+| Espagne / Italie (206 villes) | inchangées | ancien template (`template.html`), octet pour octet |
 
-1. Ouvre `generator/villes.json` sur GitHub (bouton crayon ✏️ pour éditer)
-2. Dans le tableau `"villes"`, ajoute une nouvelle entrée avant le `]` final, sur ce modèle :
+Sortie annexe : `sitemap_1.xml` (uniquement les pages indexables), `robots.txt` (ligne Sitemap), `SEO_REPORT.md`,
+`generator/generated_pages.json` (liste des pages écrites, sert à supprimer celles qui ne sont plus générées).
 
-```json
-,{"pays":"france","slug":"lyon","nom":"Lyon","lat":45.7640,"lon":4.8357}
-```
+## Données (aucune donnée inventée)
 
-- `pays` : `france`, `espagne` ou `italie`
-- `slug` : le nom dans l'URL, en minuscules, sans accent ni espace (ex: `aix-en-provence`)
-- `nom` : le nom affiché sur la page (avec accents si besoin)
-- `lat` / `lon` : les coordonnées GPS de la ville (cherche "coordonnées GPS [ville]" sur Google)
+- Prix et stations : flux officiel « Prix des carburants en France — flux instantané v2 » (data.economie.gouv.fr),
+  téléchargé au moment de la génération. Si le téléchargement échoue, **rien n'est modifié** (code retour 2).
+- Département et région : champs du jeu de données lui-même. Villes voisines : distance entre les coordonnées de `villes.json`.
+- Portée des chiffres d'une ville : la commune si elle compte ≥ 3 stations dans le flux, sinon un rayon de 12 km
+  (le même que le bloc « en direct »). La page indique toujours laquelle des deux s'applique.
+- Aucune évolution/tendance de prix : le dépôt ne contient pas d'historique exploitable.
+- Le flux ne donne ni nom ni enseigne : les stations sont identifiées par leur adresse.
 
-Tu peux aussi ajouter, en option, `"intro"` et `"why"` (deux phrases personnalisées sur la ville) —
-si tu ne les mets pas, un texte générique adapté à la langue du pays sera utilisé automatiquement.
+## Qualité (contenu léger)
 
-3. Valide (commit) directement sur GitHub
+Score de richesse par ville (stations, carburants, département, voisines, comparaison). Une page sous les seuils
+(< 3 stations, < 2 carburants ou score < 45 — voir `stats_fr.py`) reste accessible mais est en `noindex` et hors sitemap.
+Départements/régions : ≥ 15 stations et au moins une ville indexable.
 
-**C'est tout.** Une GitHub Action se déclenche automatiquement, régénère la page et le
-plan du site (`sitemap.xml`), et pousse le résultat sur le repo — sans rien faire de plus.
-
-## Modifier le texte pour TOUTES les villes d'un pays
-
-Les textes communs (titre, badges, bénéfices, boutons...) sont dans la section `"pays"`
-du même fichier `villes.json`, une fois par pays (`france`, `espagne`, `italie`).
-Modifier une ligne là-bas met à jour toutes les pages du pays concerné au prochain passage
-de la GitHub Action.
-
-## Modifier la mise en page / le design
-
-C'est dans `generator/template.html`. Un seul fichier pour toutes les villes et tous les pays —
-toute modification s'applique partout à la prochaine génération.
-
-## Tester en local avant de pousser (optionnel)
+## Commandes
 
 ```
-python3 generator/generate.py
+python3 generate.py                    # génère tout (télécharge les prix)
+python3 generate.py --data export.json # export local du flux (tests hors ligne)
+python3 generator/validate.py          # audit : liens, canonical, sitemap, JSON-LD, orphelines (code 1 si erreur)
+python3 generator/tests/make_fixture.py /tmp/f.json   # jeu FACTICE pour tester (ne jamais publier)
 ```
+
+`SEO_REPORT.md` est régénéré à chaque run (volumétrie, unicité, doublons, maillage, erreurs).
+
+## Ajouter une ville
+
+Ajouter une entrée dans `villes.json` (`pays`, `slug`, `nom`, `lat`, `lon`, et en option `intro` / `why`), commit :
+l'Action régénère tout. Les textes communs par pays sont dans la section `"pays"` du même fichier.
+
+## GitHub Actions
+
+`.github/workflows/generate-city-pages.yml` : au push sur `generator/**`, chaque jour à 05:30 UTC, ou à la demande
+(`Run workflow`). Elle génère, valide (échec si erreur), puis commit les pages.

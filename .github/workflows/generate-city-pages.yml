@@ -4,31 +4,38 @@ on:
   push:
     branches: [main]
     paths:
-      - 'generator/villes.json'
-      - 'generator/template.html'
-      - 'generator/generate.py'
-  workflow_dispatch: {}
+      - 'generator/**'
+      - 'generate.py'
+      - '.github/workflows/generate-city-pages.yml'
+  schedule:
+    - cron: '30 5 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: generate-pages
+  cancel-in-progress: false
 
 jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
-      - name: Récupérer le repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Installer Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Générer les pages villes
-        run: python3 generator/generate.py
+      - name: Générer les pages (télécharge les prix officiels)
+        run: python3 generate.py
 
-      - name: Commit et push automatique
+      - name: Valider (liens, canonical, sitemap, JSON-LD, orphelines)
+        run: python3 generator/validate.py
+
+      - name: Commit des pages générées
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "🤖 Régénération automatique des pages villes"
-          file_pattern: '*/prix-carburant/** */precio-carburante/** */prezzo-carburante/** sitemap.xml'
+          commit_message: "Pages SEO régénérées (données officielles)"
+          file_pattern: 'france espagne italie sitemap_1.xml robots.txt SEO_REPORT.md generator/generated_pages.json'

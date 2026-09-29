@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /admin/
 
-Sitemap: https://emilienzabu.github.io/CarburantRadar/sitemap.xml
+Sitemap: https://emilienzabu.github.io/CarburantRadar/sitemap_1.xml
