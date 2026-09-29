@@ -6,30 +6,30 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 298 |
+| Pages France générées par le nouveau système | 296 |
 | Pages villes (France) | 103 dont 102 indexables et 1 en noindex |
 | Pages départements | 58 |
 | Pages régions | 13 |
-| Pages ville + carburant | 123 |
+| Pages ville + carburant | 121 |
 | — dont Gazole | 45 |
 | — dont SP95 | 2 |
 | — dont SP98 | 28 |
 | — dont E10 | 34 |
-| — dont E85 | 13 |
+| — dont E85 | 11 |
 | — dont GPL | 1 |
 | Pages hub (liste des villes France) | 1 |
 | Pages Espagne / Italie (pipeline inchangé) | 206 villes, 2 hubs |
-| URLs dans le sitemap | 510 |
+| URLs dans le sitemap | 508 |
 | Stations analysées (jeu de données) | 9801 |
 
 ## Unicité des balises (pages générées France)
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 298 / 298 |
-| Meta descriptions | 298 / 298 |
-| H1 | 298 / 298 |
-| Canonicals | 298 / 298 |
+| Titles | 296 / 296 |
+| Meta descriptions | 296 / 296 |
+| H1 | 296 / 296 |
+| Canonicals | 296 / 296 |
 
 ## Qualité du contenu
 
@@ -42,7 +42,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 2722 ; moyenne par page : 9.1
+- Liens internes distincts au total : 2698 ; moyenne par page : 9.1
 - Pages orphelines indexables : 0 ; pages noindex non liées : 1
 
 ## Pages les plus / moins riches (villes)
@@ -67,7 +67,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 - Pages villes : contenu unique moyen 36 % (min 24 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 - Pages ville + carburant : contenu unique moyen 25 % (min 15 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 46 % (min 39 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 46 % (min 40 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
