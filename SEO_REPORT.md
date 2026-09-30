@@ -1,6 +1,6 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 30/09/2026 01:20 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 30/09/2026 12:49 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
@@ -13,14 +13,14 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 | Pages ville + carburant | 121 |
 | — dont Gazole | 45 |
 | — dont SP95 | 2 |
-| — dont SP98 | 28 |
-| — dont E10 | 34 |
-| — dont E85 | 11 |
+| — dont SP98 | 29 |
+| — dont E10 | 35 |
+| — dont E85 | 9 |
 | — dont GPL | 1 |
 | Pages hub (liste des villes France) | 1 |
 | Pages Espagne / Italie (pipeline inchangé) | 206 villes, 2 hubs |
 | URLs dans le sitemap | 508 |
-| Stations analysées (jeu de données) | 9801 |
+| Stations analysées (jeu de données) | 9802 |
 | Jours d'historique enregistrés | 1 (du 2026-09-30 au 2026-09-30) |
 
 ## Unicité des balises (pages générées France)
@@ -43,7 +43,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 2698 ; moyenne par page : 9.1
+- Liens internes distincts au total : 2682 ; moyenne par page : 9.1
 - Pages orphelines indexables : 0 ; pages noindex non liées : 1
 
 ## Pages les plus / moins riches (villes)
@@ -67,8 +67,8 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
 - Pages villes : contenu unique moyen 36 % (min 24 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages ville + carburant : contenu unique moyen 25 % (min 15 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 46 % (min 39 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages ville + carburant : contenu unique moyen 24 % (min 13 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 46 % (min 37 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 

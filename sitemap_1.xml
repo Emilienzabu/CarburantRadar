@@ -1088,12 +1088,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/aix-en-provence/e85/</loc>
-    <lastmod>2026-09-30</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/ajaccio/gazole/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
@@ -1107,6 +1101,12 @@
   </url>
   <url>
     <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/amiens/gazole/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/amiens/sp98/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -1214,13 +1214,13 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/avignon/e85/</loc>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/besancon/gazole/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/besancon/gazole/</loc>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/besancon/e10/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -1269,12 +1269,6 @@
   </url>
   <url>
     <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/brest/gazole/</loc>
-    <lastmod>2026-09-30</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/brest/sp98/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -1358,13 +1352,13 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/dijon/e10/</loc>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/frejus/gazole/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/frejus/gazole/</loc>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/frejus/sp98/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -1376,13 +1370,25 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/le-havre/gazole/</loc>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/laval/gazole/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/le-havre/sp98/</loc>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/laval/sp98/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/laval/e10/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/le-havre/gazole/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -1676,12 +1682,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/quimper/gazole/</loc>
-    <lastmod>2026-09-30</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/reims/gazole/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
@@ -1724,12 +1724,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/saint-etienne/sp98/</loc>
-    <lastmod>2026-09-30</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/saint-etienne/e10/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
@@ -1737,6 +1731,12 @@
   </url>
   <url>
     <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/strasbourg/gazole/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://emilienzabu.github.io/CarburantRadar/france/prix-carburant/strasbourg/sp98/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
