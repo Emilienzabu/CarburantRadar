@@ -22,7 +22,10 @@ Sortie annexe : `sitemap_1.xml` (uniquement les pages indexables), `robots.txt` 
 - Département et région : champs du jeu de données lui-même. Villes voisines : distance entre les coordonnées de `villes.json`.
 - Portée des chiffres d'une ville : la commune si elle compte ≥ 3 stations dans le flux, sinon un rayon de 12 km
   (le même que le bloc « en direct »). La page indique toujours laquelle des deux s'applique.
-- Aucune évolution/tendance de prix : le dépôt ne contient pas d'historique exploitable.
+- Évolution des prix : CarburantRadar enregistre chaque jour un instantané des moyennes/minimums par ville et carburant dans
+  `france/prix-carburant/history.json` (30 jours conservés, `HISTORY_DAYS` dans `history.py`). Rien n'est reconstitué : une évolution
+  n'apparaît qu'avec au moins 2 jours réellement enregistrés et la même portée (commune/rayon).
+- Les prix non mis à jour depuis plus de 30 jours (par rapport à la mise à jour la plus récente du jeu) sont ignorés (`MAX_AGE_DAYS` dans `data_fr.py`) : le jeu contient des prix vieux de plus d'un an.
 - Le flux ne donne ni nom ni enseigne : les stations sont identifiées par leur adresse.
 
 ## Qualité (contenu léger)

@@ -22,6 +22,7 @@ sys.path.insert(0, BASE)
 
 import audit  # noqa: E402
 import data_fr  # noqa: E402
+import history as H  # noqa: E402
 import stats_fr as S  # noqa: E402
 from render_common import SITE_URL  # noqa: E402
 from render_fr import render_city, render_fuel_page  # noqa: E402
@@ -153,7 +154,9 @@ def write_report(root, ctx, stats, aud, sim):
     a(f"| Pages Espagne / Italie (pipeline inchangé) | {sum(1 for i in info.values() if i['type'].startswith('city_'))} villes, "
       f"{sum(1 for i in info.values() if i['type'].startswith('hub_'))} hubs |")
     a(f"| URLs dans le sitemap | {len(aud['sitemap'])} |")
-    a(f"| Stations analysées (jeu de données) | {stats['n_stations']} |\n")
+    a(f"| Stations analysées (jeu de données) | {stats['n_stations']} |")
+    hd = stats["hist_days"]
+    a(f"| Jours d'historique enregistrés | {len(hd)}" + (f" (du {hd[0]} au {hd[-1]})" if hd else "") + " |\n")
     a("## Unicité des balises (pages générées France)\n")
     def uniq(key):
         vals = [gen[p][key] for p in gen]
@@ -276,6 +279,10 @@ def main():
     ctx = {"cfg": fr_cfg, "dep_info": dep_info, "reg_info": reg_info, "dep_pages": dep_pages, "reg_pages": reg_pages,
            "nat": nat, "latest": latest, "fuel_pages": fuel_pages, "min_dep_compare": S.MIN_DEP_COMPARE}
 
+    # 3 bis) historique : un instantané par jour de données, 30 jours conservés
+    day = latest.astimezone(__import__("datetime").timezone.utc).strftime("%Y-%m-%d")
+    hist = H.update(H.load(root), day, H.snapshot(cities))
+
     # 4) écriture des pages
     lastmod = latest.astimezone(__import__("datetime").timezone.utc).strftime("%Y-%m-%d")
     entries = [(f"{SITE_URL}/", "weekly", "1.0", None), (f"{SITE_URL}/france/", "weekly", "1.0", None),
@@ -302,11 +309,13 @@ def main():
         entries.append((f"{SITE_URL}/france/{d['slug']}/", "daily", "0.8", lastmod))
     for c in cities:
         html, _, _ = render_city(c, ctx)
+        html = H.inject(html, H.city_section(c, hist))
         write(root, f"/france/prix-carburant/{c['slug']}/", html)
         if c["indexable"]:
             entries.append((f"{SITE_URL}/france/prix-carburant/{c['slug']}/", "daily", "0.7", lastmod))
     for (f, slug) in sorted(fuel_pages, key=lambda x: (x[1], FUELS.index(x[0]))):
         html, _, _ = render_fuel_page(by_slug[slug], f, ctx)
+        html = H.inject(html, H.fuel_section(by_slug[slug], f, hist))
         write(root, f"/france/prix-carburant/{slug}/{FUEL_SLUG[f]}/", html)
         entries.append((f"{SITE_URL}/france/prix-carburant/{slug}/{FUEL_SLUG[f]}/", "daily", "0.6", lastmod))
 
@@ -322,6 +331,7 @@ def main():
             entries.append((f"{SITE_URL}/{pays}/{cfg['dossier']}/{v['slug']}/", "monthly", "0.7", None))
 
     write_sitemap(root, entries)
+    H.save(root, hist)
     prune_stale(root)
 
     # 5) audit + rapport
@@ -330,7 +340,7 @@ def main():
     latest_txt = latest.astimezone(__import__("datetime").timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
     stats = {"latest_txt": latest_txt, "n_index": len(idx), "n_noindex": len(cities) - len(idx), "fuel_pages": fuel_pages,
              "dep_list": dep_list, "reg_list": reg_list, "cities": cities, "n_stations": len(stations),
-             "no_dep": [c["nom"] for c in cities if not c["dep_code"]]}
+             "no_dep": [c["nom"] for c in cities if not c["dep_code"]], "hist_days": sorted(hist["days"])}
     write_report(root, ctx, stats, aud, sim)
     print(f"{len(cities)} villes FR ({len(idx)} indexables), {len(dep_list)} départements, {len(reg_list)} régions, "
           f"{len(fuel_pages)} pages carburant, {len(entries)} URLs au sitemap.")
