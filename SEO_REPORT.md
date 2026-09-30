@@ -1,6 +1,6 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 30/09/2026 00:15 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 30/09/2026 01:20 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
@@ -21,6 +21,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 | Pages Espagne / Italie (pipeline inchangé) | 206 villes, 2 hubs |
 | URLs dans le sitemap | 508 |
 | Stations analysées (jeu de données) | 9801 |
+| Jours d'historique enregistrés | 1 (du 2026-09-30 au 2026-09-30) |
 
 ## Unicité des balises (pages générées France)
 
@@ -67,7 +68,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 - Pages villes : contenu unique moyen 36 % (min 24 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 - Pages ville + carburant : contenu unique moyen 25 % (min 15 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 46 % (min 40 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 46 % (min 39 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
