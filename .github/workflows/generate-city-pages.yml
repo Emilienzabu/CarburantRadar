@@ -1,4 +1,4 @@
-name: Générer les pages villes
+name: Générer et déployer le site
 
 on:
   push:
@@ -12,14 +12,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write   # commit de l'état du générateur (historique, manifeste)
+  pages: write      # déploiement GitHub Pages
+  id-token: write
 
 concurrency:
   group: generate-pages
   cancel-in-progress: false
 
 jobs:
-  generate:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,8 +36,28 @@ jobs:
       - name: Valider (liens, canonical, sitemap, JSON-LD, orphelines)
         run: python3 generator/validate.py
 
-      - name: Commit des pages générées
+      # On ne commit plus les ~1000 pages HTML : seulement l'état dont le générateur a besoin d'un run à l'autre.
+      - name: Commit de l'état du générateur
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Pages SEO régénérées (données officielles)"
-          file_pattern: 'france espagne italie sitemap_1.xml robots.txt SEO_REPORT.md generator/generated_pages.json'
+          commit_message: "État du générateur (historique des prix, manifeste)"
+          file_pattern: 'france/prix-carburant/history.json generator/generated_pages.json SEO_REPORT.md'
+
+      - name: Préparer le site à publier
+        run: |
+          mkdir _site
+          tar --exclude=./.git --exclude=./.github --exclude=./_site -cf - . | tar -xf - -C _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
