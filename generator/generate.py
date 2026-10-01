@@ -87,6 +87,7 @@ def legacy_page(v, cfg, template):
 # ---------------------------------------------------------------- nettoyage des pages qui ne sont plus générées
 
 MANIFEST = os.path.join("generator", "generated_pages.json")
+SWEEP_ROOTS = ["france/prix-carburant", "espagne/precio-carburante", "italie/prezzo-carburante"]
 
 
 def prune_stale(root):
@@ -104,6 +105,21 @@ def prune_stale(root):
             os.rmdir(d)
         except OSError:
             pass
+    # filet de sécurité : dans les dossiers 100 % générés, toute page non écrite pendant ce run est obsolète
+    # (indispensable depuis que les pages HTML ne sont plus commitées : le checkout peut contenir d'anciennes pages)
+    keep = {u.strip("/") for u in GENERATED}
+    for sub in SWEEP_ROOTS:
+        base = os.path.join(root, sub)
+        for dirpath, _dirs, files in os.walk(base, topdown=False):
+            rel = os.path.relpath(dirpath, root).replace(os.sep, "/")
+            if "index.html" in files and rel not in keep:
+                os.remove(os.path.join(dirpath, "index.html"))
+                removed += 1
+            if dirpath != base:
+                try:
+                    os.rmdir(dirpath)
+                except OSError:
+                    pass
     with open(mp, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(sorted(set(GENERATED)), fh, indent=0)
         fh.write("\n")
