@@ -86,6 +86,8 @@ def legacy_page(v, cfg, template):
 
 # ---------------------------------------------------------------- nettoyage des pages qui ne sont plus générées
 
+FUEL_PAGES_INDEXABLE = False   # pages ville+carburant : accessibles et liées, mais noindex (contenu trop proche des pages villes)
+
 MANIFEST = os.path.join("generator", "generated_pages.json")
 SWEEP_ROOTS = ["france/prix-carburant", "espagne/precio-carburante", "italie/prezzo-carburante"]
 
@@ -341,8 +343,14 @@ def main():
     for (f, slug) in sorted(fuel_pages, key=lambda x: (x[1], FUELS.index(x[0]))):
         html, _, _ = render_fuel_page(by_slug[slug], f, ctx)
         html = H.inject(html, H.fuel_section(by_slug[slug], f, hist))
+        if not FUEL_PAGES_INDEXABLE:
+            marker = '<meta name="robots" content="index, follow">'
+            if marker not in html:
+                raise SystemExit(f"ERREUR : meta robots introuvable dans la page carburant {slug}/{f}")
+            html = html.replace(marker, '<meta name="robots" content="noindex, follow">', 1)
         write(root, f"/france/prix-carburant/{slug}/{FUEL_SLUG[f]}/", html)
-        entries.append((f"{SITE_URL}/france/prix-carburant/{slug}/{FUEL_SLUG[f]}/", "daily", "0.6", lastmod))
+        if FUEL_PAGES_INDEXABLE:
+            entries.append((f"{SITE_URL}/france/prix-carburant/{slug}/{FUEL_SLUG[f]}/", "daily", "0.6", lastmod))
 
     # Espagne / Italie : pages historiques + hub
     for pays in ("espagne", "italie"):
