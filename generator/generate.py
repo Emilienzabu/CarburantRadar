@@ -21,6 +21,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
 import audit  # noqa: E402
+import communes_auto  # noqa: E402
 import data_fr  # noqa: E402
 import history as H  # noqa: E402
 import stats_fr as S  # noqa: E402
@@ -145,6 +146,7 @@ def write_report(root, ctx, stats, aud, sim):
     a("| Indicateur | Valeur |\n|---|---|")
     a(f"| Pages France générées par le nouveau système | {len(gen)} |")
     a(f"| Pages villes (France) | {len(types['city'])} dont {stats['n_index']} indexables et {stats['n_noindex']} en noindex |")
+    a(f"| — dont communes ajoutées automatiquement (hors villes.json) | {stats['n_auto']} |")
     a(f"| Pages départements | {len(dep_paths)} |")
     a(f"| Pages régions | {len(reg_paths)} |")
     a(f"| Pages ville + carburant | {len(types['fuel'])} |")
@@ -237,11 +239,16 @@ def main():
 
     fr_cfg = pays_cfg["france"]
     fr_villes = [v for v in villes if v["pays"] == "france"]
+    # communes découvertes automatiquement dans le flux (en plus de villes.json) ; pages déjà publiées conservées
+    mp = os.path.join(root, MANIFEST)
+    prev_slugs = communes_auto.previous_slugs(json.load(open(mp, encoding="utf-8")) if os.path.isfile(mp) else [])
+    auto_villes = communes_auto.discover(stations, fr_villes, prev_slugs)
     nat = S.national(stations)
     dep_info, reg_info = S.build_geo(stations)
 
     # 2) villes
-    cities = [S.build_city(v, stations) for v in fr_villes]
+    cities = [communes_auto.build_city(v, stations) if v.get("auto") else S.build_city(v, stations)
+              for v in fr_villes + auto_villes]
     by_slug = {c["slug"]: c for c in cities}
     cand = S.neighbor_candidates(cities)
     for c in cities:
@@ -251,6 +258,8 @@ def main():
         c["compare_dep"] = bool(dep) and any(f in dep["stats"]["fuels"] and dep["stats"]["fuels"][f]["n"] >= S.MIN_DEP_COMPARE
                                              and c["fuels"][f]["n"] >= 3 for f in c["fuels"])
         S.score_city(c, dep_info, nat)
+    # une nouvelle commune automatique trop pauvre n'est pas publiée (pas de pages noindex en masse)
+    cities = [c for c in cities if c["indexable"] or not c["v"].get("auto") or c["slug"] in prev_slugs]
     idx = [c for c in cities if c["indexable"]]
     idx_slugs = {c["slug"] for c in idx}
     for c in cities:
@@ -340,7 +349,8 @@ def main():
     latest_txt = latest.astimezone(__import__("datetime").timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
     stats = {"latest_txt": latest_txt, "n_index": len(idx), "n_noindex": len(cities) - len(idx), "fuel_pages": fuel_pages,
              "dep_list": dep_list, "reg_list": reg_list, "cities": cities, "n_stations": len(stations),
-             "no_dep": [c["nom"] for c in cities if not c["dep_code"]], "hist_days": sorted(hist["days"])}
+             "no_dep": [c["nom"] for c in cities if not c["dep_code"]], "hist_days": sorted(hist["days"]),
+             "n_auto": sum(1 for c in cities if c["v"].get("auto"))}
     write_report(root, ctx, stats, aud, sim)
     print(f"{len(cities)} villes FR ({len(idx)} indexables), {len(dep_list)} départements, {len(reg_list)} régions, "
           f"{len(fuel_pages)} pages carburant, {len(entries)} URLs au sitemap.")

@@ -26,6 +26,14 @@ def _city_li(cur, c):
             f' — {plural(c["n_scope"], "station", "stations")}{esc(extra)}</li>')
 
 
+def _names(cities, k=10):
+    """Noms des k premières villes (déjà triées par nombre de stations) + « et N autres »."""
+    head = [c["nom"] for c in cities[:k]]
+    if len(cities) > k:
+        return ", ".join(head) + f" et {len(cities) - k} autres"
+    return join_fr(head)
+
+
 def render_dep(info, cities, ctx):
     cfg = ctx["cfg"]
     cur = f"/france/{info['slug']}/"
@@ -50,7 +58,7 @@ def render_dep(info, cities, ctx):
                      + (f"Pour {FUEL_LE[rf[0]]}, le prix le plus bas du département est de {fr_price(F[rf[0]]['min'])} €/L et la moyenne de "
                         f"{fr_price(F[rf[0]]['avg'])} €/L sur {F[rf[0]]['n']} stations." if rf else ""))
     intro.append(f"{plural(len(cities), 'ville est couverte', 'villes sont couvertes')} par une page CarburantRadar dans ce département : "
-                 + join_fr([c["nom"] for c in cities]) + ".")
+                 + _names(cities) + ".")
     body = [f'<div class="wrap">\n<header>\n<a class="brand" href="{rel(cur, "/")}"><span>⛽</span> CarburantRadar</a>\n{nav}',
             f'<h1>Prix du carburant dans le département {esc(name)}</h1>',
             f'<div class="subtitle">{esc(cfg["subtitle"])}</div>\n</header>', "<main>",
@@ -89,7 +97,7 @@ def render_dep(info, cities, ctx):
     faq.append((f"Combien de stations-service compte le département {name} ?",
                 f"{plural(st['n'], 'station est référencée', 'stations sont référencées')} dans le jeu de données officiel pour ce département."))
     faq.append((f"Quelles villes du département {name} sont couvertes ?",
-                "Les pages CarburantRadar existent pour : " + join_fr([c["nom"] for c in cities]) + "."))
+                "Les pages CarburantRadar existent pour : " + _names(cities) + "."))
     body.append(faq_html(faq, f"Questions fréquentes : carburant dans le département {name}"))
     body.append(source_line(ctx["latest"]))
     body.append("</main>")
@@ -137,8 +145,9 @@ def render_region(info, deps, cities, ctx):
                     f' — {plural(d["stats"]["n"], "station", "stations")}{esc(extra)}</li>')
     body.append("</ul></section>")
     if cities:
-        body.append(f'<section aria-labelledby="villes"><h2 id="villes">Villes couvertes de la région {esc(name)}</h2><ul class="plain">'
-                    + "".join(_city_li(cur, c) for c in cities) + "</ul></section>")
+        top = cities[:30]   # les plus grandes villes ; les autres sont accessibles via les pages départements
+        body.append(f'<section aria-labelledby="villes"><h2 id="villes">Principales villes couvertes de la région {esc(name)}</h2><ul class="plain">'
+                    + "".join(_city_li(cur, c) for c in top) + "</ul></section>")
     faq = []
     if rf:
         s0 = F[f0]
@@ -211,7 +220,8 @@ def render_hub_fr(ctx, cities_idx, dep_pages_list, reg_pages_list):
     webapp = jsonld({"@context": "https://schema.org", "@type": "WebApplication", "name": "CarburantRadar",
                      "url": SITE_URL + "/france/", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Web",
                      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}})
-    ld = [bc_ld, webapp, item_list("Villes françaises couvertes", [(f"Prix du carburant {a_ville(c['nom'])}", "/france/prix-carburant/" + c["slug"] + "/") for c in cities_idx])]
+    ld = [bc_ld, webapp, item_list("Principales villes françaises couvertes", [(f"Prix du carburant {a_ville(c['nom'])}", "/france/prix-carburant/" + c["slug"] + "/")
+                                                          for c in sorted(cities_idx, key=lambda c: (-c["n_scope"], c["nom"]))[:100]])]
     return shell(lang="fr", title=title, desc=desc, canonical=SITE_URL + cur, robots="index, follow", cur=cur,
                  head_extra="\n".join(ld), body="\n".join(body)), title, desc
 
