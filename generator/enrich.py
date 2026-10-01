@@ -11,7 +11,7 @@ from render_fr import FUEL_LE, REF_ORDER, de_ville, where_short
 
 MIN_PER_CP = 2        # stations avec un prix par code postal pour apparaître dans le tableau
 MAX_CP_ROWS = 12
-MIN_AUTOROUTE = 2     # stations d'autoroute avec un prix pour comparer
+MIN_AUTOROUTE = 1     # stations d'autoroute avec un prix pour comparer
 MIN_OTHER = 3         # autres stations avec un prix pour comparer
 
 
@@ -73,8 +73,11 @@ def autoroute_section(c):
             rel = "au même niveau"
         else:
             rel = f"{fr_cents(abs(diff))} centimes par litre {'de plus' if diff > 0 else 'de moins'}"
-        text = (f"Pour {FUEL_LE[f]}, {plural(len(auto), 'station située sur autoroute relève', 'stations situées sur autoroute relèvent')} "
-                f"un prix moyen de {fr_price(a)} €/L, contre {fr_price(o)} €/L pour les {len(other)} autres stations de la zone : "
+        if len(auto) == 1:
+            head = f"Pour {FUEL_LE[f]}, la station située sur autoroute relève {fr_price(a)} €/L"
+        else:
+            head = (f"Pour {FUEL_LE[f]}, {len(auto)} stations situées sur autoroute relèvent un prix moyen de {fr_price(a)} €/L")
+        text = (f"{head}, contre {fr_price(o)} €/L en moyenne pour les {len(other)} autres stations de la zone : "
                 f"{rel}. Le jeu de données officiel distingue les stations d'autoroute des stations sur route.")
         return ('<section aria-labelledby="autoroute"><h2 id="autoroute">Autoroute ou route : l\'écart de prix autour {}</h2>'.format(esc(de_ville(c["nom"])))
                 + f"<p>{esc(text)}</p></section>\n")
