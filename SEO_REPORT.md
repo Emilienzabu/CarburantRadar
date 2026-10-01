@@ -1,37 +1,37 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 01/10/2026 08:19 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 01/10/2026 09:39 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 425 |
+| Pages France générées par le nouveau système | 428 |
 | Pages villes (France) | 176 dont 175 indexables et 1 en noindex |
 | — dont communes ajoutées automatiquement (hors villes.json) | 73 |
 | Pages départements | 81 |
 | Pages régions | 13 |
-| Pages ville + carburant | 154 |
+| Pages ville + carburant | 157 |
 | — dont Gazole | 59 |
 | — dont SP95 | 2 |
-| — dont SP98 | 33 |
-| — dont E10 | 49 |
-| — dont E85 | 10 |
+| — dont SP98 | 34 |
+| — dont E10 | 50 |
+| — dont E85 | 11 |
 | — dont GPL | 1 |
 | Pages hub (liste des villes France) | 1 |
 | Pages Espagne / Italie (pipeline inchangé) | 206 villes, 2 hubs |
-| URLs dans le sitemap | 637 |
-| Stations analysées (jeu de données) | 9805 |
+| URLs dans le sitemap | 640 |
+| Stations analysées (jeu de données) | 9811 |
 | Jours d'historique enregistrés | 2 (du 2026-09-30 au 2026-10-01) |
 
 ## Unicité des balises (pages générées France)
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 425 / 425 |
-| Meta descriptions | 425 / 425 |
-| H1 | 425 / 425 |
-| Canonicals | 425 / 425 |
+| Titles | 428 / 428 |
+| Meta descriptions | 428 / 428 |
+| H1 | 428 / 428 |
+| Canonicals | 428 / 428 |
 
 ## Qualité du contenu
 
@@ -44,7 +44,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 4278 ; moyenne par page : 10.1
+- Liens internes distincts au total : 4325 ; moyenne par page : 10.1
 - Pages orphelines indexables : 0 ; pages noindex non liées : 1
 
 ## Pages les plus / moins riches (villes)
@@ -68,8 +68,8 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
 - Pages villes : contenu unique moyen 33 % (min 22 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages ville + carburant : contenu unique moyen 24 % (min 12 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 44 % (min 36 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages ville + carburant : contenu unique moyen 24 % (min 14 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 44 % (min 37 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
