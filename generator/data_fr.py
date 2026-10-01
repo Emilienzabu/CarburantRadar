@@ -118,6 +118,7 @@ def normalize(raw):
             "id": str(r.get("id") or "").replace(" ", ""),
             "lat": round(lat, 6), "lon": round(lon, 6),
             "cp": str(r.get("cp") or "").strip(),
+            "pop": str(r.get("pop") or "").strip().upper(),   # type de route : « A » autoroute, « R » route
             "adr": str(r.get("adresse") or "").strip(),
             "ville": str(r.get("ville") or "").strip(),
             "dep": str(r.get("departement") or "").strip(),
