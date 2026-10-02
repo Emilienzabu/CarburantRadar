@@ -22,7 +22,10 @@ sys.path.insert(0, BASE)
 
 import audit  # noqa: E402
 import communes_auto  # noqa: E402
+import data_es  # noqa: E402
 import data_fr  # noqa: E402
+import pipeline_i18n  # noqa: E402
+import render_es  # noqa: E402
 import history as H  # noqa: E402
 import stats_fr as S  # noqa: E402
 from render_common import SITE_URL  # noqa: E402
@@ -177,6 +180,14 @@ def write_report(root, ctx, stats, aud, sim):
     a(f"| Stations analysées (jeu de données) | {stats['n_stations']} |")
     hd = stats["hist_days"]
     a(f"| Jours d'historique enregistrés | {len(hd)}" + (f" (du {hd[0]} au {hd[-1]})" if hd else "") + " |\n")
+    a("## Espagne (pages enrichies)\n")
+    es = stats.get("es")
+    if es:
+        a(f"- Source : API officielle du Ministerio ; {es['n_stations']} stations exploitables ; données du {es['latest'].strftime('%d/%m/%Y %H:%M UTC')}.")
+        a(f"- Pages villes : {es['n_cities']} dont {es['n_index']} indexables ({es['n_auto']} ajoutées automatiquement) ; pages provinces : {es['n_dep']}.\n")
+    else:
+        a(f"- **Source indisponible, pages historiques conservées** : {stats.get('es_err')}")
+        a(f"- Diagnostic : {data_es.DIAG}\n")
     a("## Unicité des balises (pages générées France)\n")
     def uniq(key):
         vals = [gen[p][key] for p in gen]
@@ -240,6 +251,7 @@ def write_report(root, ctx, stats, aud, sim):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", help="export JSON local du flux officiel (sinon téléchargement)")
+    ap.add_argument("--data-es", help="export JSON local de l'API espagnole (sinon téléchargement)")
     ap.add_argument("--root", help="dossier de sortie (défaut : racine du dépôt)")
     args = ap.parse_args()
     root = os.path.abspath(args.root) if args.root else os.path.dirname(BASE)
@@ -263,6 +275,23 @@ def main():
     auto_villes = communes_auto.discover(stations, fr_villes, prev_slugs)
     nat = S.national(stations)
     dep_info, reg_info = S.build_geo(stations)
+
+    # 1 bis) Espagne : mêmes pages riches que la France si la source répond ; sinon pages historiques (et on s'arrête
+    # si des pages espagnoles enrichies étaient déjà publiées, pour ne pas les faire disparaître du site)
+    es_cfg = pays_cfg["espagne"]
+    es_legacy = [v for v in villes if v["pays"] == "espagne"]
+    es_res, es_err = None, None
+    old_paths = json.load(open(mp, encoding="utf-8")) if os.path.isfile(mp) else []
+    es_prev = communes_auto.previous_slugs(old_paths, "espagne", render_es.DOSSIER)
+    try:
+        from geo import norm_name
+        es_stations, es_latest = data_es.load(args.data_es, known={norm_name(v["nom"]) for v in es_legacy})
+        es_res = pipeline_i18n.build_country(render_es, es_cfg, es_legacy, es_stations, es_latest, es_prev)
+    except Exception as e:  # source espagnole indisponible ou format inattendu
+        es_err = f"{type(e).__name__}: {e}"
+        if es_prev - {v["slug"] for v in es_legacy}:
+            print(f"ERREUR : données espagnoles indisponibles ({es_err}). Aucune page modifiée.", file=sys.stderr)
+            return 2
 
     # 2) villes
     cities = [communes_auto.build_city(v, stations) if v.get("auto") else S.build_city(v, stations)
@@ -352,8 +381,16 @@ def main():
         if FUEL_PAGES_INDEXABLE:
             entries.append((f"{SITE_URL}/france/prix-carburant/{slug}/{FUEL_SLUG[f]}/", "daily", "0.6", lastmod))
 
-    # Espagne / Italie : pages historiques + hub
+    # Espagne : pages enrichies (données officielles) quand la source répond
+    if es_res:
+        for urlpath, html in es_res["pages"]:
+            write(root, urlpath, html)
+        entries.extend(es_res["entries"])
+
+    # Espagne (repli) / Italie : pages historiques + hub
     for pays in ("espagne", "italie"):
+        if pays == "espagne" and es_res:
+            continue
         cfg = pays_cfg[pays]
         vs = [v for v in villes if v["pays"] == pays]
         html, _, _ = render_hub_simple(pays, vs, cfg)
@@ -374,7 +411,7 @@ def main():
     stats = {"latest_txt": latest_txt, "n_index": len(idx), "n_noindex": len(cities) - len(idx), "fuel_pages": fuel_pages,
              "dep_list": dep_list, "reg_list": reg_list, "cities": cities, "n_stations": len(stations),
              "no_dep": [c["nom"] for c in cities if not c["dep_code"]], "hist_days": sorted(hist["days"]),
-             "n_auto": sum(1 for c in cities if c["v"].get("auto"))}
+             "n_auto": sum(1 for c in cities if c["v"].get("auto")), "es": es_res["info"] if es_res else None, "es_err": es_err}
     write_report(root, ctx, stats, aud, sim)
     print(f"{len(cities)} villes FR ({len(idx)} indexables), {len(dep_list)} départements, {len(reg_list)} régions, "
           f"{len(fuel_pages)} pages carburant, {len(entries)} URLs au sitemap.")
