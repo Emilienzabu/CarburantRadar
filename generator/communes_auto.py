@@ -36,19 +36,22 @@ def display_name(raw):
     return re.sub(r"(?<=[\s-])([DL])'", lambda m: m.group(1).lower() + "'", name)
 
 
-def previous_slugs(manifest_paths):
+def previous_slugs(manifest_paths, pays="france", dossier="prix-carburant"):
     """Slugs des pages villes déjà publiées (d'après generated_pages.json)."""
     out = set()
     for p in manifest_paths or []:
         parts = [x for x in p.strip("/").split("/") if x]
-        if len(parts) == 3 and parts[0] == "france" and parts[1] == "prix-carburant":
+        if len(parts) == 3 and parts[0] == pays and parts[1] == dossier:
             out.add(parts[2])
     return out
 
 
-def discover(stations, fr_villes, prev_slugs=None):
-    """Renvoie la liste des nouvelles « villes » (même forme que villes.json + clés `auto` et `_members`)."""
+def discover(stations, fr_villes, prev_slugs=None, pays="france", dep_label=None):
+    """Renvoie la liste des nouvelles « villes » (même forme que villes.json + clés `auto` et `_members`).
+
+    `dep_label(code)` donne le libellé du département/province utilisé pour désambiguïser les homonymes (par défaut : le code)."""
     prev_slugs = prev_slugs or set()
+    dep_label = dep_label or (lambda code: code)
     groups = defaultdict(list)        # (clé, département) -> toutes les stations
     for s in stations:
         if s["ville"] and s["dep_code"]:
@@ -80,17 +83,17 @@ def discover(stations, fr_villes, prev_slugs=None):
             continue
         ambiguous = len(deps_by_key[k]) > 1 or bool(same)
         slug = f"{base_slug}-{dep.lower()}" if ambiguous else base_slug
-        nom = f"{base} ({dep})" if ambiguous else base
+        nom = f"{base} ({dep_label(dep)})" if ambiguous else base
         if slug in used:                      # collision (ex. slug manuel identique) : on suffixe par le département
             slug = f"{base_slug}-{dep.lower()}"
-            nom = f"{base} ({dep})"
+            nom = f"{base} ({dep_label(dep)})"
             if slug in used:
                 continue
         need = AUTO_KEEP_STATIONS if slug in prev_slugs else AUTO_MIN_STATIONS
         if len(priced) < need:
             continue
         used.add(slug)
-        out.append({"pays": "france", "slug": slug, "nom": nom, "lat": lat, "lon": lon, "auto": True, "_members": lst})
+        out.append({"pays": pays, "slug": slug, "nom": nom, "lat": lat, "lon": lon, "auto": True, "_members": lst})
     return out
 
 
