@@ -24,8 +24,10 @@ import audit  # noqa: E402
 import communes_auto  # noqa: E402
 import data_es  # noqa: E402
 import data_fr  # noqa: E402
+import data_it  # noqa: E402
 import pipeline_i18n  # noqa: E402
 import render_es  # noqa: E402
+import render_it  # noqa: E402
 import history as H  # noqa: E402
 import stats_fr as S  # noqa: E402
 from render_common import SITE_URL  # noqa: E402
@@ -188,6 +190,14 @@ def write_report(root, ctx, stats, aud, sim):
     else:
         a(f"- **Source indisponible, pages historiques conservées** : {stats.get('es_err')}")
         a(f"- Diagnostic : {data_es.DIAG}\n")
+    a("## Italie (pages enrichies)\n")
+    it = stats.get("it")
+    if it:
+        a(f"- Source : CSV du MIMIT ; {it['n_stations']} stations exploitables ; données du {it['latest'].strftime('%d/%m/%Y %H:%M UTC')}.")
+        a(f"- Pages villes : {it['n_cities']} dont {it['n_index']} indexables ({it['n_auto']} ajoutées automatiquement) ; pages provinces : {it['n_dep']}.\n")
+    else:
+        a(f"- **Source indisponible, pages historiques conservées** : {stats.get('it_err')}")
+        a(f"- Diagnostic : {data_it.DIAG}\n")
     a("## Unicité des balises (pages générées France)\n")
     def uniq(key):
         vals = [gen[p][key] for p in gen]
@@ -252,6 +262,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", help="export JSON local du flux officiel (sinon téléchargement)")
     ap.add_argument("--data-es", help="export JSON local de l'API espagnole (sinon téléchargement)")
+    ap.add_argument("--data-it", help="dossier local contenant les deux CSV du MIMIT (sinon téléchargement)")
     ap.add_argument("--root", help="dossier de sortie (défaut : racine du dépôt)")
     args = ap.parse_args()
     root = os.path.abspath(args.root) if args.root else os.path.dirname(BASE)
@@ -291,6 +302,20 @@ def main():
         es_err = f"{type(e).__name__}: {e}"
         if es_prev - {v["slug"] for v in es_legacy}:
             print(f"ERREUR : données espagnoles indisponibles ({es_err}). Aucune page modifiée.", file=sys.stderr)
+            return 2
+
+    # 1 ter) Italie : même principe que l'Espagne (CSV du MIMIT)
+    it_cfg = pays_cfg["italie"]
+    it_legacy = [v for v in villes if v["pays"] == "italie"]
+    it_res, it_err = None, None
+    it_prev = communes_auto.previous_slugs(old_paths, "italie", render_it.DOSSIER)
+    try:
+        it_stations, it_latest = data_it.load(args.data_it)
+        it_res = pipeline_i18n.build_country(render_it, it_cfg, it_legacy, it_stations, it_latest, it_prev)
+    except Exception as e:  # source italienne indisponible ou format inattendu
+        it_err = f"{type(e).__name__}: {e}"
+        if it_prev - {v["slug"] for v in it_legacy}:
+            print(f"ERREUR : données italiennes indisponibles ({it_err}). Aucune page modifiée.", file=sys.stderr)
             return 2
 
     # 2) villes
@@ -387,9 +412,17 @@ def main():
             write(root, urlpath, html)
         entries.extend(es_res["entries"])
 
-    # Espagne (repli) / Italie : pages historiques + hub
+    # Italie : pages enrichies quand la source répond
+    if it_res:
+        for urlpath, html in it_res["pages"]:
+            write(root, urlpath, html)
+        entries.extend(it_res["entries"])
+
+    # Espagne / Italie (repli) : pages historiques + hub
     for pays in ("espagne", "italie"):
         if pays == "espagne" and es_res:
+            continue
+        if pays == "italie" and it_res:
             continue
         cfg = pays_cfg[pays]
         vs = [v for v in villes if v["pays"] == pays]
@@ -411,7 +444,8 @@ def main():
     stats = {"latest_txt": latest_txt, "n_index": len(idx), "n_noindex": len(cities) - len(idx), "fuel_pages": fuel_pages,
              "dep_list": dep_list, "reg_list": reg_list, "cities": cities, "n_stations": len(stations),
              "no_dep": [c["nom"] for c in cities if not c["dep_code"]], "hist_days": sorted(hist["days"]),
-             "n_auto": sum(1 for c in cities if c["v"].get("auto")), "es": es_res["info"] if es_res else None, "es_err": es_err}
+             "n_auto": sum(1 for c in cities if c["v"].get("auto")), "es": es_res["info"] if es_res else None, "es_err": es_err,
+             "it": it_res["info"] if it_res else None, "it_err": it_err}
     write_report(root, ctx, stats, aud, sim)
     print(f"{len(cities)} villes FR ({len(idx)} indexables), {len(dep_list)} départements, {len(reg_list)} régions, "
           f"{len(fuel_pages)} pages carburant, {len(entries)} URLs au sitemap.")
