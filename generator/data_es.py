@@ -3,6 +3,7 @@
 Sortie : mêmes stations compactes que data_fr (clés de carburants internes identiques : gazole, sp95, e10, sp98, e85, gplc),
 pour réutiliser les calculs de stats_fr. Aucune valeur inventée : un champ absent ou hors bornes est ignoré.
 """
+import gzip
 import json
 import os
 import re
@@ -14,6 +15,7 @@ from datetime import datetime, timezone
 from data_fr import RANGE
 
 URL = "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/"
+PROVINCE_URL = URL + "FiltroProvincia/"
 FIELD = {  # clé interne -> champ de l'API (comparé sans accents, casse ni ponctuation)
     "gazole": "precio gasoleo a",
     "sp95": "precio gasolina 95 e5",
@@ -70,22 +72,47 @@ def _brand(s):
     return s.upper() if len(s) <= 3 else title_es(s)
 
 
-def fetch(url=URL, tries=3, timeout=180):
+def _get(url, timeout):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; CarburantRadar-SEO-generator/2.0)",
+                                               "Accept": "application/json", "Accept-Encoding": "gzip", "Connection": "close"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        body = r.read()
+    if body[:2] == b"\x1f\x8b":
+        body = gzip.decompress(body)
+    try:
+        return json.loads(body.decode("utf-8-sig"))
+    except UnicodeDecodeError:
+        return json.loads(body.decode("latin-1"))
+
+
+def fetch(url=URL, tries=5, timeout=150, province_url=PROVINCE_URL):
+    """Export national ; si le serveur coupe la connexion (fréquent sur ce service), repli province par province."""
     last = None
     for i in range(tries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; CarburantRadar-SEO-generator/2.0)",
-                                                       "Accept": "application/json"})
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                body = r.read()
-            try:
-                return json.loads(body.decode("utf-8-sig"))
-            except UnicodeDecodeError:
-                return json.loads(body.decode("latin-1"))
-        except Exception as e:  # réseau, JSON... : on retente puis on échoue proprement
+            return _get(url, timeout)
+        except Exception as e:  # réseau, JSON... : on retente puis on bascule sur les provinces
             last = e
-            time.sleep(8 * (i + 1))
-    raise RuntimeError(f"Téléchargement impossible ({last})")
+            time.sleep(10 * (i + 1))
+    DIAG["national_error"] = str(last)
+    merged, fecha, failed = [], None, []
+    for pid in range(1, 53):
+        code = f"{pid:02d}"
+        for attempt in range(4):
+            try:
+                d = _get(province_url + code, 90)
+                merged.extend(d.get("ListaEESSPrecio") or [])
+                fecha = fecha or d.get("Fecha")
+                break
+            except Exception as e:
+                last = e
+                time.sleep(4 * (attempt + 1))
+        else:
+            failed.append(code)
+    DIAG["provinces_failed"] = failed
+    if len(failed) > 6 or not merged:
+        raise RuntimeError(f"Téléchargement impossible ({last}) ; provinces en échec : {failed}")
+    return {"Fecha": fecha, "ListaEESSPrecio": merged}
 
 
 def _fecha(s):
