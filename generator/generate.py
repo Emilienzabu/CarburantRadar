@@ -16,6 +16,9 @@ import json
 import os
 import re
 import sys
+import time
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
@@ -87,6 +90,41 @@ def legacy_page(v, cfg, template):
     if left:
         raise SystemExit(f"ERREUR : tokens non remplacés dans {pays}/{slug} : {left}")
     return html
+
+
+# ---------------------------------------------------------------- source indisponible : réutiliser les pages déjà publiées
+
+def fetch_live(path, tries=3):
+    """Dernière version publiée d'une page (le site en ligne est encore celui de la veille pendant le build)."""
+    url = SITE_URL + path
+    last = None
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "CarburantRadar-SEO-generator/2.0"})
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return r.read().decode("utf-8")
+        except Exception as e:
+            last = e
+            time.sleep(3 * (i + 1))
+    raise RuntimeError(f"{url} : {last}")
+
+
+def reuse_published(root, old_paths, prefix, hub):
+    """Réécrit les pages d'un pays publiées au run précédent (telles qu'en ligne) quand sa source de données est indisponible."""
+    paths = sorted(p for p in old_paths if p.startswith(prefix))
+    with ThreadPoolExecutor(8) as ex:
+        htmls = list(ex.map(fetch_live, paths))
+    entries = []
+    for p, h in zip(paths, htmls):
+        if "<h1>" not in h or "</html>" not in h:
+            raise RuntimeError(f"page publiée inexploitable : {p}")
+        write(root, p, h)
+        if re.search(r'name="robots" content="noindex', h):
+            continue
+        depth = len([x for x in p.strip("/").split("/") if x])
+        freq, prio = ("weekly", "0.9") if p == hub else (("daily", "0.8") if depth == 2 else ("daily", "0.7"))
+        entries.append((SITE_URL + p, freq, prio, None))
+    return entries
 
 
 # ---------------------------------------------------------------- nettoyage des pages qui ne sont plus générées
@@ -202,6 +240,8 @@ def write_report(root, ctx, stats, aud, sim):
     if es:
         a(f"- Source : API officielle du Ministerio ; {es['n_stations']} stations exploitables ; données du {es['latest'].strftime('%d/%m/%Y %H:%M UTC')}.")
         a(f"- Pages villes : {es['n_cities']} dont {es['n_index']} indexables ({es['n_auto']} ajoutées automatiquement) ; pages provinces : {es['n_dep']}.\n")
+    elif stats.get("es_reused"):
+        a(f"- **Source indisponible : {stats['es_reused']} pages indexables de la veille réutilisées** : {stats.get('es_err')}\n")
     else:
         a(f"- **Source indisponible, pages historiques conservées** : {stats.get('es_err')}")
         a(f"- Diagnostic : {data_es.DIAG}\n")
@@ -210,6 +250,8 @@ def write_report(root, ctx, stats, aud, sim):
     if it:
         a(f"- Source : CSV du MIMIT ; {it['n_stations']} stations exploitables ; données du {it['latest'].strftime('%d/%m/%Y %H:%M UTC')}.")
         a(f"- Pages villes : {it['n_cities']} dont {it['n_index']} indexables ({it['n_auto']} ajoutées automatiquement) ; pages provinces : {it['n_dep']}.\n")
+    elif stats.get("it_reused"):
+        a(f"- **Source indisponible : {stats['it_reused']} pages indexables de la veille réutilisées** : {stats.get('it_err')}\n")
     else:
         a(f"- **Source indisponible, pages historiques conservées** : {stats.get('it_err')}")
         a(f"- Diagnostic : {data_it.DIAG}\n")
@@ -306,7 +348,7 @@ def main():
     # si des pages espagnoles enrichies étaient déjà publiées, pour ne pas les faire disparaître du site)
     es_cfg = pays_cfg["espagne"]
     es_legacy = [v for v in villes if v["pays"] == "espagne"]
-    es_res, es_err = None, None
+    es_res, es_err, es_reuse = None, None, False
     old_paths = json.load(open(mp, encoding="utf-8")) if os.path.isfile(mp) else []
     es_prev = communes_auto.previous_slugs(old_paths, "espagne", render_es.DOSSIER)
     try:
@@ -315,23 +357,19 @@ def main():
         es_res = pipeline_i18n.build_country(render_es, es_cfg, es_legacy, es_stations, es_latest, es_prev)
     except Exception as e:  # source espagnole indisponible ou format inattendu
         es_err = f"{type(e).__name__}: {e}"
-        if es_prev - {v["slug"] for v in es_legacy}:
-            print(f"ERREUR : données espagnoles indisponibles ({es_err}). Aucune page modifiée.", file=sys.stderr)
-            return 2
+        es_reuse = bool(es_prev - {v["slug"] for v in es_legacy})   # des pages enrichies sont déjà en ligne : on les conserve
 
     # 1 ter) Italie : même principe que l'Espagne (CSV du MIMIT)
     it_cfg = pays_cfg["italie"]
     it_legacy = [v for v in villes if v["pays"] == "italie"]
-    it_res, it_err = None, None
+    it_res, it_err, it_reuse = None, None, False
     it_prev = communes_auto.previous_slugs(old_paths, "italie", render_it.DOSSIER)
     try:
         it_stations, it_latest = data_it.load(args.data_it)
         it_res = pipeline_i18n.build_country(render_it, it_cfg, it_legacy, it_stations, it_latest, it_prev)
     except Exception as e:  # source italienne indisponible ou format inattendu
         it_err = f"{type(e).__name__}: {e}"
-        if it_prev - {v["slug"] for v in it_legacy}:
-            print(f"ERREUR : données italiennes indisponibles ({it_err}). Aucune page modifiée.", file=sys.stderr)
-            return 2
+        it_reuse = bool(it_prev - {v["slug"] for v in it_legacy})
 
     # 2) villes
     cities = [communes_auto.build_city(v, stations) if v.get("auto") else S.build_city(v, stations)
@@ -421,23 +459,41 @@ def main():
         if FUEL_PAGES_INDEXABLE:
             entries.append((f"{SITE_URL}/france/prix-carburant/{slug}/{FUEL_SLUG[f]}/", "daily", "0.6", lastmod))
 
-    # Espagne : pages enrichies (données officielles) quand la source répond
+    # Espagne : pages enrichies (données officielles) quand la source répond, sinon pages de la veille
+    es_reused = None
     if es_res:
         for urlpath, html in es_res["pages"]:
             write(root, urlpath, html)
         entries.extend(es_res["entries"])
+    elif es_reuse:
+        try:
+            ent = reuse_published(root, old_paths, "/espagne/", render_es.HUB)
+        except Exception as e:
+            print(f"ERREUR : données espagnoles indisponibles ({es_err}) et pages publiées introuvables ({e}). Aucune page modifiée.", file=sys.stderr)
+            return 2
+        entries.extend(ent)
+        es_reused = len(ent)
 
-    # Italie : pages enrichies quand la source répond
+    # Italie : pages enrichies quand la source répond, sinon pages de la veille
+    it_reused = None
     if it_res:
         for urlpath, html in it_res["pages"]:
             write(root, urlpath, html)
         entries.extend(it_res["entries"])
+    elif it_reuse:
+        try:
+            ent = reuse_published(root, old_paths, "/italie/", render_it.HUB)
+        except Exception as e:
+            print(f"ERREUR : données italiennes indisponibles ({it_err}) et pages publiées introuvables ({e}). Aucune page modifiée.", file=sys.stderr)
+            return 2
+        entries.extend(ent)
+        it_reused = len(ent)
 
     # Espagne / Italie (repli) : pages historiques + hub
     for pays in ("espagne", "italie"):
-        if pays == "espagne" and es_res:
+        if pays == "espagne" and (es_res or es_reuse):
             continue
-        if pays == "italie" and it_res:
+        if pays == "italie" and (it_res or it_reuse):
             continue
         cfg = pays_cfg[pays]
         vs = [v for v in villes if v["pays"] == pays]
@@ -459,8 +515,8 @@ def main():
     stats = {"latest_txt": latest_txt, "n_index": len(idx), "n_noindex": len(cities) - len(idx), "fuel_pages": fuel_pages,
              "dep_list": dep_list, "reg_list": reg_list, "cities": cities, "n_stations": len(stations),
              "no_dep": [c["nom"] for c in cities if not c["dep_code"]], "hist_days": sorted(hist["days"]),
-             "n_auto": sum(1 for c in cities if c["v"].get("auto")), "es": es_res["info"] if es_res else None, "es_err": es_err,
-             "it": it_res["info"] if it_res else None, "it_err": it_err}
+             "n_auto": sum(1 for c in cities if c["v"].get("auto")), "es": es_res["info"] if es_res else None, "es_err": es_err, "es_reused": es_reused,
+             "it": it_res["info"] if it_res else None, "it_err": it_err, "it_reused": it_reused}
     write_report(root, ctx, stats, aud, sim)
     print(f"{len(cities)} villes FR ({len(idx)} indexables), {len(dep_list)} départements, {len(reg_list)} régions, "
           f"{len(fuel_pages)} pages carburant, {len(entries)} URLs au sitemap.")
