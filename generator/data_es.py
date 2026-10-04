@@ -95,20 +95,25 @@ def fetch(url=URL, tries=5, timeout=150, province_url=PROVINCE_URL):
             last = e
             time.sleep(10 * (i + 1))
     DIAG["national_error"] = str(last)
-    merged, fecha, failed = [], None, []
+    merged, fecha, failed, in_row = [], None, [], 0
     for pid in range(1, 53):
         code = f"{pid:02d}"
-        for attempt in range(4):
+        for attempt in range(3):
             try:
                 d = _get(province_url + code, 90)
                 merged.extend(d.get("ListaEESSPrecio") or [])
                 fecha = fecha or d.get("Fecha")
+                in_row = 0
                 break
             except Exception as e:
                 last = e
-                time.sleep(4 * (attempt + 1))
+                time.sleep(3 * (attempt + 1))
         else:
             failed.append(code)
+            in_row += 1
+            if in_row >= 3:      # le serveur coupe tout : inutile d'insister (le build réutilise les pages de la veille)
+                failed.extend(f"{p:02d}" for p in range(pid + 1, 53))
+                break
     DIAG["provinces_failed"] = failed
     if len(failed) > 6 or not merged:
         raise RuntimeError(f"Téléchargement impossible ({last}) ; provinces en échec : {failed}")
