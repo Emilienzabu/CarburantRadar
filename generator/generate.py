@@ -127,6 +127,21 @@ def prune_stale(root):
                     os.rmdir(dirpath)
                 except OSError:
                     pass
+    # pages département / région / province : dossiers de premier niveau de france/, espagne/ et italie/
+    # (les applications sont des fichiers index.html à la racine de ces dossiers, pas dans des sous-dossiers)
+    for top in ("france", "espagne", "italie"):
+        tb = os.path.join(root, top)
+        if not os.path.isdir(tb):
+            continue
+        for name in sorted(os.listdir(tb)):
+            d = os.path.join(tb, name)
+            if os.path.isdir(d) and os.path.isfile(os.path.join(d, "index.html")) and f"{top}/{name}" not in keep:
+                os.remove(os.path.join(d, "index.html"))
+                removed += 1
+                try:
+                    os.rmdir(d)
+                except OSError:
+                    pass
     with open(mp, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(sorted(set(GENERATED)), fh, indent=0)
         fh.write("\n")

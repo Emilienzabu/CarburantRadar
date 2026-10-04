@@ -101,13 +101,15 @@ def fetch_text(name, tries=4, timeout=120):
 
 
 def rows(text, must):
-    """Lignes d'un CSV MIMIT (séparateur « ; », première ligne parfois « Estrazione del … ») sous forme de dicts à clés normalisées."""
+    """Lignes d'un CSV MIMIT (séparateur détecté, première ligne parfois « Estrazione del … ») sous forme de dicts à clés normalisées."""
     lines = text.splitlines()
     start = next((i for i, l in enumerate(lines[:10]) if must in _k(l)), None)
     if start is None:
         raise RuntimeError(f"En-tête introuvable (attendu : {must}) ; début du fichier : {lines[:2]}")
     extract = lines[0] if start else ""
-    rd = csv.reader(io.StringIO("\n".join(lines[start:])), delimiter=";", quoting=csv.QUOTE_NONE)
+    delim = max(";|,\t", key=lambda d: lines[start].count(d))   # le séparateur réel du fichier (« | » dans les exports du MIMIT)
+    DIAG["delimiter"] = delim
+    rd = csv.reader(io.StringIO("\n".join(lines[start:])), delimiter=delim, quoting=csv.QUOTE_NONE)
     head = [_k(h) for h in next(rd)]
     DIAG.setdefault("headers", []).append(head)
     DIAG.setdefault("rows_skipped", 0)
