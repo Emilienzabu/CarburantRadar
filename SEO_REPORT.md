@@ -1,47 +1,47 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 03/10/2026 14:59 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 04/10/2026 11:41 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 412 |
+| Pages France générées par le nouveau système | 402 |
 | Pages villes (France) | 181 dont 179 indexables et 2 en noindex |
 | — dont communes ajoutées automatiquement (hors villes.json) | 78 |
 | Pages départements | 80 |
 | Pages régions | 13 |
-| Pages ville + carburant | 137 |
-| — dont Gazole | 56 |
+| Pages ville + carburant | 127 |
+| — dont Gazole | 52 |
 | — dont SP95 | 2 |
-| — dont SP98 | 28 |
-| — dont E10 | 42 |
-| — dont E85 | 8 |
+| — dont SP98 | 27 |
+| — dont E10 | 38 |
+| — dont E85 | 7 |
 | — dont GPL | 1 |
 | Pages hub (liste des villes France) | 1 |
-| Pages Espagne / Italie (pipeline inchangé) | 556 villes, 52 hubs |
-| URLs dans le sitemap | 885 |
+| Pages Espagne / Italie (pipeline inchangé) | 1263 villes, 159 hubs |
+| URLs dans le sitemap | 1699 |
 | Stations analysées (jeu de données) | 9831 |
-| Jours d'historique enregistrés | 4 (du 2026-09-30 au 2026-10-03) |
+| Jours d'historique enregistrés | 5 (du 2026-09-30 au 2026-10-04) |
 
 ## Espagne (pages enrichies)
 
-- Source : API officielle du Ministerio ; 11467 stations exploitables ; données du 03/10/2026 13:28 UTC.
-- Pages villes : 453 dont 452 indexables (350 ajoutées automatiquement) ; pages provinces : 50.
+- Source : API officielle du Ministerio ; 11465 stations exploitables ; données du 04/10/2026 10:15 UTC.
+- Pages villes : 454 dont 453 indexables (351 ajoutées automatiquement) ; pages provinces : 50.
 
 ## Italie (pages enrichies)
 
-- **Source indisponible, pages historiques conservées** : RuntimeError: Trop peu de stations exploitables (0) ; diagnostic : {'headers': [['idimpianto desccarburante prezzo isself dtcomu'], ['idimpianto gestore bandiera tipo impianto nome impianto indirizzo comune provincia latitudine longitudine']], 'rows_skipped': 2, 'price_rows': 0, 'bad_coords': 0, 'stations': 0}
-- Diagnostic : {'headers': [['idimpianto desccarburante prezzo isself dtcomu'], ['idimpianto gestore bandiera tipo impianto nome impianto indirizzo comune provincia latitudine longitudine']], 'rows_skipped': 2, 'price_rows': 0, 'bad_coords': 0, 'stations': 0}
+- Source : CSV du MIMIT ; 21459 stations exploitables ; données du 03/10/2026 08:02 UTC.
+- Pages villes : 809 dont 809 indexables (706 ajoutées automatiquement) ; pages provinces : 107.
 
 ## Unicité des balises (pages générées France)
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 412 / 412 |
-| Meta descriptions | 412 / 412 |
-| H1 | 412 / 412 |
-| Canonicals | 412 / 412 |
+| Titles | 402 / 402 |
+| Meta descriptions | 402 / 402 |
+| H1 | 402 / 402 |
+| Canonicals | 402 / 402 |
 
 ## Qualité du contenu
 
@@ -54,7 +54,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 4186 ; moyenne par page : 10.2
+- Liens internes distincts au total : 4081 ; moyenne par page : 10.2
 - Pages orphelines indexables : 0 ; pages noindex non liées : 3
 
 ## Pages les plus / moins riches (villes)
@@ -77,9 +77,9 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
-- Pages villes : contenu unique moyen 33 % (min 23 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages ville + carburant : contenu unique moyen 26 % (min 16 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 44 % (min 36 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages villes : contenu unique moyen 33 % (min 22 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages ville + carburant : contenu unique moyen 27 % (min 15 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 44 % (min 37 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
