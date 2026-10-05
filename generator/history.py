@@ -11,6 +11,7 @@ from geo import fr_price, fr_cents
 from render_common import esc
 from render_fr import FUEL_LE, REF_ORDER, where_short, where
 from enrich import city_extras
+import extras
 
 HISTORY_DAYS = 30                                   # nombre de jours conservés
 HISTORY_PATH = os.path.join("france", "prix-carburant", "history.json")
@@ -92,7 +93,7 @@ def city_section(c, hist):
                 + "".join(f"<p>{esc(t)}</p>" for t in lines)
                 + f'<p class="note">Historique enregistré par CarburantRadar chaque jour depuis le {fr_day(first_day)} (30 jours au maximum). '
                   "Les jours sans relevé n'apparaissent pas.</p></section>\n")
-    return city_extras(c) + evol
+    return city_extras(c) + extras.sections(c, "fr") + evol
 
 
 def fuel_section(c, f, hist):

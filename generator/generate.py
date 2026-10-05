@@ -26,6 +26,7 @@ sys.path.insert(0, BASE)
 import audit  # noqa: E402
 import communes_auto  # noqa: E402
 import data_es  # noqa: E402
+import extras  # noqa: E402
 import data_fr  # noqa: E402
 import data_it  # noqa: E402
 import pipeline_i18n  # noqa: E402
@@ -386,6 +387,7 @@ def main():
     # une nouvelle commune automatique trop pauvre n'est pas publiée (pas de pages noindex en masse)
     cities = [c for c in cities if c["indexable"] or not c["v"].get("auto") or c["slug"] in prev_slugs]
     idx = [c for c in cities if c["indexable"]]
+    extras.annotate(cities, dep_info, nat, "fr")
     idx_slugs = {c["slug"] for c in idx}
     for c in cities:
         c["neighbors_shown"] = []

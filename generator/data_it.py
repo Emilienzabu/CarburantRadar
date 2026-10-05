@@ -138,6 +138,7 @@ def _ts(s):
 def normalize(price_text, station_text):
     extract, prows = rows(price_text, "idimpianto")
     best = {}                                    # (id, carburant) -> (self ?, prix, date)
+    byk = {}                                     # (id, carburant, self ?) -> (prix, date) : le plus récent
     latest = None
     n_prices = 0
     for r in prows:
@@ -154,6 +155,10 @@ def normalize(price_text, station_text):
             latest = d
         is_self = str(r.get("isself", "")).strip() in ("1", "true", "True")
         key = (str(r.get("idimpianto", "")).strip(), f)
+        k3 = key + (is_self,)
+        old = byk.get(k3)
+        if old is None or (d and (old[1] is None or d > old[1])):
+            byk[k3] = (p, d)
         cur = best.get(key)
         cand = (is_self, p, d)
         # préfère le self-service ; à statut égal, la mise à jour la plus récente
@@ -164,11 +169,15 @@ def normalize(price_text, station_text):
         m = re.search(r"(\d{4}-\d{2}-\d{2})", extract)
         latest = _ts(m.group(1)) if m else datetime.now(timezone.utc)
     limit = latest - timedelta(days=MAX_AGE_DAYS)
-    prices = {}
+    prices, pself, pserv = {}, {}, {}
     for (sid, f), (is_self, p, d) in best.items():
         if d and d < limit:
             continue
         prices.setdefault(sid, {})[f] = round(p, 3)
+    for (sid, f, is_self), (p, d) in byk.items():
+        if d and d < limit:
+            continue
+        (pself if is_self else pserv).setdefault(sid, {})[f] = round(p, 3)
     _, srows = rows(station_text, "idimpianto")
     stations, bad_coords = [], 0
     for r in srows:
@@ -190,6 +199,7 @@ def normalize(price_text, station_text):
             "ville": title_it(str(r.get("comune", "")).strip()),
             "dep": PROV.get(sigla, sigla), "dep_code": sigla, "reg": "", "reg_code": "",
             "p": prices[sid], "m": {}, "a24": False, "dispo": sorted(prices[sid]),
+            "pself": pself.get(sid, {}), "pserv": pserv.get(sid, {}),
             "brand": brand.upper() if len(brand) <= 3 else title_it(brand),
         })
     DIAG["bad_coords"] = bad_coords
