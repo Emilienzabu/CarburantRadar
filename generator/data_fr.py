@@ -2,6 +2,7 @@
 import gzip
 import json
 import time
+import unicodedata
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
@@ -73,6 +74,22 @@ def parse_ts(s):
         return None
 
 
+def _services(v):
+    """Services déclarés (liste ou JSON), en minuscules sans accents."""
+    if isinstance(v, str):
+        try:
+            v = json.loads(v).get("service", [])
+        except (ValueError, AttributeError):
+            v = []
+    if not isinstance(v, list):
+        return []
+    out = []
+    for s in v:
+        s = unicodedata.normalize("NFD", str(s)).lower()
+        out.append("".join(ch for ch in s if unicodedata.category(ch) != "Mn"))
+    return out
+
+
 def _dispo(v):
     if v is None:
         return set()
@@ -119,6 +136,7 @@ def normalize(raw):
             "lat": round(lat, 6), "lon": round(lon, 6),
             "cp": str(r.get("cp") or "").strip(),
             "pop": str(r.get("pop") or "").strip().upper(),   # type de route : « A » autoroute, « R » route
+            "svc": _services(r.get("services_service")),
             "adr": str(r.get("adresse") or "").strip(),
             "ville": str(r.get("ville") or "").strip(),
             "dep": str(r.get("departement") or "").strip(),
