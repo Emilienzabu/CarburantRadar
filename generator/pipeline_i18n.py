@@ -6,7 +6,11 @@ avec le module de rendu du pays (render_es, ...). Ne touche pas au disque : renv
 import datetime as dt
 
 import communes_auto
+import extras
+import history as H
 import stats_fr as S
+
+LANG = {"espagne": "es", "italie": "it"}
 
 
 def build_country(R, cfg, legacy, stations, latest, prev_slugs):
@@ -31,6 +35,8 @@ def build_country(R, cfg, legacy, stations, latest, prev_slugs):
         S.score_city(c, dep_info, nat)
     cities = [c for c in cities if c["indexable"] or not c["v"].get("auto") or c["slug"] in prev_slugs]
     idx = [c for c in cities if c["indexable"]]
+    lang = LANG[R.PAYS]
+    extras.annotate(cities, dep_info, nat, lang)
     idx_slugs = {c["slug"] for c in idx}
     for c in cities:
         c["neighbors_shown"] = []
@@ -59,7 +65,7 @@ def build_country(R, cfg, legacy, stations, latest, prev_slugs):
         pages.append((f"{base}{d['slug']}/", R.render_dep(d, cs, ctx)))
         entries.append((f"{site}{base}{d['slug']}/", "daily", "0.8", lastmod))
     for c in cities:
-        pages.append((f"{hub}{c['slug']}/", R.render_city(c, ctx)))
+        pages.append((f"{hub}{c['slug']}/", H.inject(R.render_city(c, ctx), extras.sections(c, lang))))
         if c["indexable"]:
             entries.append((f"{site}{hub}{c['slug']}/", "daily", "0.7", lastmod))
     info = {"n_stations": len(stations), "n_cities": len(cities), "n_index": len(idx), "n_auto": sum(1 for c in cities if c["v"].get("auto")),
