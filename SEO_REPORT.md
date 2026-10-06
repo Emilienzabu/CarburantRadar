@@ -26,7 +26,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Espagne (pages enrichies)
 
-- Source : API officielle du Ministerio ; 11495 stations exploitables ; données du 06/10/2026 22:36 UTC.
+- Source : API officielle du Ministerio ; 11495 stations exploitables ; données du 06/10/2026 22:44 UTC.
 - Pages villes : 456 dont 455 indexables (353 ajoutées automatiquement) ; pages provinces : 50.
 
 ## Italie (pages enrichies)
@@ -83,10 +83,9 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Validation
 
-- Erreurs : 0 ; avertissements : 4
+- Erreurs : 0 ; avertissements : 3
   - avertissement /espagne/ : 5 balises H1
   - avertissement /france/ : 5 balises H1
-  - avertissement /guide/ : FAQPage JSON-LD ne correspond pas au contenu visible
   - avertissement /italie/ : 5 balises H1
 - Test lien France : `/france/prix-carburant/avignon/` + `../../` → `/france/` (OK)
 
