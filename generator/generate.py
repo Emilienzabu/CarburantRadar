@@ -25,6 +25,7 @@ sys.path.insert(0, BASE)
 
 import audit  # noqa: E402
 import communes_auto  # noqa: E402
+import datacache  # noqa: E402
 import data_es  # noqa: E402
 import extras  # noqa: E402
 import data_fr  # noqa: E402
@@ -126,6 +127,52 @@ def reuse_published(root, old_paths, prefix, hub):
         freq, prio = ("weekly", "0.9") if p == hub else (("daily", "0.8") if depth == 2 else ("daily", "0.7"))
         entries.append((SITE_URL + p, freq, prio, None))
     return entries
+
+
+# ---------------------------------------------------------------- Espagne : cache du dernier jeu de données valide
+
+ES_CACHE = "donnees/espagne-precios.json.gz"   # servi par le site, retéléchargé au run suivant (jamais commité)
+ES_CACHE_MAX_DAYS = int(os.environ.get("CR_ES_CACHE_DAYS", "3"))   # au-delà, les prix seraient trop anciens : on réutilise les pages de la veille
+
+
+def _keep_previous_cache(root):
+    """Le cache n'est pas dans le dépôt : on recopie celui du site en ligne pour qu'il soit redéployé (échec silencieux)."""
+    try:
+        datacache.write_bytes(root, ES_CACHE, datacache.download(ES_CACHE))
+    except Exception as e:
+        print(f"Cache ES précédent non conservé : {e}", file=sys.stderr)
+
+
+def load_es(args, root, known):
+    """-> (stations, date des données, infos cache | None). API officielle ; à défaut, dernier jeu complet publié (<= ES_CACHE_MAX_DAYS jours)."""
+    try:
+        raw = json.load(open(args.data_es, encoding="utf-8")) if args.data_es else data_es.fetch()
+        stations, latest = data_es.load_raw(raw, known)
+        if args.data_es:
+            return stations, latest, None
+        if data_es.DIAG.get("provinces_failed"):   # jeu incomplet : utilisable ce jour-là, mais jamais mis en cache
+            _keep_previous_cache(root)
+            return stations, latest, None
+        if data_es._fecha(raw.get("Fecha")) is None:   # sans date fiable le cache ne pourrait jamais expirer : on date le téléchargement
+            from datetime import datetime, timezone
+            raw = dict(raw, Fecha=latest.astimezone(timezone.utc).strftime("%d/%m/%Y %H:%M:%S"))
+        datacache.save(root, ES_CACHE, raw)
+        return stations, latest, None
+    except Exception as e:
+        err = f"{type(e).__name__}: {e}"
+    if args.data_es:
+        raise RuntimeError(err)
+    try:
+        blob = datacache.download(ES_CACHE)
+        stations, latest = data_es.load_raw(datacache.decode(blob), known)
+        from datetime import datetime, timezone
+        age = (datetime.now(timezone.utc) - latest).total_seconds() / 86400
+        if age > ES_CACHE_MAX_DAYS:
+            raise RuntimeError(f"cache trop ancien ({age:.1f} j)")
+    except Exception as ce:
+        raise RuntimeError(f"{err} ; cache indisponible ({ce})")
+    datacache.write_bytes(root, ES_CACHE, blob)   # inchangé : on le redéploie tel quel
+    return stations, latest, {"err": err, "age": age}
 
 
 # ---------------------------------------------------------------- nettoyage des pages qui ne sont plus générées
@@ -240,6 +287,8 @@ def write_report(root, ctx, stats, aud, sim):
     es = stats.get("es")
     if es:
         a(f"- Source : API officielle du Ministerio ; {es['n_stations']} stations exploitables ; données du {es['latest'].strftime('%d/%m/%Y %H:%M UTC')}.")
+        if stats.get("es_cache"):
+            a(f"- **API indisponible : dernier jeu de données valide en cache utilisé ({stats['es_cache']['age']:.1f} j)** : {stats['es_cache']['err']}")
         a(f"- Pages villes : {es['n_cities']} dont {es['n_index']} indexables ({es['n_auto']} ajoutées automatiquement) ; pages provinces : {es['n_dep']}.\n")
     elif stats.get("es_reused"):
         a(f"- **Source indisponible : {stats['es_reused']} pages indexables de la veille réutilisées** : {stats.get('es_err')}\n")
@@ -349,12 +398,12 @@ def main():
     # si des pages espagnoles enrichies étaient déjà publiées, pour ne pas les faire disparaître du site)
     es_cfg = pays_cfg["espagne"]
     es_legacy = [v for v in villes if v["pays"] == "espagne"]
-    es_res, es_err, es_reuse = None, None, False
+    es_res, es_err, es_reuse, es_cache = None, None, False, None
     old_paths = json.load(open(mp, encoding="utf-8")) if os.path.isfile(mp) else []
     es_prev = communes_auto.previous_slugs(old_paths, "espagne", render_es.DOSSIER)
     try:
         from geo import norm_name
-        es_stations, es_latest = data_es.load(args.data_es, known={norm_name(v["nom"]) for v in es_legacy})
+        es_stations, es_latest, es_cache = load_es(args, root, {norm_name(v["nom"]) for v in es_legacy})
         es_res = pipeline_i18n.build_country(render_es, es_cfg, es_legacy, es_stations, es_latest, es_prev)
     except Exception as e:  # source espagnole indisponible ou format inattendu
         es_err = f"{type(e).__name__}: {e}"
@@ -517,7 +566,7 @@ def main():
     stats = {"latest_txt": latest_txt, "n_index": len(idx), "n_noindex": len(cities) - len(idx), "fuel_pages": fuel_pages,
              "dep_list": dep_list, "reg_list": reg_list, "cities": cities, "n_stations": len(stations),
              "no_dep": [c["nom"] for c in cities if not c["dep_code"]], "hist_days": sorted(hist["days"]),
-             "n_auto": sum(1 for c in cities if c["v"].get("auto")), "es": es_res["info"] if es_res else None, "es_err": es_err, "es_reused": es_reused,
+             "n_auto": sum(1 for c in cities if c["v"].get("auto")), "es": es_res["info"] if es_res else None, "es_err": es_err, "es_reused": es_reused, "es_cache": es_cache,
              "it": it_res["info"] if it_res else None, "it_err": it_err, "it_reused": it_reused}
     write_report(root, ctx, stats, aud, sim)
     print(f"{len(cities)} villes FR ({len(idx)} indexables), {len(dep_list)} départements, {len(reg_list)} régions, "

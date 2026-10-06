@@ -185,6 +185,11 @@ def normalize(raw, known=()):
 
 def load(path=None, known=()):
     raw = json.load(open(path, encoding="utf-8")) if path else fetch()
+    return load_raw(raw, known)
+
+
+def load_raw(raw, known=()):
+    """Jeu brut (API, fichier local ou cache) -> (stations, date des données), avec le contrôle de plausibilité."""
     stations, latest = normalize(raw, known)
     DIAG["stations"] = len(stations)
     if len(stations) < MIN_STATIONS:
