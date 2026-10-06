@@ -3,7 +3,7 @@ import json
 from datetime import timezone
 
 from data_fr import FUELS, FUEL_LABEL, FUEL_SLUG
-from geo import fr_price, fr_eur, fr_km, fr_cents, plural, join_fr
+from geo import fr_price, fr_eur, fr_km, fr_cents, plural, join_fr, haversine
 from render_common import (SITE_URL, DATASET_URL, esc, rel, breadcrumb, item_list, faq_ld, faq_html,
                            fit_desc, shell, jsonld, strip_tags)
 from stats_fr import label, pretty, NEIGHBOR_MAX, RADIUS_KM, commune_ranking
@@ -178,7 +178,7 @@ def footer_boilerplate(cfg, cur):
 # ------------------------------------------------------------------ page ville
 
 def city_texts(c, ctx):
-    """Introduction, comparaisons, économies et FAQ : uniquement à partir des données de la ville."""
+    """Introduction et FAQ : uniquement à partir des données de la ville (comparaisons et économies : voir summary_section)."""
     nom = c["nom"]
     dv = de_ville(nom)
     F = c["fuels"]
@@ -188,7 +188,7 @@ def city_texts(c, ctx):
     intro = []
     if c["n_rad"] == 0:
         return ([f"Le jeu de données officiel ne référence aucune station-service dans un rayon de {RADIUS_KM} km autour {dv} : "
-                 "aucun prix n'est disponible pour cette zone à ce jour."], [], [], [])
+                 "aucun prix n'est disponible pour cette zone à ce jour."], [])
     s1 = f"{plural(c['n_rad'], 'station-service est référencée', 'stations-service sont référencées')} dans un rayon de {RADIUS_KM} km autour {dv}"
     if c["n_commune"] and c["n_commune"] != c["n_rad"]:
         s1 += f", dont {c['n_commune']} dans la commune elle-même"
@@ -218,33 +218,6 @@ def city_texts(c, ctx):
         intro.append("Les villes voisines couvertes par CarburantRadar les plus proches sont "
                      + join_fr([n["nom"] for n in nb[:3]]) + ".")
 
-    # comparaisons
-    comps = []
-    for f in ref_fuels(F, 3, min_n=3):
-        st = F[f]
-        t = (f"{FUEL_LABEL[f]} : le prix le plus bas relevé {where_short(c)} est de {fr_price(st['min'])} €/L, "
-             f"contre une moyenne locale de {fr_price(st['avg'])} €/L sur {st['n']} stations.")
-        d = dep["stats"]["fuels"].get(f) if dep else None
-        if d and d["n"] >= ctx["min_dep_compare"]:
-            t += (f" La moyenne des stations retenues dans le département {dep['name']} est de {fr_price(d['avg'])} €/L "
-                  f"({d['n']} stations) : la moyenne locale y est {cmp_phrase(st['avg'] - d['avg'])}.")
-            c.setdefault("compare_dep", True)
-        n = nat.get(f)
-        if n:
-            t += (f" Pour l'ensemble des stations du jeu de données, la moyenne nationale est de {fr_price(n['avg'])} €/L "
-                  f"({n['n']} stations) ; la moyenne locale est {cmp_phrase(st['avg'] - n['avg'])}.")
-        comps.append(t)
-
-    # économies
-    eco = []
-    for f in ref_fuels(F, 2, min_n=3):
-        st = F[f]
-        gap = round(st["max"] - st["min"], 3)
-        if gap > 0:
-            eco.append(f"{FUEL_LABEL[f]} : entre la station la moins chère ({fr_price(st['min'])} €/L) et la plus chère "
-                       f"({fr_price(st['max'])} €/L) de la zone, l'écart est de {fr_cents(gap)} centimes par litre, soit "
-                       f"{fr_eur(gap * 40)} € sur un plein de 40 L et {fr_eur(gap * 50)} € sur un plein de 50 L.")
-
     # FAQ
     faq = []
     rf = ref_fuels(F, 1)
@@ -269,18 +242,7 @@ def city_texts(c, ctx):
         faq.append((f"Quels carburants sont disponibles {a_ville(nom)} ?",
                     "Des prix sont relevés pour : " + join_fr([f"{FUEL_LABEL[f]} ({plural(F[f]['n'], 'station', 'stations')})"
                                                               for f in FUELS if f in F]) + f", {where(c)}."))
-        faq.append((f"Combien de stations-service y a-t-il autour {dv} ?",
-                    f"{plural(c['n_rad'], 'station est référencée', 'stations sont référencées')} dans un rayon de {RADIUS_KM} km"
-                    + (f", dont {c['n_commune']} dans la commune" if c["n_commune"] else "") + "."))
-        if eco:
-            f0 = ref_fuels(F, 2, min_n=3)
-            gap = round(F[f0[0]]["max"] - F[f0[0]]["min"], 3) if f0 else 0
-            if gap > 0:
-                faq.append((f"Comment trouver une station moins chère autour {dv} ?",
-                            f"Comparez les stations de la zone avec CarburantRadar : pour {FUEL_LE[f0[0]]}, l'écart entre la moins chère "
-                            f"et la plus chère atteint {fr_cents(gap)} centimes par litre, soit {fr_eur(gap * 40)} € sur 40 L, hors coût "
-                            f"du détour pour rejoindre la station."))
-    return intro, comps, eco, faq
+    return intro, faq
 
 
 def title_desc_city(c, ctx):
@@ -304,6 +266,83 @@ def title_desc_city(c, ctx):
     return t, fit_desc(parts)
 
 
+def _signed(diff):
+    """Écart signé en centimes par litre (moyenne locale moins moyenne de référence)."""
+    if abs(diff) < 0.0005:
+        return "0,0"
+    return ("+" if diff > 0 else "−") + fr_cents(abs(diff))
+
+
+def summary_section(c, ctx, cur):
+    """Un seul tableau : prix min / moyen / max, écart et économie sur un plein, comparaison département et France."""
+    F, nat = c["fuels"], ctx["nat"]
+    dep = ctx["dep_info"].get(c["dep_code"])
+    nom = c["nom"]
+    data = []
+    for f in FUELS:
+        if f not in F:
+            continue
+        st = F[f]
+        name = esc(FUEL_LABEL[f])
+        if (f, c["slug"]) in ctx["fuel_pages"]:
+            name = f'<a href="{FUEL_SLUG[f]}/">{name}</a>'
+        gap = round(st["max"] - st["min"], 3)
+        ok = st["n"] >= 3 and gap > 0
+        d = dep["stats"]["fuels"].get(f) if dep else None
+        n = nat.get(f)
+        data.append({
+            "name": name, "st": st, "gap": fr_cents(gap) if ok else "—", "plein": fr_eur(gap * 40) if ok else "—",
+            "dep": _signed(st["avg"] - d["avg"]) if d and d["n"] >= ctx["min_dep_compare"] and st["n"] >= 3 else "—",
+            "nat": _signed(st["avg"] - n["avg"]) if n and st["n"] >= 3 else "—"})
+    cols = [("Carburant", None), ("Le plus bas", "min"), ("Moyen", "avg"), ("Le plus haut", "max"), ("Stations", "n"),
+            ("Écart", "gap"), ("Plein 40 L", "plein"), ("vs dép.", "dep"), ("vs France", "nat")]
+    cols = [(h, k) for h, k in cols if k not in ("dep", "nat") or any(r[k] != "—" for r in data)]   # colonne entièrement vide : retirée
+    rows = []
+    for r in data:
+        st = r["st"]
+        cells = {"min": f'<td class="min">{fr_price(st["min"])}</td>', "avg": f'<td>{fr_price(st["avg"])}</td>',
+                 "max": f'<td class="max">{fr_price(st["max"])}</td>', "n": f'<td>{st["n"]}</td>'}
+        rows.append("<tr>" + "".join(f'<th scope="row">{r["name"]}</th>' if k is None else cells.get(k) or f"<td>{r[k]}</td>"
+                                     for _, k in cols) + "</tr>")
+    head = "".join(f'<th scope="col">{h}</th>' for h, _ in cols)
+    return (f'<section aria-labelledby="resume"><h2 id="resume">Prix, écarts et économies {a_ville(nom)}</h2>'
+            f'<div class="tablewrap"><table><caption>Prix en €/L des stations situées {where(c)} ; écarts en centimes par litre, '
+            f'plein en € d\'écart</caption><thead><tr>{head}</tr></thead><tbody>' + "".join(rows) + "</tbody></table></div>"
+            f'<p class="note">Écart = station la plus chère moins la moins chère ; « Plein 40 L » : ce que représente cet écart sur 40 L, hors coût '
+            f'du détour (le mode Trajet de <a href="{rel(cur, "/france/")}">l\'application CarburantRadar</a> arbitre entre prix et détour). '
+            f'« vs dép. » et « vs France » : moyenne locale moins moyenne du département et nationale.</p></section>')
+
+
+MAX_TABLE_STATIONS = 15
+MIN_TABLE_STATIONS = 4
+
+
+def stations_table_section(c, cur):
+    """Tableau des stations de la ville (adresse, distance, prix par carburant, 24h/24) : données propres à chaque ville."""
+    v, F = c["v"], c["fuels"]
+    if c["scope"] == "commune":
+        from enrich import _commune_stations
+        items = [(haversine(v["lat"], v["lon"], s["lat"], s["lon"]), s) for s in _commune_stations(c)]
+    else:
+        items = list(c["near"])
+    items = sorted(((d, s) for d, s in items if s["p"]), key=lambda t: (t[0], t[1]["id"]))
+    if len(items) < MIN_TABLE_STATIONS:
+        return ""
+    total, shown = len(items), items[:MAX_TABLE_STATIONS]
+    fuels = [f for f in FUELS if f in F]
+    head = ('<th scope="col">Adresse</th><th scope="col">Distance</th>'
+            + "".join(f'<th scope="col">{esc(FUEL_LABEL[f])}</th>' for f in fuels) + '<th scope="col">24h/24</th>')
+    rows = []
+    for d, s in shown:
+        cells = "".join(f'<td>{fr_price(s["p"][f]) if f in s["p"] else "—"}</td>' for f in fuels)
+        rows.append(f'<tr><td>{esc(label(s))}</td><td>{fr_km(d)}</td>{cells}<td>{"oui" if s["a24"] else "—"}</td></tr>')
+    cap = (f"{plural(total, 'station', 'stations')} avec un prix" if total <= MAX_TABLE_STATIONS
+           else f"{MAX_TABLE_STATIONS} stations les plus proches du centre sur {total}")
+    return (f'<section aria-labelledby="toutes"><h2 id="toutes">Stations-service {where_short(c)}</h2>'
+            f'<div class="tablewrap"><table><caption>Prix en €/L, {cap}</caption><thead><tr>{head}</tr></thead><tbody>'
+            + "".join(rows) + "</tbody></table></div></section>")
+
+
 def render_city(c, ctx):
     cfg = ctx["cfg"]
     v = c["v"]
@@ -320,7 +359,7 @@ def render_city(c, ctx):
     crumbs.append((nom, cur))
     nav, bc_ld = breadcrumb(cur, crumbs)
 
-    intro, comps, eco, faq = city_texts(c, ctx)
+    intro, faq = city_texts(c, ctx)
     title, desc = title_desc_city(c, ctx)
     F = c["fuels"]
     dv = de_ville(nom)
@@ -353,22 +392,7 @@ def render_city(c, ctx):
     m.append("</section>")
 
     if F:
-        # D. résumé des prix
-        m.append(f'<section aria-labelledby="resume"><h2 id="resume">Résumé des prix {a_ville(nom)}</h2>')
-        rows = []
-        for f in FUELS:
-            if f not in F:
-                continue
-            st = F[f]
-            name = esc(FUEL_LABEL[f])
-            if (f, c["slug"]) in ctx["fuel_pages"]:
-                name = f'<a href="{FUEL_SLUG[f]}/">{name}</a>'
-            rows.append(f'<tr><th scope="row">{name}</th><td class="min">{fr_price(st["min"])}</td><td>{fr_price(st["avg"])}</td>'
-                        f'<td class="max">{fr_price(st["max"])}</td><td>{st["n"]}</td></tr>')
-        m.append(f'<div class="tablewrap"><table><caption>Prix en €/L des stations situées {where(c)}</caption>'
-                 '<thead><tr><th scope="col">Carburant</th><th scope="col">Le plus bas</th><th scope="col">Moyen</th>'
-                 '<th scope="col">Le plus haut</th><th scope="col">Stations</th></tr></thead><tbody>' + "".join(rows) + "</tbody></table></div>")
-        m.append("</section>")
+        m.append(summary_section(c, ctx, cur))
 
         # E. stations les moins chères
         m.append(f'<section aria-labelledby="stations"><h2 id="stations">Les stations les moins chères {a_ville(nom)}</h2>')
@@ -379,16 +403,7 @@ def render_city(c, ctx):
             m.append(stations_list(F[f]["cheapest"][:3], cur, f))
         m.append('<p class="note">Le jeu de données officiel ne mentionne ni le nom ni l\'enseigne des stations : elles sont identifiées par leur adresse.</p></section>')
 
-        if comps:
-            m.append(f'<section aria-labelledby="comparaison"><h2 id="comparaison">Comparaison des prix autour {dv}</h2>')
-            m.extend(f"<p>{esc(t)}</p>" for t in comps)
-            m.append("</section>")
-        if eco:
-            m.append(f'<section aria-labelledby="economies"><h2 id="economies">Combien économiser sur un plein {a_ville(nom)} ?</h2>')
-            m.extend(f"<p>{esc(t)}</p>" for t in eco)
-            m.append(f'<p class="note">Cet écart est théorique : il ne comprend pas le coût du détour pour rejoindre la station la moins chère, '
-                     f'qui peut réduire voire annuler le gain. Le mode Trajet de <a href="{rel(cur, "/france/")}">l\'application CarburantRadar</a> '
-                     f'arbitre entre prix et détour.</p></section>')
+        m.append(stations_table_section(c, cur))
 
     # H. villes voisines
     nb = c.get("neighbors_shown", [])
@@ -413,7 +428,7 @@ def render_city(c, ctx):
     others = c.get("others_dep", [])
     if others:
         geo.append(f'<h3>Autres villes du département{" " + esc(dep["name"]) if dep else ""}</h3><ul class="plain">'
-                   + "".join(f'<li><a href="{rel(cur, "/france/prix-carburant/" + o["slug"] + "/")}">Prix du carburant {esc(a_ville(o["nom"]))}</a></li>' for o in others)
+                   + "".join(f'<li><a href="{rel(cur, "/france/prix-carburant/" + o["slug"] + "/")}">{esc(o["nom"])}</a></li>' for o in others)
                    + "</ul>")
     geo.append(f'<p><a href="{rel(cur, "/france/prix-carburant/")}">Toutes les villes couvertes en France</a></p>')
     m.append('<section aria-labelledby="geo"><h2 id="geo">Explorer par zone géographique</h2>' + "\n".join(geo) + "</section>")
