@@ -135,7 +135,7 @@ def _ts(s):
     return None
 
 
-def normalize(price_text, station_text):
+def normalize(price_text, station_text, fallback=None):
     extract, prows = rows(price_text, "idimpianto")
     best = {}                                    # (id, carburant) -> (self ?, prix, date)
     byk = {}                                     # (id, carburant, self ?) -> (prix, date) : le plus récent
@@ -167,7 +167,7 @@ def normalize(price_text, station_text):
     DIAG["price_rows"] = n_prices
     if latest is None:
         m = re.search(r"(\d{4}-\d{2}-\d{2})", extract)
-        latest = _ts(m.group(1)) if m else datetime.now(timezone.utc)
+        latest = _ts(m.group(1)) if m else (fallback or datetime.now(timezone.utc))
     limit = latest - timedelta(days=MAX_AGE_DAYS)
     prices, pself, pserv = {}, {}, {}
     for (sid, f), (is_self, p, d) in best.items():
@@ -207,14 +207,24 @@ def normalize(price_text, station_text):
     return stations, latest
 
 
+def fetch_raw():
+    """Téléchargement des deux CSV nationaux -> jeu brut {"price": texte, "station": texte} (mis en cache tel quel par generate.py)."""
+    return {"price": fetch_text(PRICE_FILE), "station": fetch_text(STATION_FILE)}
+
+
 def load(path=None):
     """`path` : dossier local contenant les deux CSV (tests) ; sinon téléchargement."""
     if path:
-        pt = open(os.path.join(path, PRICE_FILE), encoding="utf-8").read()
-        st = open(os.path.join(path, STATION_FILE), encoding="utf-8").read()
+        raw = {"price": open(os.path.join(path, PRICE_FILE), encoding="utf-8").read(),
+               "station": open(os.path.join(path, STATION_FILE), encoding="utf-8").read()}
     else:
-        pt, st = fetch_text(PRICE_FILE), fetch_text(STATION_FILE)
-    stations, latest = normalize(pt, st)
+        raw = fetch_raw()
+    return load_raw(raw)
+
+
+def load_raw(raw):
+    """Jeu brut (téléchargement, dossier local ou cache) -> (stations, date des données), avec le contrôle de plausibilité."""
+    stations, latest = normalize(raw["price"], raw["station"], fallback=_ts(raw.get("fetched", "")))
     DIAG["stations"] = len(stations)
     if len(stations) < MIN_STATIONS:
         raise RuntimeError(f"Trop peu de stations exploitables ({len(stations)}) ; diagnostic : {DIAG}")
