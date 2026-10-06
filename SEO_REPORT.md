@@ -1,32 +1,33 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 06/10/2026 00:46 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 06/10/2026 07:39 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 409 |
+| Pages France générées par le nouveau système | 418 |
 | Pages villes (France) | 181 dont 180 indexables et 1 en noindex |
 | — dont communes ajoutées automatiquement (hors villes.json) | 78 |
 | Pages départements | 81 |
 | Pages régions | 13 |
-| Pages ville + carburant | 133 |
-| — dont Gazole | 55 |
+| Pages ville + carburant | 142 |
+| — dont Gazole | 57 |
 | — dont SP95 | 2 |
-| — dont SP98 | 27 |
-| — dont E10 | 41 |
+| — dont SP98 | 30 |
+| — dont E10 | 45 |
 | — dont E85 | 7 |
 | — dont GPL | 1 |
 | Pages hub (liste des villes France) | 1 |
 | Pages Espagne / Italie (pipeline inchangé) | 1265 villes, 159 hubs |
 | URLs dans le sitemap | 1703 |
-| Stations analysées (jeu de données) | 9841 |
+| Stations analysées (jeu de données) | 9845 |
 | Jours d'historique enregistrés | 7 (du 2026-09-30 au 2026-10-06) |
 
 ## Espagne (pages enrichies)
 
-- **Source indisponible : 506 pages indexables de la veille réutilisées** : RuntimeError: Téléchargement impossible (<urlopen error [Errno 104] Connection reset by peer>) ; provinces en échec : ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52']
+- Source : API officielle du Ministerio ; 11502 stations exploitables ; données du 06/10/2026 06:04 UTC.
+- Pages villes : 456 dont 455 indexables (353 ajoutées automatiquement) ; pages provinces : 50.
 
 ## Italie (pages enrichies)
 
@@ -37,10 +38,10 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 409 / 409 |
-| Meta descriptions | 409 / 409 |
-| H1 | 409 / 409 |
-| Canonicals | 409 / 409 |
+| Titles | 418 / 418 |
+| Meta descriptions | 418 / 418 |
+| H1 | 418 / 418 |
+| Canonicals | 418 / 418 |
 
 ## Qualité du contenu
 
@@ -53,7 +54,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 4142 ; moyenne par page : 10.1
+- Liens internes distincts au total : 4229 ; moyenne par page : 10.1
 - Pages orphelines indexables : 0 ; pages noindex non liées : 2
 
 ## Pages les plus / moins riches (villes)
@@ -76,9 +77,9 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
-- Pages villes : contenu unique moyen 32 % (min 23 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages ville + carburant : contenu unique moyen 27 % (min 16 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 44 % (min 36 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages villes : contenu unique moyen 33 % (min 22 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages ville + carburant : contenu unique moyen 27 % (min 17 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 44 % (min 34 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
