@@ -6,12 +6,10 @@ avec la même portée (commune ou rayon), sont disponibles. Le fichier est conse
 import json
 import os
 
-from data_fr import FUELS, FUEL_LABEL
 from geo import fr_price, fr_cents
 from render_common import esc
-from render_fr import FUEL_LE, REF_ORDER, where_short, where
-from enrich import city_extras
-import extras
+from render_fr import FUEL_LE, where_short, where
+import fr_blocks
 
 HISTORY_DAYS = 30                                   # nombre de jours conservés
 HISTORY_PATH = os.path.join("france", "prix-carburant", "history.json")
@@ -75,25 +73,8 @@ def _delta(diff):
 
 
 def city_section(c, hist):
-    """Blocs HTML d'une page ville : sections de données (code postal, autoroute) puis « évolution » si l'historique le permet."""
-    scope = c["scope"][0]
-    lines = []
-    first_day = None
-    for f in [x for x in REF_ORDER if x in c["fuels"]][:3]:
-        s = series(hist, c["slug"], f, scope)
-        if len(s) < 2:
-            continue
-        (d0, a0, _, _), (d1, a1, _, _) = s[0], s[-1]
-        first_day = d0 if first_day is None or d0 < first_day else first_day
-        lines.append(f"{FUEL_LABEL[f]} : la moyenne relevée {where_short(c)} est passée de {fr_price(a0)} €/L le {fr_day(d0)} "
-                     f"à {fr_price(a1)} €/L le {fr_day(d1)}, soit {_delta(a1 - a0)}.")
-    evol = ""
-    if lines:
-        evol = ('<section aria-labelledby="evolution"><h2 id="evolution">Évolution récente des prix moyens</h2>'
-                + "".join(f"<p>{esc(t)}</p>" for t in lines)
-                + f'<p class="note">Historique enregistré par CarburantRadar chaque jour depuis le {fr_day(first_day)} (30 jours au maximum). '
-                  "Les jours sans relevé n'apparaissent pas.</p></section>\n")
-    return city_extras(c) + extras.sections(c, "fr") + evol
+    """Blocs HTML d'une page ville : sections de données (code postal, autoroute, répartition, équipements) puis « évolution » si l'historique le permet."""
+    return fr_blocks.city_blocks(c, hist, series, fr_day)
 
 
 def fuel_section(c, f, hist):
