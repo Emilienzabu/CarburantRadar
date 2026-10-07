@@ -129,50 +129,78 @@ def reuse_published(root, old_paths, prefix, hub):
     return entries
 
 
-# ---------------------------------------------------------------- Espagne : cache du dernier jeu de données valide
+# ---------------------------------------------------------------- Espagne / Italie : cache du dernier jeu de données valide
 
 ES_CACHE = "donnees/espagne-precios.json.gz"   # servi par le site, retéléchargé au run suivant (jamais commité)
+IT_CACHE = "donnees/italie-prezzi.json.gz"
 ES_CACHE_MAX_DAYS = int(os.environ.get("CR_ES_CACHE_DAYS", "3"))   # au-delà, les prix seraient trop anciens : on réutilise les pages de la veille
+IT_CACHE_MAX_DAYS = int(os.environ.get("CR_IT_CACHE_DAYS", "3"))
 
 
-def _keep_previous_cache(root):
+def _keep_previous_cache(root, rel):
     """Le cache n'est pas dans le dépôt : on recopie celui du site en ligne pour qu'il soit redéployé (échec silencieux)."""
     try:
-        datacache.write_bytes(root, ES_CACHE, datacache.download(ES_CACHE))
+        datacache.write_bytes(root, rel, datacache.download(rel))
     except Exception as e:
-        print(f"Cache ES précédent non conservé : {e}", file=sys.stderr)
+        print(f"Cache précédent non conservé ({rel}) : {e}", file=sys.stderr)
 
 
-def load_es(args, root, known):
-    """-> (stations, date des données, infos cache | None). API officielle ; à défaut, dernier jeu complet publié (<= ES_CACHE_MAX_DAYS jours)."""
+def load_with_cache(root, rel, max_days, fetch, parse, local=False, complete=None, stamp=None):
+    """-> (stations, date des données, infos cache | None).
+
+    `fetch()` -> jeu brut ; `parse(brut)` -> (stations, date) ; `complete()` : le jeu téléchargé est-il complet (sinon jamais mis en cache) ;
+    `stamp(brut, date)` : ajoute une date de téléchargement si le jeu n'en porte pas de fiable (sinon le cache ne pourrait jamais expirer).
+    Source indisponible -> dernier jeu complet publié (<= max_days jours) ; `local` (tests hors ligne) : aucun cache."""
     try:
-        raw = json.load(open(args.data_es, encoding="utf-8")) if args.data_es else data_es.fetch()
-        stations, latest = data_es.load_raw(raw, known)
-        if args.data_es:
+        raw = fetch()
+        stations, latest = parse(raw)
+        if local:
             return stations, latest, None
-        if data_es.DIAG.get("provinces_failed"):   # jeu incomplet : utilisable ce jour-là, mais jamais mis en cache
-            _keep_previous_cache(root)
+        if complete and not complete():   # jeu incomplet : utilisable ce jour-là, mais jamais mis en cache
+            _keep_previous_cache(root, rel)
             return stations, latest, None
-        if data_es._fecha(raw.get("Fecha")) is None:   # sans date fiable le cache ne pourrait jamais expirer : on date le téléchargement
-            from datetime import datetime, timezone
-            raw = dict(raw, Fecha=latest.astimezone(timezone.utc).strftime("%d/%m/%Y %H:%M:%S"))
-        datacache.save(root, ES_CACHE, raw)
+        datacache.save(root, rel, stamp(raw, latest) if stamp else raw)
         return stations, latest, None
     except Exception as e:
         err = f"{type(e).__name__}: {e}"
-    if args.data_es:
+    if local:
         raise RuntimeError(err)
     try:
-        blob = datacache.download(ES_CACHE)
-        stations, latest = data_es.load_raw(datacache.decode(blob), known)
+        blob = datacache.download(rel)
+        stations, latest = parse(datacache.decode(blob))
         from datetime import datetime, timezone
         age = (datetime.now(timezone.utc) - latest).total_seconds() / 86400
-        if age > ES_CACHE_MAX_DAYS:
+        if age > max_days:
             raise RuntimeError(f"cache trop ancien ({age:.1f} j)")
     except Exception as ce:
         raise RuntimeError(f"{err} ; cache indisponible ({ce})")
-    datacache.write_bytes(root, ES_CACHE, blob)   # inchangé : on le redéploie tel quel
+    datacache.write_bytes(root, rel, blob)   # inchangé : on le redéploie tel quel
     return stations, latest, {"err": err, "age": age}
+
+
+def load_es(args, root, known):
+    """Espagne : API officielle ; à défaut, dernier jeu complet publié."""
+    def stamp(raw, latest):
+        if data_es._fecha(raw.get("Fecha")) is None:
+            from datetime import timezone
+            raw = dict(raw, Fecha=latest.astimezone(timezone.utc).strftime("%d/%m/%Y %H:%M:%S"))
+        return raw
+    fetch = (lambda: json.load(open(args.data_es, encoding="utf-8"))) if args.data_es else data_es.fetch
+    return load_with_cache(root, ES_CACHE, ES_CACHE_MAX_DAYS, fetch, lambda raw: data_es.load_raw(raw, known),
+                           local=bool(args.data_es), complete=lambda: not data_es.DIAG.get("provinces_failed"), stamp=stamp)
+
+
+def load_it(args, root):
+    """Italie : CSV du MIMIT ; à défaut, dernier jeu publié."""
+    def stamp(raw, latest):
+        from datetime import timezone
+        return dict(raw, fetched=latest.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
+    if args.data_it:
+        fetch = lambda: {"price": open(os.path.join(args.data_it, data_it.PRICE_FILE), encoding="utf-8").read(),
+                         "station": open(os.path.join(args.data_it, data_it.STATION_FILE), encoding="utf-8").read()}
+    else:
+        fetch = data_it.fetch_raw
+    return load_with_cache(root, IT_CACHE, IT_CACHE_MAX_DAYS, fetch, data_it.load_raw, local=bool(args.data_it), stamp=stamp)
 
 
 # ---------------------------------------------------------------- nettoyage des pages qui ne sont plus générées
@@ -299,6 +327,8 @@ def write_report(root, ctx, stats, aud, sim):
     it = stats.get("it")
     if it:
         a(f"- Source : CSV du MIMIT ; {it['n_stations']} stations exploitables ; données du {it['latest'].strftime('%d/%m/%Y %H:%M UTC')}.")
+        if stats.get("it_cache"):
+            a(f"- **Source indisponible : dernier jeu de données valide en cache utilisé ({stats['it_cache']['age']:.1f} j)** : {stats['it_cache']['err']}")
         a(f"- Pages villes : {it['n_cities']} dont {it['n_index']} indexables ({it['n_auto']} ajoutées automatiquement) ; pages provinces : {it['n_dep']}.\n")
     elif stats.get("it_reused"):
         a(f"- **Source indisponible : {stats['it_reused']} pages indexables de la veille réutilisées** : {stats.get('it_err')}\n")
@@ -412,10 +442,10 @@ def main():
     # 1 ter) Italie : même principe que l'Espagne (CSV du MIMIT)
     it_cfg = pays_cfg["italie"]
     it_legacy = [v for v in villes if v["pays"] == "italie"]
-    it_res, it_err, it_reuse = None, None, False
+    it_res, it_err, it_reuse, it_cache = None, None, False, None
     it_prev = communes_auto.previous_slugs(old_paths, "italie", render_it.DOSSIER)
     try:
-        it_stations, it_latest = data_it.load(args.data_it)
+        it_stations, it_latest, it_cache = load_it(args, root)
         it_res = pipeline_i18n.build_country(render_it, it_cfg, it_legacy, it_stations, it_latest, it_prev)
     except Exception as e:  # source italienne indisponible ou format inattendu
         it_err = f"{type(e).__name__}: {e}"
@@ -567,7 +597,7 @@ def main():
              "dep_list": dep_list, "reg_list": reg_list, "cities": cities, "n_stations": len(stations),
              "no_dep": [c["nom"] for c in cities if not c["dep_code"]], "hist_days": sorted(hist["days"]),
              "n_auto": sum(1 for c in cities if c["v"].get("auto")), "es": es_res["info"] if es_res else None, "es_err": es_err, "es_reused": es_reused, "es_cache": es_cache,
-             "it": it_res["info"] if it_res else None, "it_err": it_err, "it_reused": it_reused}
+             "it": it_res["info"] if it_res else None, "it_err": it_err, "it_reused": it_reused, "it_cache": it_cache}
     write_report(root, ctx, stats, aud, sim)
     print(f"{len(cities)} villes FR ({len(idx)} indexables), {len(dep_list)} départements, {len(reg_list)} régions, "
           f"{len(fuel_pages)} pages carburant, {len(entries)} URLs au sitemap.")
