@@ -184,7 +184,6 @@ def city_texts(c, ctx):
     F = c["fuels"]
     dep = ctx["dep_info"].get(c["dep_code"])
     reg = ctx["reg_info"].get(c["reg_code"])
-    nat = ctx["nat"]
     intro = []
     if c["n_rad"] == 0:
         return ([f"Le jeu de données officiel ne référence aucune station-service dans un rayon de {RADIUS_KM} km autour {dv} : "
@@ -201,16 +200,7 @@ def city_texts(c, ctx):
     elif dep:
         intro.append(f"Département : {dep['name']} ({dep['code']}).")
     if F:
-        names = fuel_names(F)
-        rf = ref_fuels(F, 1)[0]
-        st = F[rf]
-        s = f"{plural(len(F), 'carburant est relevé', 'carburants sont relevés')} : {names}. "
-        s += (f"Pour {FUEL_LE[rf]}, le prix le plus bas est de {fr_price(st['min'])} €/L pour un prix moyen de "
-              f"{fr_price(st['avg'])} €/L sur {plural(st['n'], 'station', 'stations')} {where(c)}")
-        if st["n"] >= 3 and st["max"] > st["min"]:
-            s += f", avec un écart de {fr_cents(st['max'] - st['min'])} centimes par litre entre la moins chère et la plus chère"
-        s += "."
-        intro.append(s)
+        intro.append(f"{plural(len(F), 'carburant est relevé', 'carburants sont relevés')} : {fuel_names(F)}. Les prix, écarts et économies sont détaillés dans le tableau ci-dessous.")
     else:
         intro.append("Aucun prix n'est disponible dans les données pour cette zone à ce jour.")
     nb = c.get("neighbors_shown", [])
@@ -236,12 +226,9 @@ def city_texts(c, ctx):
         parts = []
         for f in ref_fuels(F, 3):
             p, d, s = F[f]["cheapest"][0]
-            parts.append(f"pour {FUEL_LE[f]}, {label(s)} ({fr_price(p)} €/L)")
+            parts.append(f"{FUEL_LABEL[f]} : {label(s)} ({fr_price(p)} €/L)")
         faq.append((f"Quelle est la station la moins chère {a_ville(nom)} ?",
-                    f"Dans les données actuelles, {join_fr(parts, 'et')}. La station peut varier selon le carburant."))
-        faq.append((f"Quels carburants sont disponibles {a_ville(nom)} ?",
-                    "Des prix sont relevés pour : " + join_fr([f"{FUEL_LABEL[f]} ({plural(F[f]['n'], 'station', 'stations')})"
-                                                              for f in FUELS if f in F]) + f", {where(c)}."))
+                    f"{join_fr(parts, 'et')}."))
     return intro, faq
 
 
@@ -295,7 +282,7 @@ def summary_section(c, ctx, cur):
             "dep": _signed(st["avg"] - d["avg"]) if d and d["n"] >= ctx["min_dep_compare"] and st["n"] >= 3 else "—",
             "nat": _signed(st["avg"] - n["avg"]) if n and st["n"] >= 3 else "—"})
     cols = [("Carburant", None), ("Le plus bas", "min"), ("Moyen", "avg"), ("Le plus haut", "max"), ("Stations", "n"),
-            ("Écart", "gap"), ("Plein 40 L", "plein"), ("vs dép.", "dep"), ("vs France", "nat")]
+            ("Écart", "gap"), ("Écart sur 40 L", "plein"), ("vs dép.", "dep"), ("vs France", "nat")]
     cols = [(h, k) for h, k in cols if k not in ("dep", "nat") or any(r[k] != "—" for r in data)]   # colonne entièrement vide : retirée
     rows = []
     for r in data:
@@ -308,8 +295,8 @@ def summary_section(c, ctx, cur):
     return (f'<section aria-labelledby="resume"><h2 id="resume">Prix, écarts et économies {a_ville(nom)}</h2>'
             f'<div class="tablewrap"><table><caption>Prix en €/L des stations situées {where(c)} ; écarts en centimes par litre, '
             f'plein en € d\'écart</caption><thead><tr>{head}</tr></thead><tbody>' + "".join(rows) + "</tbody></table></div>"
-            f'<p class="note">Écart = station la plus chère moins la moins chère ; « Plein 40 L » : ce que représente cet écart sur 40 L, hors coût '
-            f'du détour (le mode Trajet de <a href="{rel(cur, "/france/")}">l\'application CarburantRadar</a> arbitre entre prix et détour). '
+            f'<p class="note">Écart = station la plus chère moins la moins chère, hors coût du détour (le mode Trajet de '
+            f'<a href="{rel(cur, "/france/")}">l\'application CarburantRadar</a> arbitre entre prix et détour). '
             f'« vs dép. » et « vs France » : moyenne locale moins moyenne du département et nationale.</p></section>')
 
 
@@ -341,6 +328,40 @@ def stations_table_section(c, cur):
     return (f'<section aria-labelledby="toutes"><h2 id="toutes">Stations-service {where_short(c)}</h2>'
             f'<div class="tablewrap"><table><caption>Prix en €/L, {cap}</caption><thead><tr>{head}</tr></thead><tbody>'
             + "".join(rows) + "</tbody></table></div></section>")
+
+
+def _cheapest_cell(price, dist, s, f, first, cur):
+    meta = [f"{fr_price(price)}&nbsp;€/L"]
+    if dist is not None and dist > 0:
+        meta.append(fr_km(dist))
+    d = fmt_date_str(s["m"].get(f))
+    if d:
+        meta.append(d[:5])
+    if s["a24"]:
+        meta.append("24h/24")
+    name = esc(label(s))
+    if s["id"]:
+        name = f'<a href="https://www.prix-carburants.gouv.fr/station/{esc(s["id"])}" rel="noopener">{name}</a>'
+    extra = (f' · <a href="https://www.google.com/maps/dir/?api=1&amp;destination={s["lat"]},{s["lon"]}" rel="noopener">Itinéraire</a>' if first else "")
+    return f'<td>{name}<br>{" · ".join(meta)}{extra}</td>'
+
+
+def cheapest_section(c, cur):
+    """Les 3 stations les moins chères par carburant, en tableau (adresse liée à la fiche officielle, prix, distance, date du relevé)."""
+    F, nom = c["fuels"], c["nom"]
+    rows = []
+    for f in FUELS:
+        if f not in F:
+            continue
+        top = F[f]["cheapest"][:3]
+        cells = "".join(_cheapest_cell(p, d, s, f, i == 0, cur) for i, (p, d, s) in enumerate(top)) + "<td></td>" * (3 - len(top))
+        rows.append(f'<tr><th scope="row">{esc(FUEL_LABEL[f])}</th>{cells}</tr>')
+    return (f'<section aria-labelledby="stations"><h2 id="stations">Les stations les moins chères {a_ville(nom)}</h2>'
+            '<div class="tablewrap"><table><caption>Les 3 stations les moins chères par carburant : prix, distance au centre, jour du relevé</caption>'
+            '<thead><tr><th scope="col">Carburant</th><th scope="col">1re</th><th scope="col">2e</th><th scope="col">3e</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table></div>'
+            '<p class="note">Le jeu de données officiel ne mentionne ni le nom ni l\'enseigne des stations : elles sont identifiées par leur adresse '
+            '(lien vers la fiche officielle).</p></section>')
 
 
 def render_city(c, ctx):
@@ -394,29 +415,24 @@ def render_city(c, ctx):
     if F:
         m.append(summary_section(c, ctx, cur))
 
-        # E. stations les moins chères
-        m.append(f'<section aria-labelledby="stations"><h2 id="stations">Les stations les moins chères {a_ville(nom)}</h2>')
-        for f in FUELS:
-            if f not in F:
-                continue
-            m.append(f"<h3>{esc(FUEL_LABEL[f])}</h3>")
-            m.append(stations_list(F[f]["cheapest"][:3], cur, f))
-        m.append('<p class="note">Le jeu de données officiel ne mentionne ni le nom ni l\'enseigne des stations : elles sont identifiées par leur adresse.</p></section>')
+        # E. stations les moins chères (tableau : 3 premières stations par carburant)
+        m.append(cheapest_section(c, cur))
 
         m.append(stations_table_section(c, cur))
 
-    # H. villes voisines
+    # H. villes voisines (tableau)
     nb = c.get("neighbors_shown", [])
     if nb:
-        m.append(f'<section aria-labelledby="voisines"><h2 id="voisines">Prix du carburant dans les villes proches {dv}</h2><ul class="plain">')
+        rows = []
         for n in nb:
-            extra = []
             rf = ref_fuels(n["fuels"], 1)
-            if rf:
-                extra.append(f"{FUEL_LABEL[rf[0]]} dès {fr_price(n['fuels'][rf[0]]['min'])} €/L")
-            m.append(f'<li><a href="{rel(cur, "/france/prix-carburant/" + n["slug"] + "/")}">Prix du carburant {esc(a_ville(n["nom"]))}</a>'
-                     f' — à {fr_km(n["dist"])}{" · " + esc(", ".join(extra)) if extra else ""}</li>')
-        m.append("</ul></section>")
+            cell = f"{esc(FUEL_LABEL[rf[0]])} {fr_price(n['fuels'][rf[0]]['min'])}&nbsp;€/L" if rf else "—"
+            rows.append(f'<tr><th scope="row"><a href="{rel(cur, "/france/prix-carburant/" + n["slug"] + "/")}">{esc(n["nom"])}</a></th>'
+                        f'<td>{fr_km(n["dist"])}</td><td>{cell}</td></tr>')
+        m.append(f'<section aria-labelledby="voisines"><h2 id="voisines">Prix du carburant dans les villes proches {dv}</h2>'
+                 '<div class="tablewrap"><table><caption>Villes couvertes les plus proches : distance et prix le plus bas</caption>'
+                 '<thead><tr><th scope="col">Ville</th><th scope="col">Distance</th><th scope="col">Dès</th></tr></thead>'
+                 f'<tbody>{"".join(rows)}</tbody></table></div></section>')
 
     # I. département / région / autres villes
     geo = []
