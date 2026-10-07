@@ -265,17 +265,21 @@ def prune_stale(root):
 
 # ---------------------------------------------------------------- sitemap / robots
 
+SITEMAP_FILES = ("sitemap_1.xml", "sitemap_2.xml")   # le dernier est celui annoncé dans robots.txt
+
+
 def write_sitemap(root, entries):
     out = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     for loc, freq, prio, lastmod in entries:
         out += f"  <url>\n    <loc>{loc}</loc>\n" + (f"    <lastmod>{lastmod}</lastmod>\n" if lastmod else "") \
                + f"    <changefreq>{freq}</changefreq>\n    <priority>{prio}</priority>\n  </url>\n"
     out += "</urlset>\n"
-    with open(os.path.join(root, "sitemap_1.xml"), "w", encoding="utf-8", newline="\n") as f:
-        f.write(out)
+    for name in SITEMAP_FILES:   # contenu identique : sitemap_1.xml reste servi (URL déjà connue de Search Console), sitemap_2.xml est le nom à soumettre
+        with open(os.path.join(root, name), "w", encoding="utf-8", newline="\n") as f:
+            f.write(out)
     rp = os.path.join(root, "robots.txt")
     txt = open(rp, encoding="utf-8").read() if os.path.isfile(rp) else "User-agent: *\nAllow: /\nDisallow: /admin/\n"
-    line = f"Sitemap: {SITE_URL}/sitemap_1.xml"
+    line = f"Sitemap: {SITE_URL}/{SITEMAP_FILES[-1]}"
     txt = re.sub(r"(?im)^sitemap:.*$", line, txt) if re.search(r"(?im)^sitemap:", txt) else txt.rstrip("\n") + "\n\n" + line + "\n"
     with open(rp, "w", encoding="utf-8", newline="\n") as f:
         f.write(txt)
