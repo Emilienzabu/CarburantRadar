@@ -143,7 +143,33 @@ def fit_desc(parts, limit=158):
     return out
 
 
+TITLE_MAX = 65   # au-delà, Bing (Site Scan) signale « titre trop long » et Google tronque l'affichage
+_SHORTEN = [     # du plus léger au plus fort ; appliqué seulement tant que le titre dépasse TITLE_MAX
+    (" | CarburantRadar", ""),
+    ("gasolineras más baratas", "gasolineras baratas"), ("distributori più economici", "distributori economici"),
+    (" : moyennes et stations", " : moyennes"), (": medias y gasolineras", ": medias"), (": medie e distributori", ": medie"),
+    (" : moyennes par département", " : moyennes"),
+    ("Prix du carburant département ", "Prix carburant "), ("Prix du carburant région ", "Prix carburant "),
+    ("Prix du carburant à ", "Prix carburant "),
+    ("Precio gasolina y diésel en ", "Precio gasolina en "), ("Prezzo benzina e gasolio ", "Prezzo benzina "),
+    ("Precio del carburante en la provincia de ", "Precio carburante en "), ("Prezzo del carburante in provincia di ", "Carburante in provincia di "),
+    ("Precio del carburante en ", "Carburante en "), ("Prezzo del carburante ", "Carburante "),
+]
+
+
+def fit_title(title, limit=TITLE_MAX):
+    """Garde-fou : ramène un titre à `limit` caractères au plus (règles de raccourcissement, puis coupe au dernier mot entier)."""
+    for old, new in _SHORTEN:
+        if len(title) <= limit:
+            return title
+        title = title.replace(old, new, 1)
+    if len(title) > limit:
+        title = title[:limit + 1].rsplit(" ", 1)[0].rstrip(" :,;-(")
+    return title
+
+
 def shell(*, lang, title, desc, canonical, robots, cur, head_extra, body, script=""):
+    title = fit_title(title)
     icon = rel(cur, "/icons/icon-192.png").rstrip("/")
     return f"""<!DOCTYPE html>
 <html lang="{lang}">
