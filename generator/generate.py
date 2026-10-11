@@ -26,6 +26,7 @@ sys.path.insert(0, BASE)
 import audit  # noqa: E402
 import communes_auto  # noqa: E402
 import datacache  # noqa: E402
+import indexnow  # noqa: E402
 import data_es  # noqa: E402
 import extras  # noqa: E402
 import data_fr  # noqa: E402
@@ -339,6 +340,12 @@ def write_report(root, ctx, stats, aud, sim):
     else:
         a(f"- **Source indisponible, pages historiques conservées** : {stats.get('it_err')}")
         a(f"- Diagnostic : {data_it.DIAG}\n")
+    a("## IndexNow (Bing, Yandex, Naver, Seznam)\n")
+    ix = stats.get("indexnow")
+    if ix:
+        a(f"- {ix['n']} URLs signalées ; réponses HTTP : {', '.join(str(c) for c in ix['codes'])} (200 ou 202 = accepté).\n")
+    else:
+        a("- Non exécuté (hors GitHub Actions, désactivé ou erreur d'audit).\n")
     a("## Unicité des balises (pages générées France)\n")
     def uniq(key):
         vals = [gen[p][key] for p in gen]
@@ -596,12 +603,16 @@ def main():
     # 5) audit + rapport
     aud = audit.audit(root)
     sim = audit.similarity(aud["info"])
+    # IndexNow : uniquement en production (GitHub Actions), sans erreur d'audit ; jamais bloquant
+    ix = None
+    if not aud["errors"] and os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("CR_INDEXNOW", "1") != "0":
+        ix = indexnow.run(root, [e[0] for e in entries])
     latest_txt = latest.astimezone(__import__("datetime").timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
     stats = {"latest_txt": latest_txt, "n_index": len(idx), "n_noindex": len(cities) - len(idx), "fuel_pages": fuel_pages,
              "dep_list": dep_list, "reg_list": reg_list, "cities": cities, "n_stations": len(stations),
              "no_dep": [c["nom"] for c in cities if not c["dep_code"]], "hist_days": sorted(hist["days"]),
              "n_auto": sum(1 for c in cities if c["v"].get("auto")), "es": es_res["info"] if es_res else None, "es_err": es_err, "es_reused": es_reused, "es_cache": es_cache,
-             "it": it_res["info"] if it_res else None, "it_err": it_err, "it_reused": it_reused, "it_cache": it_cache}
+             "it": it_res["info"] if it_res else None, "it_err": it_err, "it_reused": it_reused, "it_cache": it_cache, "indexnow": ix}
     write_report(root, ctx, stats, aud, sim)
     print(f"{len(cities)} villes FR ({len(idx)} indexables), {len(dep_list)} départements, {len(reg_list)} régions, "
           f"{len(fuel_pages)} pages carburant, {len(entries)} URLs au sitemap.")
