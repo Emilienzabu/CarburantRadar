@@ -1,6 +1,6 @@
 // Service Worker CarburantRadar — gère le cache, les notifications push et le clic dessus.
 // Version du cache : à incrémenter à chaque modification majeure pour forcer la mise à jour
-const CACHE_NAME = 'carburant-radar-v2.1.1';
+const CACHE_NAME = 'carburant-radar-v2.2.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -125,28 +125,33 @@ self.addEventListener('push', function(event) {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Gestion du clic sur les notifications (inchangé, mais avec gestion du cache)
+// Gestion du clic sur les notifications : ouvre l'app du pays qui a reçu la notification, directement sur la station concernée.
+// (Avant, l'URL relative './' pointait vers la racine du site /CarburantRadar/ et non vers /france/, /espagne/ ou /italie/ :
+// la station n'était jamais affichée quand l'app était fermée.)
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   var d = event.notification.data || {};
   var stationId = d.stationId || null;
-  var url = './';
-  if (stationId) {
-    url = './#station=' + stationId + ((d.lat != null && d.lon != null) ? ('&lat=' + d.lat + '&lon=' + d.lon) : '');
-  }
+  // Le scope de ce service worker est l'app du pays concerné (…/france/, …/espagne/ ou …/italie/)
+  var scope = self.registration.scope;
+  var hash = stationId
+    ? '#station=' + encodeURIComponent(stationId) + ((d.lat != null && d.lon != null) ? ('&lat=' + d.lat + '&lon=' + d.lon) : '')
+    : '';
+  // Le paramètre ?notif=1 force un vrai rechargement : un simple changement de #fragment ne relancerait pas la lecture de la station par l'app
+  var url = stationId ? (scope + '?notif=1' + hash) : scope;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      var c = null;
       for (var i = 0; i < clientList.length; i++) {
-        if ('focus' in clientList[i]) {
-          // Envoyer un message au client pour lui dire quelle station afficher
-          clientList[i].postMessage({
-            type: 'NOTIFICATION_CLICK',
-            stationId: stationId,
-            lat: d.lat,
-            lon: d.lon
-          });
-          return clientList[i].focus();
-        }
+        if (clientList[i].url.indexOf(scope) === 0 && 'focus' in clientList[i]) { c = clientList[i]; break; }
+      }
+      if (c) {
+        // App déjà ouverte : on la recharge sur la station ; si le navigateur refuse, repli sur un message à la page
+        var nav = (stationId && 'navigate' in c) ? c.navigate(url) : Promise.reject(new Error('no navigate'));
+        return nav.then(function(w) { return (w || c).focus(); }, function() {
+          c.postMessage({ type: 'NOTIFICATION_CLICK', stationId: stationId, lat: d.lat, lon: d.lon });
+          return c.focus();
+        });
       }
       if (clients.openWindow) return clients.openWindow(url);
     })
