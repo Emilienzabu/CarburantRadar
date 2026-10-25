@@ -27,6 +27,7 @@ import audit  # noqa: E402
 import communes_auto  # noqa: E402
 import datacache  # noqa: E402
 import indexnow  # noqa: E402
+import app_patches  # noqa: E402
 import data_es  # noqa: E402
 import extras  # noqa: E402
 import data_fr  # noqa: E402
@@ -346,6 +347,10 @@ def write_report(root, ctx, stats, aud, sim):
         a(f"- {ix['n']} URLs signalées ; réponses HTTP : {', '.join(str(c) for c in ix['codes'])} (200 ou 202 = accepté).\n")
     else:
         a("- Non exécuté (hors GitHub Actions, désactivé ou erreur d'audit).\n")
+    a("## Correctifs appliqués aux applications\n")
+    for pays, statut in (stats.get("app_patches") or {}).items():
+        a(f"- {pays} : économie nette du trajet aller-retour : {statut}")
+    a("")
     a("## Unicité des balises (pages générées France)\n")
     def uniq(key):
         vals = [gen[p][key] for p in gen]
@@ -600,7 +605,8 @@ def main():
     H.save(root, hist)
     prune_stale(root)
 
-    # 5) audit + rapport
+    # 5) correctifs appliqués aux applications (voir app_patches.py), puis audit + rapport
+    app_fix = app_patches.apply(root)
     aud = audit.audit(root)
     sim = audit.similarity(aud["info"])
     # IndexNow : uniquement en production (GitHub Actions), sans erreur d'audit ; jamais bloquant
@@ -612,7 +618,7 @@ def main():
              "dep_list": dep_list, "reg_list": reg_list, "cities": cities, "n_stations": len(stations),
              "no_dep": [c["nom"] for c in cities if not c["dep_code"]], "hist_days": sorted(hist["days"]),
              "n_auto": sum(1 for c in cities if c["v"].get("auto")), "es": es_res["info"] if es_res else None, "es_err": es_err, "es_reused": es_reused, "es_cache": es_cache,
-             "it": it_res["info"] if it_res else None, "it_err": it_err, "it_reused": it_reused, "it_cache": it_cache, "indexnow": ix}
+             "it": it_res["info"] if it_res else None, "it_err": it_err, "it_reused": it_reused, "it_cache": it_cache, "indexnow": ix, "app_patches": app_fix}
     write_report(root, ctx, stats, aud, sim)
     print(f"{len(cities)} villes FR ({len(idx)} indexables), {len(dep_list)} départements, {len(reg_list)} régions, "
           f"{len(fuel_pages)} pages carburant, {len(entries)} URLs au sitemap.")
