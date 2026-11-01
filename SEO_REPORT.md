@@ -1,57 +1,56 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 28/10/2026 12:09 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 01/11/2026 16:20 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 420 |
+| Pages France générées par le nouveau système | 395 |
 | Pages villes (France) | 182 dont 180 indexables et 2 en noindex |
 | — dont communes ajoutées automatiquement (hors villes.json) | 79 |
-| Pages départements | 81 |
+| Pages départements | 80 |
 | Pages régions | 13 |
-| Pages ville + carburant | 143 |
-| — dont Gazole | 62 |
+| Pages ville + carburant | 119 |
+| — dont Gazole | 50 |
 | — dont SP95 | 2 |
-| — dont SP98 | 29 |
-| — dont E10 | 41 |
-| — dont E85 | 9 |
+| — dont SP98 | 23 |
+| — dont E10 | 34 |
+| — dont E85 | 10 |
 | — dont GPL | 0 |
 | Pages hub (liste des villes France) | 1 |
-| Pages Espagne / Italie (pipeline inchangé) | 1269 villes, 159 hubs |
-| URLs dans le sitemap | 1707 |
-| Stations analysées (jeu de données) | 9820 |
-| Jours d'historique enregistrés | 29 (du 2026-09-30 au 2026-10-28) |
+| Pages Espagne / Italie (pipeline inchangé) | 561 villes, 52 hubs |
+| URLs dans le sitemap | 891 |
+| Stations analysées (jeu de données) | 9815 |
+| Jours d'historique enregistrés | 30 (du 2026-09-30 au 2026-11-01) |
 
 ## Espagne (pages enrichies)
 
-- Source : API officielle du Ministerio ; 11411 stations exploitables ; données du 27/10/2026 10:44 UTC.
-- **API indisponible : dernier jeu de données valide en cache utilisé (1.0 j)** : RuntimeError: Téléchargement impossible (<urlopen error [Errno 104] Connection reset by peer>) ; provinces en échec : ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52']
+- Source : API officielle du Ministerio ; 11422 stations exploitables ; données du 01/11/2026 15:49 UTC.
 - Pages villes : 458 dont 457 indexables (355 ajoutées automatiquement) ; pages provinces : 50.
 
 ## Italie (pages enrichies)
 
-- **Source indisponible : 919 pages indexables de la veille réutilisées** : RuntimeError: RuntimeError: Téléchargement impossible de prezzo_alle_8.csv (<urlopen error timed out>) ; cache indisponible (https://emilienzabu.github.io/CarburantRadar/donnees/italie-prezzi.json.gz : HTTP Error 404: Not Found)
+- **Source indisponible : 104 pages indexables de la veille réutilisées** : RuntimeError: RuntimeError: Téléchargement impossible de prezzo_alle_8.csv (<urlopen error timed out>) ; cache indisponible (https://carburantradar.fr/donnees/italie-prezzi.json.gz : HTTP Error 404: Not Found)
 
 ## IndexNow (Bing, Yandex, Naver, Seznam)
 
-- 1707 URLs signalées ; réponses HTTP : api.indexnow.org 200 (200 ou 202 = accepté).
+- 383 URLs signalées ; réponses HTTP : api.indexnow.org 403 {"errorCode":"SiteVerificationNotCompleted","message":"Site Verification is not completed. Please wait for some time for the verification to → www.bing.com 403 {"errorCode":"SiteVerificationNotCompleted","message":"Site Verification is not completed. Please wait for some time for the verification to (200 ou 202 = accepté).
 
 ## Correctifs appliqués aux applications
 
-- france : économie nette du trajet aller-retour : appliqué
-- espagne : économie nette du trajet aller-retour : appliqué
-- italie : économie nette du trajet aller-retour : appliqué
+- france : véhicules et classement par coût total : appliqué
+- espagne : véhicules et classement par coût total : appliqué
+- italie : véhicules et classement par coût total : appliqué
 
 ## Unicité des balises (pages générées France)
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 420 / 420 |
-| Meta descriptions | 420 / 420 |
-| H1 | 420 / 420 |
-| Canonicals | 420 / 420 |
+| Titles | 395 / 395 |
+| Meta descriptions | 395 / 395 |
+| H1 | 395 / 395 |
+| Canonicals | 395 / 395 |
 
 ## Qualité du contenu
 
@@ -64,22 +63,22 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 4212 ; moyenne par page : 10.0
+- Liens internes distincts au total : 4000 ; moyenne par page : 10.1
 - Pages orphelines indexables : 0 ; pages noindex non liées : 3
 
 ## Pages les plus / moins riches (villes)
 
 | Plus riches | Score | Stations | Carburants |
 |---|---|---|---|
-| Allauch | 100 | 75 | 6 |
-| Asnières-sur-Seine | 100 | 178 | 6 |
+| Allauch | 100 | 76 | 6 |
+| Asnières-sur-Seine | 100 | 177 | 6 |
 | Cergy | 100 | 53 | 6 |
-| Clichy | 100 | 187 | 6 |
-| Drancy | 100 | 144 | 6 |
+| Clichy | 100 | 186 | 6 |
+| Drancy | 100 | 143 | 6 |
 
 | Moins riches | Score | Stations | Carburants |
 |---|---|---|---|
-| Ivry-sur-Seine | 43 | 3 | 4 |
+| Belfort | 41 | 6 | 5 |
 | La Rochelle | 44 | 4 | 4 |
 | Troyes | 45 | 5 | 4 |
 | Orléans | 45 | 5 | 4 |
@@ -87,15 +86,20 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
-- Pages villes : contenu unique moyen 49 % (min 37 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages ville + carburant : contenu unique moyen 31 % (min 20 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 43 % (min 35 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages villes : contenu unique moyen 50 % (min 37 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages ville + carburant : contenu unique moyen 33 % (min 19 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 44 % (min 34 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
-- Erreurs : 0 ; avertissements : 3
+- Erreurs : 0 ; avertissements : 8
+  - avertissement / : canonical incorrect ('https://emilienzabu.github.io/CarburantRadar/', attendu 'https://carburantradar.fr/')
   - avertissement /espagne/ : 5 balises H1
+  - avertissement /espagne/ : canonical incorrect ('https://emilienzabu.github.io/CarburantRadar/espagne/', attendu 'https://carburantradar.fr/espagne/')
   - avertissement /france/ : 5 balises H1
+  - avertissement /france/ : canonical incorrect ('https://emilienzabu.github.io/CarburantRadar/france/', attendu 'https://carburantradar.fr/france/')
+  - avertissement /guide/ : canonical incorrect ('https://emilienzabu.github.io/CarburantRadar/guide/', attendu 'https://carburantradar.fr/guide/')
   - avertissement /italie/ : 5 balises H1
+  - avertissement /italie/ : canonical incorrect ('https://emilienzabu.github.io/CarburantRadar/italie/', attendu 'https://carburantradar.fr/italie/')
 - Test lien France : `/france/prix-carburant/avignon/` + `../../` → `/france/` (OK)
 
