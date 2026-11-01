@@ -349,7 +349,7 @@ def write_report(root, ctx, stats, aud, sim):
         a("- Non exécuté (hors GitHub Actions, désactivé ou erreur d'audit).\n")
     a("## Correctifs appliqués aux applications\n")
     for pays, statut in (stats.get("app_patches") or {}).items():
-        a(f"- {pays} : économie nette du trajet aller-retour : {statut}")
+        a(f"- {pays} : véhicules et classement par coût total : {statut}")
     a("")
     a("## Unicité des balises (pages générées France)\n")
     def uniq(key):
