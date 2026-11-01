@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Raccourci racine : `python generate.py` lance generator/generate.py (mêmes options : --data, --root).
 
-Repli ajouté : si la source espagnole/italienne est HS, qu'aucun cache n'existe et que les pages publiées ne sont pas
-récupérables, on publie les pages historiques de ce pays au lieu de faire échouer tout le run (le reste du site est mis à jour).
+Ajouts :
+- repli : si la source espagnole/italienne est HS, qu'aucun cache n'existe et que les pages publiées ne sont pas
+  récupérables, on publie les pages historiques de ce pays au lieu de faire échouer tout le run ;
+- domaine : toute référence à l'ancienne URL github.io encore écrite en dur dans le générateur (pages ES/IT, sitemap)
+  est réécrite vers le domaine actuel (g.SITE_URL) au moment de l'écriture.
 """
 import json
 import os
@@ -14,7 +17,20 @@ sys.path.insert(0, GEN)
 
 import generate as g  # noqa: E402  (generator/generate.py)
 
+OLD_SITE = "https://emilienzabu.github.io/CarburantRadar"
+NEW_SITE = g.SITE_URL
+
+_orig_write = g.write
+_orig_sitemap = g.write_sitemap
 _orig_reuse = g.reuse_published
+
+
+def _write(root, urlpath, html):
+    _orig_write(root, urlpath, html.replace(OLD_SITE, NEW_SITE))
+
+
+def _write_sitemap(root, entries):
+    _orig_sitemap(root, [(e[0].replace(OLD_SITE, NEW_SITE),) + tuple(e[1:]) for e in entries])
 
 
 def _reuse_or_legacy(root, old_paths, prefix, hub):
@@ -37,6 +53,8 @@ def _reuse_or_legacy(root, old_paths, prefix, hub):
         return entries
 
 
+g.write = _write
+g.write_sitemap = _write_sitemap
 g.reuse_published = _reuse_or_legacy
 
 if __name__ == "__main__":
