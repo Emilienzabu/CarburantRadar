@@ -1,21 +1,21 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 01/11/2026 16:20 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 01/11/2026 16:46 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 395 |
+| Pages France générées par le nouveau système | 393 |
 | Pages villes (France) | 182 dont 180 indexables et 2 en noindex |
 | — dont communes ajoutées automatiquement (hors villes.json) | 79 |
 | Pages départements | 80 |
 | Pages régions | 13 |
-| Pages ville + carburant | 119 |
+| Pages ville + carburant | 117 |
 | — dont Gazole | 50 |
 | — dont SP95 | 2 |
 | — dont SP98 | 23 |
-| — dont E10 | 34 |
+| — dont E10 | 32 |
 | — dont E85 | 10 |
 | — dont GPL | 0 |
 | Pages hub (liste des villes France) | 1 |
@@ -26,16 +26,17 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Espagne (pages enrichies)
 
-- Source : API officielle du Ministerio ; 11422 stations exploitables ; données du 01/11/2026 15:49 UTC.
+- Source : API officielle du Ministerio ; 11422 stations exploitables ; données du 01/11/2026 16:13 UTC.
 - Pages villes : 458 dont 457 indexables (355 ajoutées automatiquement) ; pages provinces : 50.
 
 ## Italie (pages enrichies)
 
-- **Source indisponible : 104 pages indexables de la veille réutilisées** : RuntimeError: RuntimeError: Téléchargement impossible de prezzo_alle_8.csv (<urlopen error timed out>) ; cache indisponible (https://carburantradar.fr/donnees/italie-prezzi.json.gz : HTTP Error 404: Not Found)
+- **Source indisponible, pages historiques conservées** : RuntimeError: RuntimeError: Téléchargement impossible de prezzo_alle_8.csv (<urlopen error timed out>) ; cache indisponible (https://carburantradar.fr/donnees/italie-prezzi.json.gz : HTTP Error 404: Not Found)
+- Diagnostic : {}
 
 ## IndexNow (Bing, Yandex, Naver, Seznam)
 
-- 383 URLs signalées ; réponses HTTP : api.indexnow.org 403 {"errorCode":"SiteVerificationNotCompleted","message":"Site Verification is not completed. Please wait for some time for the verification to → www.bing.com 403 {"errorCode":"SiteVerificationNotCompleted","message":"Site Verification is not completed. Please wait for some time for the verification to (200 ou 202 = accepté).
+- 383 URLs signalées ; réponses HTTP : api.indexnow.org 200 (200 ou 202 = accepté).
 
 ## Correctifs appliqués aux applications
 
@@ -47,10 +48,10 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 395 / 395 |
-| Meta descriptions | 395 / 395 |
-| H1 | 395 / 395 |
-| Canonicals | 395 / 395 |
+| Titles | 393 / 393 |
+| Meta descriptions | 393 / 393 |
+| H1 | 393 / 393 |
+| Canonicals | 393 / 393 |
 
 ## Qualité du contenu
 
@@ -63,7 +64,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 4000 ; moyenne par page : 10.1
+- Liens internes distincts au total : 3982 ; moyenne par page : 10.1
 - Pages orphelines indexables : 0 ; pages noindex non liées : 3
 
 ## Pages les plus / moins riches (villes)
@@ -86,9 +87,9 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
-- Pages villes : contenu unique moyen 50 % (min 37 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages ville + carburant : contenu unique moyen 33 % (min 19 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 44 % (min 34 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages villes : contenu unique moyen 50 % (min 38 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages ville + carburant : contenu unique moyen 34 % (min 19 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 44 % (min 35 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
