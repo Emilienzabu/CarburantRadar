@@ -4,7 +4,7 @@ import json
 import posixpath
 import re
 
-SITE_URL = "https://emilienzabu.github.io/CarburantRadar"
+SITE_URL = "https://carburantradar.fr"
 DATASET_URL = "https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/"
 GTAG = """<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-VNKWD96SLL"></script>

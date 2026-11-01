@@ -8,7 +8,7 @@ from collections import Counter, defaultdict
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
 
-SITE_URL = "https://emilienzabu.github.io/CarburantRadar"
+SITE_URL = "https://carburantradar.fr"
 LEGACY = {"/", "/france/", "/espagne/", "/italie/", "/guide/"}
 SKIP_DIRS = {".git", ".github", "admin", "icons", "node_modules", "generator"}
 MIN_WORDS = 250
