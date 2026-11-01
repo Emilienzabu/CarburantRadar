@@ -1,6 +1,6 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 01/11/2026 16:46 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 01/11/2026 17:05 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
@@ -27,6 +27,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 ## Espagne (pages enrichies)
 
 - Source : API officielle du Ministerio ; 11422 stations exploitables ; données du 01/11/2026 16:13 UTC.
+- **API indisponible : dernier jeu de données valide en cache utilisé (0.0 j)** : RuntimeError: Téléchargement impossible (<urlopen error [Errno 104] Connection reset by peer>) ; provinces en échec : ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52']
 - Pages villes : 458 dont 457 indexables (355 ajoutées automatiquement) ; pages provinces : 50.
 
 ## Italie (pages enrichies)
@@ -89,7 +90,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 - Pages villes : contenu unique moyen 50 % (min 38 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 - Pages ville + carburant : contenu unique moyen 34 % (min 19 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 44 % (min 35 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 44 % (min 34 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
