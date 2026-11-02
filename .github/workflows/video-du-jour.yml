@@ -2,21 +2,37 @@ name: Vidéo du jour
 
 on:
   schedule:
-    - cron: "30 5 * * *"   # 05:30 UTC = 6h30 (hiver) / 7h30 (été) à Paris, avec un éventuel retard de GitHub
+    # 2 publications par jour. Heures en UTC : 6h40 = 7h40 (hiver) / 8h40 (été) à Paris, publication environ 20 min plus tard.
+    - cron: "40 6 * * *"    # matin
+    - cron: "40 16 * * *"   # soir (17h40 hiver / 18h40 été)
   workflow_dispatch:
     inputs:
       publier:
         description: "Publier sur YouTube et Instagram ? (décoché = génère seulement la vidéo à télécharger)"
         type: boolean
         default: false
+      format:
+        description: "Format (planning = celui prévu pour ce créneau)"
+        type: choice
+        options: [planning, ville, classement, astuce]
+        default: planning
+      creneau:
+        description: "Créneau (auto = selon l'heure de Paris)"
+        type: choice
+        options: [auto, matin, soir]
+        default: auto
       ville:
-        description: "Ville (ex. marseille). Vide = rotation du jour"
+        description: "Ville (ex. marseille), pour le format ville. Vide = selon le planning"
         required: false
         default: ""
       carburant:
-        description: "gazole, e10 ou sp98. Vide = rotation du jour"
+        description: "Carburant : gazole, e10, sp98, e85 ou gpl. Vide = selon le planning"
         required: false
         default: ""
+
+concurrency:
+  group: video-du-jour
+  cancel-in-progress: false
 
 jobs:
   video:
@@ -39,14 +55,18 @@ jobs:
           VIDEO_API_KEY: ${{ secrets.VIDEO_API_KEY }}
           EVENEMENT: ${{ github.event_name }}
           PUBLIER: ${{ inputs.publier }}
+          FORMAT: ${{ inputs.format }}
+          CRENEAU: ${{ inputs.creneau }}
           VILLE: ${{ inputs.ville }}
           CARBURANT: ${{ inputs.carburant }}
         run: |
-          ARGS=""
-          if [ "$EVENEMENT" = "schedule" ] || [ "$PUBLIER" = "true" ]; then ARGS="$ARGS --publier"; fi
-          if [ -n "$VILLE" ]; then ARGS="$ARGS --ville $VILLE"; fi
-          if [ -n "$CARBURANT" ]; then ARGS="$ARGS --carburant $CARBURANT"; fi
-          python video/generate_video.py $ARGS
+          ARGS=()
+          if [ "$EVENEMENT" = "schedule" ] || [ "$PUBLIER" = "true" ]; then ARGS+=(--publier); fi
+          if [ -n "$FORMAT" ] && [ "$FORMAT" != "planning" ]; then ARGS+=(--format "$FORMAT"); fi
+          if [ -n "$CRENEAU" ]; then ARGS+=(--creneau "$CRENEAU"); fi
+          if [ -n "$VILLE" ]; then ARGS+=(--ville "$VILLE"); fi
+          if [ -n "$CARBURANT" ]; then ARGS+=(--carburant "$CARBURANT"); fi
+          python video/generate_video.py "${ARGS[@]}"
 
       - name: Garder la vidéo pour la télécharger
         if: always()
