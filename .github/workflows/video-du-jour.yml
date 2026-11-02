@@ -1,0 +1,58 @@
+name: Vidéo du jour
+
+on:
+  schedule:
+    - cron: "30 5 * * *"   # 05:30 UTC = 6h30 (hiver) / 7h30 (été) à Paris, avec un éventuel retard de GitHub
+  workflow_dispatch:
+    inputs:
+      publier:
+        description: "Publier sur YouTube et Instagram ? (décoché = génère seulement la vidéo à télécharger)"
+        type: boolean
+        default: false
+      ville:
+        description: "Ville (ex. marseille). Vide = rotation du jour"
+        required: false
+        default: ""
+      carburant:
+        description: "gazole, e10 ou sp98. Vide = rotation du jour"
+        required: false
+        default: ""
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer ffmpeg et les dépendances
+        run: |
+          command -v ffmpeg >/dev/null || (sudo apt-get update -y && sudo apt-get install -y ffmpeg)
+          pip install -r video/requirements.txt
+
+      - name: Générer la vidéo (et la publier si demandé)
+        env:
+          VIDEO_API_KEY: ${{ secrets.VIDEO_API_KEY }}
+          EVENEMENT: ${{ github.event_name }}
+          PUBLIER: ${{ inputs.publier }}
+          VILLE: ${{ inputs.ville }}
+          CARBURANT: ${{ inputs.carburant }}
+        run: |
+          ARGS=""
+          if [ "$EVENEMENT" = "schedule" ] || [ "$PUBLIER" = "true" ]; then ARGS="$ARGS --publier"; fi
+          if [ -n "$VILLE" ]; then ARGS="$ARGS --ville $VILLE"; fi
+          if [ -n "$CARBURANT" ]; then ARGS="$ARGS --carburant $CARBURANT"; fi
+          python video/generate_video.py $ARGS
+
+      - name: Garder la vidéo pour la télécharger
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-du-jour
+          path: video/sortie/video-du-jour.mp4
+          retention-days: 7
+          if-no-files-found: ignore
