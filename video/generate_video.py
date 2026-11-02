@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Vidéo du jour CarburantRadar : prix réels -> vidéo 9:16 avec voix, musique -> publication YouTube + Instagram.
+"""Vidéo du jour CarburantRadar : prix réels -> vidéo 9:16 avec voix d'homme et musique -> YouTube + Instagram.
+
+Deux publications par jour (créneau "matin" et "soir"), trois formats qui alternent :
+  ville       prix d'une ville pour un carburant (top 3, économie sur un plein)
+  classement  les villes les moins chères parmi les plus grandes
+  astuce      conseil général (sans chiffres)
 
 Exemples :
-  python video/generate_video.py --demo                      # essai sans réseau (données factices, voix si dispo)
-  python video/generate_video.py                             # ville/carburant du jour, génère video/sortie/video-du-jour.mp4
-  python video/generate_video.py --ville marseille --carburant gazole
-  python video/generate_video.py --publier                   # envoie au Worker (clé dans VIDEO_API_KEY)
+  python video/generate_video.py --demo --format classement   # essai sans réseau pour les prix
+  python video/generate_video.py                              # contenu prévu pour ce créneau, sans publier
+  python video/generate_video.py --publier                    # idem + envoi au Worker (clé dans VIDEO_API_KEY)
+  python video/generate_video.py --format ville --ville marseille --carburant gazole
 """
 import argparse
 import datetime as dt
@@ -15,6 +20,7 @@ import re
 import sys
 import tempfile
 import unicodedata
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -35,13 +41,13 @@ def log(msg):
 
 
 def normaliser_ville(s):
-    """'Aix-en-Provence' / 'aix en provence' -> 'aix-en-provence'."""
+    """'Aix en Provence' / 'Saint-Étienne' -> 'aix-en-provence' / 'saint-etienne'."""
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower().strip()
     return re.sub(r"[^a-z0-9]+", "-", s).strip("-")
 
 
-ALIAS_CARBURANT = {"sp95": "e10", "sp95-e10": "e10", "sans-plomb": "e10", "super": "e10",
-                   "diesel": "gazole", "gasoil": "gazole"}
+ALIAS_CARBURANT = {"sp95": "e10", "sp95-e10": "e10", "sans-plomb": "e10", "super": "e10", "diesel": "gazole",
+                   "gasoil": "gazole", "gpl": "gplc", "ethanol": "e85"}
 
 
 def normaliser_carburant(s):
@@ -67,22 +73,35 @@ def assurer_polices(dossier):
             log(f"Police {nom} non téléchargée ({e}), police de secours utilisée.")
 
 
-def trouver_info(args):
+def construire(plan, k, args):
+    """Récupère les données du jour et renvoie l'info à mettre en vidéo."""
     if args.demo:
-        return donnees.info_demo()
-    for ville, carburant in donnees.choisir(dt.date.today(), args.ville, args.carburant)[:8]:
-        try:
-            stations = donnees.recuperer_stations(ville, carburant)
-        except Exception as e:
-            log(f"{ville['nom']} : récupération impossible ({e})")
-            continue
-        info = donnees.construire_info(ville, carburant, stations)
+        return donnees.info_demo(plan["format"])
+    if plan["format"] == "astuce":
+        return donnees.construire_astuce(plan["astuce"])
+    if plan["format"] == "classement":
+        info = donnees.recuperer_classement(plan["carburant"], log)
         if info:
-            log(f"{ville['nom']} / {carburant} : {info['n_stations']} stations, "
-                f"min {info['prix_min']:.3f} € moy {info['prix_moy']:.3f} € max {info['prix_max']:.3f} €")
+            log(f"Classement {plan['carburant']} : {info['n_villes']} villes, 1er {info['villes'][0]['nom']}")
             return info
-        log(f"{ville['nom']} : pas assez de stations avec un prix récent, ville suivante.")
-    raise SystemExit("Aucune ville exploitable aujourd'hui : rien n'est publié.")
+        log("Classement impossible (pas assez de villes avec des prix récents) : repli sur une ville.")
+        plan = donnees.plan_du_jour(k, "ville", None, plan["carburant"])
+
+    carburants = list(dict.fromkeys([plan["carburant"], "gazole"]))  # carburant rare introuvable -> gazole
+    for fuel in carburants:
+        for ville in plan["villes"]:
+            try:
+                stations = donnees.recuperer_stations(ville, fuel)
+            except Exception as e:
+                log(f"{ville['nom']} : récupération impossible ({e})")
+                continue
+            info = donnees.construire_ville(ville, fuel, stations)
+            if info:
+                log(f"{ville['nom']} / {fuel} : {info['n_stations']} stations, "
+                    f"min {info['prix_min']:.3f} € moy {info['prix_moy']:.3f} € max {info['prix_max']:.3f} €")
+                return info
+            log(f"{ville['nom']} / {fuel} : pas assez de stations avec un prix récent.")
+    raise SystemExit("Aucune ville exploitable : rien n'est publié.")
 
 
 def publier(chemin, info, cle):
@@ -113,6 +132,8 @@ def publier(chemin, info, cle):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--demo", action="store_true", help="données factices (aucun accès réseau pour les prix)")
+    p.add_argument("--format", choices=["ville", "classement", "astuce"], help="vide = selon le planning")
+    p.add_argument("--creneau", choices=["auto", "matin", "soir"], default="auto")
     p.add_argument("--ville", type=normaliser_ville)
     p.add_argument("--carburant", type=normaliser_carburant)
     p.add_argument("--publier", action="store_true")
@@ -121,40 +142,45 @@ def main():
     p.add_argument("--png", help="temps en secondes séparés par des virgules : enregistre des images de contrôle")
     args = p.parse_args()
 
+    maintenant = dt.datetime.now(ZoneInfo("Europe/Paris"))
+    creneau = args.creneau if args.creneau != "auto" else ("matin" if maintenant.hour < 13 else "soir")
+    k = maintenant.date().toordinal() * 2 + (1 if creneau == "soir" else 0)
+
     polices = os.path.join(HERE, "fonts")
     assurer_polices(polices)
     icone = os.path.join(HERE, "..", "icons", "icon-512.png")
     if not os.path.isfile(icone):
         icone = os.path.join(HERE, "icon-512.png")
 
-    info = trouver_info(args)
-    jour = dt.date.today().toordinal()
+    plan = donnees.plan_du_jour(k, args.format, args.ville, args.carburant)
+    log(f"Créneau {creneau}, publication n°{k}, format {plan['format']}")
+    info = construire(plan, k, args)
 
     scenes_def = donnees.scenes_texte(info)
     with tempfile.TemporaryDirectory() as tmp:
         clips = audio.synth_clips(scenes_def, tmp, args.voix, log)
+        if args.publier and any(c is None for c in clips):
+            raise SystemExit("Voix indisponible : rien n'est publié (une vidéo sans voix ne serait pas au niveau). "
+                             "Relance le workflow un peu plus tard.")
         scenes = audio.planifier(scenes_def, clips)
         total = scenes[-1]["start"] + scenes[-1]["dur"]
         detail = ", ".join("%s %.1fs" % (s["id"], s["dur"]) for s in scenes)
         log(f"Durée : {total:.1f} s ({detail})")
 
         wav = os.path.join(tmp, "audio.wav")
-        audio.ecrire_wav(wav, audio.mixer(scenes, clips, seed=jour))
+        audio.ecrire_wav(wav, audio.mixer(scenes, clips, seed=k))
 
         rend = rendu.Renderer(info, scenes, polices, icone)
+        os.makedirs(os.path.dirname(args.sortie), exist_ok=True)
         if args.png:
-            os.makedirs(os.path.dirname(args.sortie), exist_ok=True)
             for t in args.png.split(","):
                 out = os.path.join(os.path.dirname(args.sortie), f"image_{float(t):05.1f}.png")
                 rend.save_png(float(t), out)
                 log(f"Image : {out}")
             return
-
-        os.makedirs(os.path.dirname(args.sortie), exist_ok=True)
         rend.encode(wav, args.sortie, log)
 
-    taille = os.path.getsize(args.sortie) / 1e6
-    log(f"Vidéo prête : {args.sortie} ({taille:.1f} Mo)")
+    log(f"Vidéo prête : {args.sortie} ({os.path.getsize(args.sortie) / 1e6:.1f} Mo)")
 
     if args.publier:
         cle = os.environ.get("VIDEO_API_KEY")
