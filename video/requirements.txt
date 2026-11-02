@@ -2,4 +2,3 @@ pillow
 numpy
 requests
 edge-tts
-gTTS
