@@ -11,8 +11,10 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import sys
 import tempfile
+import unicodedata
 
 import requests
 
@@ -30,6 +32,24 @@ POLICES_URL = "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/"
 
 def log(msg):
     print(msg, flush=True)
+
+
+def normaliser_ville(s):
+    """'Aix-en-Provence' / 'aix en provence' -> 'aix-en-provence'."""
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower().strip()
+    return re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+
+
+ALIAS_CARBURANT = {"sp95": "e10", "sp95-e10": "e10", "sans-plomb": "e10", "super": "e10",
+                   "diesel": "gazole", "gasoil": "gazole"}
+
+
+def normaliser_carburant(s):
+    c = normaliser_ville(s)
+    c = ALIAS_CARBURANT.get(c, c)
+    if c not in donnees.CARBURANTS:
+        raise argparse.ArgumentTypeError(f"carburant inconnu : {s!r}. Possibles : {', '.join(donnees.CARBURANTS)}")
+    return c
 
 
 def assurer_polices(dossier):
@@ -93,8 +113,8 @@ def publier(chemin, info, cle):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--demo", action="store_true", help="données factices (aucun accès réseau pour les prix)")
-    p.add_argument("--ville")
-    p.add_argument("--carburant", choices=list(donnees.CARBURANTS))
+    p.add_argument("--ville", type=normaliser_ville)
+    p.add_argument("--carburant", type=normaliser_carburant)
     p.add_argument("--publier", action="store_true")
     p.add_argument("--sortie", default=os.path.join(HERE, "sortie", "video-du-jour.mp4"))
     p.add_argument("--voix", default=audio.VOIX_DEFAUT)
