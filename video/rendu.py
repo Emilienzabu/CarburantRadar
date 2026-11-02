@@ -238,16 +238,64 @@ class Renderer:
             d.text((w * s // 2, (h // 2 - 2) * s), text, font=self.F.get("bold", 74 * s), fill=DARK, anchor="mm")
         return make_sprite(w, h, fn)
 
+    def rank_row(self, rank, nom, prix, best):
+        w, h = 920, 150
+
+        def fn(d, s):
+            fill = (22, 38, 36, 255) if best else (*SURFACE, 255)
+            border = GOOD if best else BORDER
+            d.rounded_rectangle((0, 0, w * s - 1, h * s - 1), radius=36 * s, fill=border)
+            d.rounded_rectangle((3 * s, 3 * s, w * s - 1 - 3 * s, h * s - 1 - 3 * s), radius=33 * s, fill=fill)
+            cx, cy, r = 84 * s, (h // 2) * s, 40 * s
+            d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=GOOD if best else BORDER)
+            d.text((cx, cy - 2 * s), str(rank), font=self.F.get("bold", 46 * s), fill=DARK if best else TEXT, anchor="mm")
+            fn_ = self.F.get("bold", 54 * s)
+            d.text((156 * s, (h // 2) * s), truncate(nom, fn_, 440 * s), font=fn_, fill=GOOD if best else TEXT, anchor="lm")
+            d.text(((w - 40) * s, (h // 2) * s), fr_prix3(prix) + " €", font=self.F.get("bold", 58 * s),
+                   fill=GOOD if best else TEXT, anchor="rm")
+        return make_sprite(w, h, fn)
+
+    def tip_card(self, n, text, active):
+        w, h = 920, 230
+        f = self.F.get("bold", 44 * SS)
+        lines = wrap(text, f, 690 * SS)[:3]
+
+        def fn(d, s):
+            fill = (40, 32, 16, 255) if active else (*SURFACE, 255)
+            border = ACCENT if active else BORDER
+            d.rounded_rectangle((0, 0, w * s - 1, h * s - 1), radius=38 * s, fill=border)
+            d.rounded_rectangle((3 * s, 3 * s, w * s - 1 - 3 * s, h * s - 1 - 3 * s), radius=35 * s, fill=fill)
+            cx, cy, r = 84 * s, (h // 2) * s, 46 * s
+            d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=ACCENT if active else BORDER)
+            d.text((cx, cy - 2 * s), str(n), font=self.F.get("bold", 54 * s), fill=DARK if active else TEXT, anchor="mm")
+            ff = self.F.get("bold", 44 * s)
+            lh = 58
+            y0 = (h - lh * len(lines)) // 2 + lh // 2
+            for i, line in enumerate(lines):
+                d.text((160 * s, (y0 + i * lh) * s), line, font=ff, fill=TEXT if active else MUTED, anchor="lm")
+        return make_sprite(w, h, fn)
+
     def _prepare_sprites(self):
         info, S = self.info, self.sprites
-        S["pill"] = self.pill(f"{info['carburant_label'].upper()} · {info['ville'].upper()}", ACCENT)
-        S["cards"] = [self.card(i + 1, s["prix"], s["adresse"], s["prix"] - info["top3"][0]["prix"], i == 0)
-                      for i, s in enumerate(info["top3"])]
-        S["row_moy"] = self.row("Station moyenne", fr_eur(info["cout_moy"]) + " €", MUTED)
-        S["row_min"] = self.row("La moins chère", fr_eur(info["cout_min"]) + " €", GOOD)
+        fmt = info["format"]
+        S["pill"] = self.pill(info["hook_pill"], ACCENT)
+        if fmt == "ville":
+            S["cards"] = [self.card(i + 1, s["prix"], s["adresse"], s["prix"] - info["top3"][0]["prix"], i == 0)
+                          for i, s in enumerate(info["top3"])]
+            S["row_moy"] = self.row("Station moyenne", fr_eur(info["cout_moy"]) + " €", MUTED)
+            S["row_min"] = self.row("La moins chère", fr_eur(info["cout_min"]) + " €", GOOD)
+        elif fmt == "classement":
+            S["rank_rows"] = [self.rank_row(i + 1, v["nom"], v["prix_moy"], i == 0) for i, v in enumerate(info["villes"])]
+        else:
+            S["tip_off"] = [self.tip_card(i + 1, t, False) for i, t in enumerate(info["points"])]
+            S["tip_on"] = [self.tip_card(i + 1, t, True) for i, t in enumerate(info["points"])]
+            ft = self.F.get("semibold", 50)
+            S["tip_title"] = wrap(info["titre"], ft, 900)
+            fh = self.F.get("bold", 88)
+            S["tiphook_lines"] = wrap(info["titre"], fh, 900)
         S["button"] = self.button("carburantradar.fr")
         for sc in self.scenes:
-            sc["cap"] = self.caption(sc["caption"])
+            sc["cap"] = self.caption(sc["caption"]) if sc.get("caption") else None
         if self.icon:
             big = self.icon.resize((300, 300), Image.LANCZOS)
             mask = make_sprite(300, 300, lambda d, s: d.rounded_rectangle((0, 0, 300 * s - 1, 300 * s - 1), radius=72 * s, fill=(255, 255, 255, 255)))
@@ -260,8 +308,10 @@ class Renderer:
         d.text(xy, text, font=self.F.get(weight, size), fill=mix(color, alpha), anchor=anchor)
 
     def _caption(self, img, sc, tl, y=1380):
+        cap = sc.get("cap")
+        if cap is None:
+            return
         a = ease_out((tl - 0.35) / 0.35)
-        cap = sc["cap"]
         paste(img, cap, (W - cap.width) // 2, y + (1 - a) * 24, a)
 
     def _scene_hook(self, img, tl, dur, sc):
@@ -279,7 +329,7 @@ class Renderer:
         a2 = ease_out((tl - 1.1) / 0.5)
         self.text_c(d, (W // 2, 1065 + (1 - a2) * 30), "d'écart sur un plein de 50 L", "semibold", 56, TEXT, a2)
         a3 = ease_out((tl - 1.5) / 0.5)
-        self.text_c(d, (W // 2, 1145 + (1 - a3) * 30), "selon la station", "medium", 50, MUTED, a3)
+        self.text_c(d, (W // 2, 1145 + (1 - a3) * 30), self.info["hook_l2"], "medium", 50, MUTED, a3)
         self._caption(img, sc, tl)
 
     def _scene_top3(self, img, tl, dur, sc):
@@ -311,6 +361,45 @@ class Renderer:
         paste(img, S["row_moy"], (W - 920) // 2, 1030 + (1 - a1) * 40, a1)
         paste(img, S["row_min"], (W - 920) // 2, 1160 + (1 - a2) * 40, a2)
         self._caption(img, sc, tl, y=1340)
+
+    def _scene_rank(self, img, tl, dur, sc):
+        d = ImageDraw.Draw(img)
+        rows = self.sprites["rank_rows"]
+        a = ease_out(tl / 0.4)
+        self.text_c(d, (W // 2, 340 + (1 - a) * 30), "Les 5 villes les moins chères", "semibold", 56, TEXT, a)
+        for i, rw in enumerate(rows):
+            t0 = 0.3 + i * 0.55
+            p = ease_out((tl - t0) / 0.5)
+            paste(img, rw, (W - rw.width) // 2 + (1 - p) * 180, 430 + i * 168, p)
+        a4 = ease_out((tl - 3.2) / 0.5)
+        self.text_c(d, (W // 2, 1292), "Prix moyen des stations, autour du centre-ville", "medium", 34, MUTED, a4)
+        self._caption(img, sc, tl, y=1350)
+
+    def _scene_tiphook(self, img, tl, dur, sc):
+        d = ImageDraw.Draw(img)
+        S = self.sprites
+        a = ease_out(tl / 0.45)
+        pill = S["pill"]
+        paste(img, pill, (W - pill.width) // 2, 470 + (1 - a) * 40, a)
+        lines = S["tiphook_lines"]
+        lh = 112
+        y0 = 880 - (len(lines) - 1) * lh // 2
+        for i, line in enumerate(lines):
+            p = ease_out((tl - 0.25 - i * 0.22) / 0.5)
+            self.text_c(d, (W // 2, y0 + i * lh + (1 - p) * 40), line, "bold", 88, TEXT, p)
+
+    def _scene_tip(self, img, tl, dur, sc):
+        d = ImageDraw.Draw(img)
+        S = self.sprites
+        idx = sc["idx"]
+        for i, line in enumerate(S["tip_title"]):
+            self.text_c(d, (W // 2, 370 + i * 64), line, "semibold", 50, MUTED)
+        for i in range(idx + 1):
+            if i == idx:
+                p = ease_out(tl / 0.5)
+                paste(img, S["tip_on"][i], (W - 920) // 2 + (1 - p) * 160, 560 + i * 290, p)
+            else:
+                paste(img, S["tip_off"][i], (W - 920) // 2, 560 + i * 290, 0.55)
 
     def _scene_cta(self, img, tl, dur, sc):
         d = ImageDraw.Draw(img)
@@ -345,17 +434,20 @@ class Renderer:
         if prog > 0.005:
             d.rounded_rectangle((70, 262, 70 + int(940 * prog), 268), radius=3, fill=ACCENT)
 
-        sc = self.scenes[-1]
-        for s in self.scenes:
+        idx = len(self.scenes) - 1
+        for i, s in enumerate(self.scenes):
             if s["start"] <= t < s["start"] + s["dur"]:
-                sc = s
+                idx = i
                 break
+        sc = self.scenes[idx]
         tl = t - sc["start"]
         layer = bg.copy()
         getattr(self, "_scene_" + sc["id"])(layer, tl, sc["dur"], sc)
-        last = sc is self.scenes[-1]
-        a_in = ease_in_out(tl / 0.3)
-        a_out = 1.0 if last else ease_in_out((sc["dur"] - tl) / 0.3)
+        premiere = idx > 0 and self.scenes[idx - 1]["id"] == sc["id"]
+        derniere = idx == len(self.scenes) - 1
+        suivante_idem = (not derniere) and self.scenes[idx + 1]["id"] == sc["id"]
+        a_in = 1.0 if premiere else ease_in_out(tl / 0.3)
+        a_out = 1.0 if (derniere or suivante_idem) else ease_in_out((sc["dur"] - tl) / 0.3)
         a = min(a_in, a_out)
         if a < 0.995:
             layer = Image.blend(bg, layer, a)
