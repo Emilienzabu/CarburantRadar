@@ -1,34 +1,32 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 01/11/2026 17:05 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 02/11/2026 14:29 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 393 |
-| Pages villes (France) | 182 dont 180 indexables et 2 en noindex |
+| Pages France générées par le nouveau système | 396 |
+| Pages villes (France) | 182 dont 178 indexables et 4 en noindex |
 | — dont communes ajoutées automatiquement (hors villes.json) | 79 |
-| Pages départements | 80 |
+| Pages départements | 78 |
 | Pages régions | 13 |
-| Pages ville + carburant | 117 |
-| — dont Gazole | 50 |
+| Pages ville + carburant | 122 |
+| — dont Gazole | 51 |
 | — dont SP95 | 2 |
-| — dont SP98 | 23 |
-| — dont E10 | 32 |
-| — dont E85 | 10 |
+| — dont SP98 | 25 |
+| — dont E10 | 35 |
+| — dont E85 | 9 |
 | — dont GPL | 0 |
 | Pages hub (liste des villes France) | 1 |
-| Pages Espagne / Italie (pipeline inchangé) | 561 villes, 52 hubs |
-| URLs dans le sitemap | 891 |
-| Stations analysées (jeu de données) | 9815 |
-| Jours d'historique enregistrés | 30 (du 2026-09-30 au 2026-11-01) |
+| Pages Espagne / Italie (pipeline inchangé) | 206 villes, 2 hubs |
+| URLs dans le sitemap | 483 |
+| Stations analysées (jeu de données) | 9820 |
+| Jours d'historique enregistrés | 30 (du 2026-10-01 au 2026-11-02) |
 
 ## Espagne (pages enrichies)
 
-- Source : API officielle du Ministerio ; 11422 stations exploitables ; données du 01/11/2026 16:13 UTC.
-- **API indisponible : dernier jeu de données valide en cache utilisé (0.0 j)** : RuntimeError: Téléchargement impossible (<urlopen error [Errno 104] Connection reset by peer>) ; provinces en échec : ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52']
-- Pages villes : 458 dont 457 indexables (355 ajoutées automatiquement) ; pages provinces : 50.
+- **Source indisponible : 104 pages indexables de la veille réutilisées** : RuntimeError: RuntimeError: Téléchargement impossible (<urlopen error [Errno 104] Connection reset by peer>) ; provinces en échec : ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52'] ; cache indisponible (https://carburantradar.fr/donnees/espagne-precios.json.gz : HTTP Error 404: Not Found)
 
 ## Italie (pages enrichies)
 
@@ -37,7 +35,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## IndexNow (Bing, Yandex, Naver, Seznam)
 
-- 383 URLs signalées ; réponses HTTP : api.indexnow.org 200 (200 ou 202 = accepté).
+- 483 URLs signalées ; réponses HTTP : api.indexnow.org 200 (200 ou 202 = accepté).
 
 ## Correctifs appliqués aux applications
 
@@ -49,15 +47,15 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 393 / 393 |
-| Meta descriptions | 393 / 393 |
-| H1 | 393 / 393 |
-| Canonicals | 393 / 393 |
+| Titles | 396 / 396 |
+| Meta descriptions | 396 / 396 |
+| H1 | 396 / 396 |
+| Canonicals | 396 / 396 |
 
 ## Qualité du contenu
 
 - Pages avec moins de 250 mots (zone principale) : 0
-- Pages villes avec peu de données (score < 45 ou < 3 stations ou < 2 carburants → noindex) : 2
+- Pages villes avec peu de données (score < 45 ou < 3 stations ou < 2 carburants → noindex) : 4
 - Pages villes sans station : 0 (rayon de 12 km)
 - Pages villes sans prix : 0
 - Pages villes sans ville voisine affichée : 18
@@ -65,8 +63,8 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 3982 ; moyenne par page : 10.1
-- Pages orphelines indexables : 0 ; pages noindex non liées : 3
+- Liens internes distincts au total : 4022 ; moyenne par page : 10.2
+- Pages orphelines indexables : 0 ; pages noindex non liées : 4
 
 ## Pages les plus / moins riches (villes)
 
@@ -80,28 +78,23 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Moins riches | Score | Stations | Carburants |
 |---|---|---|---|
-| Belfort | 41 | 6 | 5 |
+| Orléans | 35 | 5 | 4 |
+| Belfort | 36 | 6 | 4 |
+| Troyes | 40 | 5 | 3 |
 | La Rochelle | 44 | 4 | 4 |
-| Troyes | 45 | 5 | 4 |
-| Orléans | 45 | 5 | 4 |
 | Angoulême | 45 | 5 | 4 |
 
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
-- Pages villes : contenu unique moyen 50 % (min 38 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages villes : contenu unique moyen 50 % (min 37 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 - Pages ville + carburant : contenu unique moyen 34 % (min 19 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 - Pages départements / régions : contenu unique moyen 44 % (min 34 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
-- Erreurs : 0 ; avertissements : 8
-  - avertissement / : canonical incorrect ('https://emilienzabu.github.io/CarburantRadar/', attendu 'https://carburantradar.fr/')
+- Erreurs : 0 ; avertissements : 3
   - avertissement /espagne/ : 5 balises H1
-  - avertissement /espagne/ : canonical incorrect ('https://emilienzabu.github.io/CarburantRadar/espagne/', attendu 'https://carburantradar.fr/espagne/')
   - avertissement /france/ : 5 balises H1
-  - avertissement /france/ : canonical incorrect ('https://emilienzabu.github.io/CarburantRadar/france/', attendu 'https://carburantradar.fr/france/')
-  - avertissement /guide/ : canonical incorrect ('https://emilienzabu.github.io/CarburantRadar/guide/', attendu 'https://carburantradar.fr/guide/')
   - avertissement /italie/ : 5 balises H1
-  - avertissement /italie/ : canonical incorrect ('https://emilienzabu.github.io/CarburantRadar/italie/', attendu 'https://carburantradar.fr/italie/')
 - Test lien France : `/france/prix-carburant/avignon/` + `../../` → `/france/` (OK)
 
