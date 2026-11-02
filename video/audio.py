@@ -9,7 +9,8 @@ import numpy as np
 
 from musique import SR, render_music
 
-VOIX_DEFAUT = "fr-FR-DeniseNeural"
+VOIX_DEFAUT = "fr-FR-RemyMultilingualNeural"   # voix d'homme, la plus naturelle
+VOIX_SECOURS = "fr-FR-HenriNeural"             # autre voix d'homme si la première est indisponible
 DEBUT = 0.35   # silence avant la voix dans chaque scène
 FIN = 0.75     # silence après la voix
 
@@ -29,7 +30,7 @@ def _tts_edge(texte, voix, chemin):
     import edge_tts
 
     async def run():
-        com = edge_tts.Communicate(texte, voix, rate="+6%")
+        com = edge_tts.Communicate(texte, voix, rate="+4%")
         await com.save(chemin)
 
     last = None
@@ -44,21 +45,16 @@ def _tts_edge(texte, voix, chemin):
     raise RuntimeError(f"edge-tts indisponible : {last}")
 
 
-def _tts_gtts(texte, voix, chemin):
-    from gtts import gTTS
-    gTTS(texte, lang="fr").save(chemin)
-
-
 def synth_clips(scenes_def, tmpdir, voix=VOIX_DEFAUT, log=print):
-    """Renvoie une liste de tableaux (un par scène) ou None pour une scène sans voix."""
-    for nom, fn in (("edge-tts", _tts_edge), ("gTTS", _tts_gtts)):
+    """Renvoie une liste de tableaux (un par scène), ou [None, ...] si aucune voix d'homme n'est disponible."""
+    for nom in dict.fromkeys([voix, VOIX_SECOURS]):
         clips = []
         try:
             for i, sc in enumerate(scenes_def):
                 chemin = os.path.join(tmpdir, f"voix_{i}.mp3")
-                fn(sc["texte"], voix, chemin)
+                _tts_edge(sc["texte"], nom, chemin)
                 x = _decode(chemin)
-                # petit fondu pour éviter les clics + coupe le silence de fin
+                # petit fondu pour éviter les clics
                 f = int(0.01 * SR)
                 x[:f] *= np.linspace(0, 1, f)
                 x[-f:] *= np.linspace(1, 0, f)
@@ -68,7 +64,7 @@ def synth_clips(scenes_def, tmpdir, voix=VOIX_DEFAUT, log=print):
             return [c * (0.92 / (peak + 1e-9)) for c in clips]
         except Exception as e:
             log(f"Voix {nom} indisponible : {e}")
-    log("ATTENTION : aucune voix disponible, la vidéo sera publiée avec musique et texte seulement.")
+    log("ATTENTION : aucune voix disponible.")
     return [None] * len(scenes_def)
 
 
@@ -83,7 +79,7 @@ def planifier(scenes_def, clips):
         else:
             besoin = DEBUT + len(sc["texte"].split()) * 0.38 + FIN
         dur = max(sc["min"], besoin)
-        scenes.append({"id": sc["id"], "start": t, "dur": dur, "caption": sc.get("caption", sc["texte"]), "voix_debut": t + DEBUT})
+        scenes.append({"id": sc["id"], "start": t, "dur": dur, "caption": sc.get("caption", sc["texte"]), "idx": sc.get("idx"), "voix_debut": t + DEBUT})
         t += dur
     return scenes
 
