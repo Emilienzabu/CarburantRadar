@@ -29,6 +29,8 @@ sys.path.insert(0, HERE)
 
 import audio  # noqa: E402
 import donnees  # noqa: E402
+import garde  # noqa: E402
+from garde import appliquer_garde_astuce, garde_astuce_active  # noqa: E402,F401
 import rendu  # noqa: E402
 
 WORKER_URL = "https://video-automation.emilienzabukovec09.workers.dev/api/upload"
@@ -129,7 +131,7 @@ def publier(chemin, info, cle):
     return bool(yt.get("success") or ig.get("success"))
 
 
-def main():
+def construire_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--demo", action="store_true", help="données factices (aucun accès réseau pour les prix)")
     p.add_argument("--format", choices=["ville", "classement", "astuce"], help="vide = selon le planning")
@@ -140,7 +142,12 @@ def main():
     p.add_argument("--sortie", default=os.path.join(HERE, "sortie", "video-du-jour.mp4"))
     p.add_argument("--voix", default=audio.VOIX_DEFAUT)
     p.add_argument("--png", help="temps en secondes séparés par des virgules : enregistre des images de contrôle")
-    args = p.parse_args()
+    return p
+
+
+def main():
+    args = construire_parser().parse_args()
+    appliquer_garde_astuce(args, log)
 
     maintenant = dt.datetime.now(ZoneInfo("Europe/Paris"))
     creneau = args.creneau if args.creneau != "auto" else ("matin" if maintenant.hour < 13 else "soir")
@@ -153,8 +160,12 @@ def main():
         icone = os.path.join(HERE, "icon-512.png")
 
     plan = donnees.plan_du_jour(k, args.format, args.ville, args.carburant)
+    if plan["format"] == "astuce":   # rotation sans conseil identique deux fois de suite
+        plan = garde.plan_astuce(k, donnees.ASTUCES)
     log(f"Créneau {creneau}, publication n°{k}, format {plan['format']}")
     info = construire(plan, k, args)
+    if args.publier and garde_astuce_active() and info.get("format") != "astuce":
+        raise SystemExit(f"Garde astuce : format {info.get('format')!r} refusé à la publication (rien n'est publié).")
 
     scenes_def = donnees.scenes_texte(info)
     with tempfile.TemporaryDirectory() as tmp:
