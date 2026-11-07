@@ -13,6 +13,9 @@ from PIL import Image, ImageDraw, ImageFont
 from donnees import fr_eur, fr_prix3
 
 W, H, FPS = 1080, 1920, 30
+AUDIO_HZ = 48000  # maximum accepté par les Reels Instagram (AAC)
+# Conversion colorimétrique seule (pas de redimensionnement : les dimensions restent W x H).
+FILTRE_COULEUR = "scale=out_color_matrix=bt709:out_range=tv"
 SS = 3  # sur-échantillonnage des sprites
 
 ACCENT = (245, 166, 35)
@@ -456,16 +459,29 @@ class Renderer:
     def save_png(self, t, path):
         self.frame(t).save(path)
 
-    def encode(self, audio_wav, out_path, log=print):
-        n = int(round(self.total * FPS))
-        cmd = [
+    def commande_ffmpeg(self, audio_wav, out_path):
+        """Commande d'encodage final. Séparée de encode() pour pouvoir être testée sans rien rendre.
+
+        Aucune mise à l'échelle : les images brutes sont déjà au format final (W x H). Le filtre vidéo ne fait QUE la
+        conversion colorimétrique RGB -> YUV en BT.709 (mêmes dimensions) ; sans lui, ffmpeg convertit en BT.601 alors que
+        les lecteurs interprètent le HD en BT.709, ce qui décale légèrement les couleurs.
+        Contraintes Meta (Reels) : AAC 48 kHz maximum (loudnorm ré-échantillonne sinon à 192 kHz), pas d'edit list.
+        """
+        return [
             "ffmpeg", "-y", "-loglevel", "error",
             "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
             "-i", audio_wav,
+            "-vf", FILTRE_COULEUR,
             "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "192k", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
-            "-t", f"{self.total:.3f}", "-movflags", "+faststart", out_path,
+            "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv",
+            "-c:a", "aac", "-b:a", "192k", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", str(AUDIO_HZ), "-ac", "2",
+            "-t", f"{self.total:.3f}", "-use_editlist", "0", "-movflags", "+faststart", out_path,
         ]
+
+    def encode(self, audio_wav, out_path, log=print):
+        n = int(round(self.total * FPS))
+        cmd = self.commande_ffmpeg(audio_wav, out_path)
+        self.derniere_commande = cmd   # conservée pour le manifeste de rendu (preuve de ce qui a été exécuté)
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         try:
             for i in range(n):
