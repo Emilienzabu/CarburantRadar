@@ -1,33 +1,33 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 06/11/2026 13:38 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 07/11/2026 12:28 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 431 |
-| Pages villes (France) | 182 dont 181 indexables et 1 en noindex |
+| Pages France générées par le nouveau système | 425 |
+| Pages villes (France) | 182 dont 180 indexables et 2 en noindex |
 | — dont communes ajoutées automatiquement (hors villes.json) | 79 |
-| Pages départements | 81 |
+| Pages départements | 80 |
 | Pages régions | 13 |
-| Pages ville + carburant | 154 |
-| — dont Gazole | 65 |
+| Pages ville + carburant | 149 |
+| — dont Gazole | 62 |
 | — dont SP95 | 2 |
 | — dont SP98 | 31 |
-| — dont E10 | 47 |
+| — dont E10 | 45 |
 | — dont E85 | 9 |
 | — dont GPL | 0 |
 | Pages hub (liste des villes France) | 1 |
-| Pages Espagne / Italie (pipeline inchangé) | 558 villes, 52 hubs |
-| URLs dans le sitemap | 890 |
-| Stations analysées (jeu de données) | 9828 |
-| Jours d'historique enregistrés | 30 (du 2026-10-05 au 2026-11-06) |
+| Pages Espagne / Italie (pipeline inchangé) | 559 villes, 52 hubs |
+| URLs dans le sitemap | 889 |
+| Stations analysées (jeu de données) | 9829 |
+| Jours d'historique enregistrés | 30 (du 2026-10-06 au 2026-11-07) |
 
 ## Espagne (pages enrichies)
 
-- Source : API officielle du Ministerio ; 11474 stations exploitables ; données du 06/11/2026 13:05 UTC.
-- Pages villes : 455 dont 454 indexables (352 ajoutées automatiquement) ; pages provinces : 50.
+- Source : API officielle du Ministerio ; 11471 stations exploitables ; données du 07/11/2026 11:50 UTC.
+- Pages villes : 456 dont 455 indexables (353 ajoutées automatiquement) ; pages provinces : 50.
 
 ## Italie (pages enrichies)
 
@@ -36,7 +36,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## IndexNow (Bing, Yandex, Naver, Seznam)
 
-- 385 URLs signalées ; réponses HTTP : api.indexnow.org 200 (200 ou 202 = accepté).
+- 383 URLs signalées ; réponses HTTP : api.indexnow.org 200 (200 ou 202 = accepté).
 
 ## Correctifs appliqués aux applications
 
@@ -48,15 +48,15 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 431 / 431 |
-| Meta descriptions | 431 / 431 |
-| H1 | 431 / 431 |
-| Canonicals | 431 / 431 |
+| Titles | 425 / 425 |
+| Meta descriptions | 425 / 425 |
+| H1 | 425 / 425 |
+| Canonicals | 425 / 425 |
 
 ## Qualité du contenu
 
 - Pages avec moins de 250 mots (zone principale) : 0
-- Pages villes avec peu de données (score < 45 ou < 3 stations ou < 2 carburants → noindex) : 1
+- Pages villes avec peu de données (score < 45 ou < 3 stations ou < 2 carburants → noindex) : 2
 - Pages villes sans station : 0 (rayon de 12 km)
 - Pages villes sans prix : 0
 - Pages villes sans ville voisine affichée : 18
@@ -64,8 +64,8 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 4351 ; moyenne par page : 10.1
-- Pages orphelines indexables : 0 ; pages noindex non liées : 2
+- Liens internes distincts au total : 4318 ; moyenne par page : 10.2
+- Pages orphelines indexables : 0 ; pages noindex non liées : 3
 
 ## Pages les plus / moins riches (villes)
 
@@ -73,23 +73,23 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 |---|---|---|---|
 | Allauch | 100 | 76 | 6 |
 | Asnières-sur-Seine | 100 | 177 | 6 |
-| Cergy | 100 | 53 | 6 |
+| Cergy | 100 | 52 | 6 |
 | Clichy | 100 | 186 | 6 |
 | Drancy | 100 | 143 | 6 |
 
 | Moins riches | Score | Stations | Carburants |
 |---|---|---|---|
+| Belfort | 41 | 6 | 5 |
 | La Rochelle | 44 | 4 | 4 |
 | Troyes | 45 | 5 | 4 |
 | Angoulême | 45 | 5 | 4 |
 | Ajaccio | 45 | 15 | 2 |
-| Thonon-les-Bains | 46 | 6 | 4 |
 
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
-- Pages villes : contenu unique moyen 50 % (min 40 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages ville + carburant : contenu unique moyen 34 % (min 24 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 45 % (min 34 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages villes : contenu unique moyen 51 % (min 39 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages ville + carburant : contenu unique moyen 34 % (min 22 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 45 % (min 36 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
