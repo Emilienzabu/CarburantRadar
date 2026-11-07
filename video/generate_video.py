@@ -28,6 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import audio  # noqa: E402
+import controle_publication  # noqa: E402
 import donnees  # noqa: E402
 import garde  # noqa: E402
 from garde import appliquer_garde_astuce, garde_astuce_active  # noqa: E402,F401
@@ -107,28 +108,74 @@ def construire(plan, k, args):
 
 
 def publier(chemin, info, cle):
+    """Envoie la vidéo au Worker. Ne réessaie JAMAIS (un envoi dont l'issue est inconnue a pu être publié).
+
+    Renvoie un dict : {"etat": "complet" | "partiel" | "echec" | "incertain", ...}
+      complet   YouTube ET Instagram confirment (champ `success` de la réponse du Worker)
+      partiel   une seule plateforme confirme : à signaler, JAMAIS à relancer tel quel (doublon sur l'autre)
+      echec     le Worker répond clairement que rien n'a été publié
+      incertain délai dépassé, erreur réseau ou réponse illisible : la vidéo a peut-être été publiée
+    """
     titre, description, legende = donnees.textes_publication(info)
     log(f"Envoi au Worker : « {titre} »")
-    with open(chemin, "rb") as f:
-        r = requests.post(
-            WORKER_URL,
-            headers={"Authorization": f"Bearer {cle}"},
-            data={"profile": "carburant", "title": titre, "description": description, "caption": legende},
-            files={"video": ("video-du-jour.mp4", f, "video/mp4")},
-            timeout=900,
-        )
+    try:
+        with open(chemin, "rb") as f:
+            r = requests.post(
+                WORKER_URL,
+                headers={"Authorization": f"Bearer {cle}"},
+                data={"profile": "carburant", "title": titre, "description": description, "caption": legende},
+                files={"video": ("video-du-jour.mp4", f, "video/mp4")},
+                timeout=900,
+            )
+    except requests.exceptions.RequestException as e:
+        return {"etat": "incertain", "detail": f"{type(e).__name__} pendant l'envoi"}
     try:
         res = r.json()
+        if not isinstance(res, dict):
+            raise ValueError("réponse non objet")
     except Exception:
-        log(f"Réponse inattendue ({r.status_code}) : {r.text[:500]}")
-        return False
+        log(f"Réponse inattendue ({r.status_code}) : {str(r.text)[:500]}")
+        return {"etat": "incertain", "detail": f"réponse illisible (HTTP {r.status_code})"}
     yt = res.get("youtube", {}) or {}
     ig = res.get("instagram", {}) or {}
     log("YouTube : " + (yt.get("url") or json.dumps(yt, ensure_ascii=False)[:400]))
     log("Instagram : " + ("publié" if ig.get("success") else json.dumps(ig, ensure_ascii=False)[:400]))
     if not res.get("youtube") and res.get("error"):
         log(res["error"])
-    return bool(yt.get("success") or ig.get("success"))
+    yt_ok, ig_ok = bool(yt.get("success")), bool(ig.get("success"))
+    etat = "complet" if (yt_ok and ig_ok) else "partiel" if (yt_ok or ig_ok) else "echec"
+    return {"etat": etat, "youtube": yt_ok, "instagram": ig_ok, "youtube_url": yt.get("url")}
+
+
+def ecrire_resume(slot_id, info, resultat):
+    """Résumé lisible dans l'onglet de l'exécution GitHub (variable GITHUB_STEP_SUMMARY, fournie par Actions)."""
+    chemin = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not chemin:
+        return
+    lignes = [f"### Publication {slot_id} : **{resultat['etat']}**",
+              f"- format : {info.get('format')}", f"- YouTube : {resultat.get('youtube_url') or resultat.get('youtube')}",
+              f"- Instagram : {resultat.get('instagram')}"]
+    if resultat["etat"] in ("partiel", "incertain", "echec"):
+        lignes.append("- **Ne relance pas ce créneau sans avoir vérifié sur YouTube et Instagram : "
+                      "une nouvelle publication créerait un doublon.**")
+    try:
+        with open(chemin, "a", encoding="utf-8") as f:
+            f.write("\n".join(lignes) + "\n")
+    except OSError:
+        pass
+
+
+def controler_video(chemin, rend, info, slot_id):
+    """Écrit le manifeste de rendu (à partir de la commande ffmpeg RÉELLEMENT exécutée) puis lance le contrôle technique."""
+    manifeste = os.path.splitext(chemin)[0] + ".manifeste.json"
+    try:
+        m = controle_publication.construire_manifeste(
+            chemin, getattr(rend, "derniere_commande", None), slot_id=slot_id, format_video=info.get("format"),
+            titre=donnees.textes_publication(info)[0])
+        controle_publication.ecrire_manifeste(manifeste, m)
+        return controle_publication.valider_avant_publication(chemin, manifeste, exiger_slot=True)
+    except Exception as e:  # noqa: BLE001 - fail closed
+        return controle_publication.Resultat(False, (f"controle:exception_{type(e).__name__}",))
 
 
 def construire_parser():
@@ -147,6 +194,8 @@ def construire_parser():
 
 def main():
     args = construire_parser().parse_args()
+    if args.demo and args.publier:
+        raise SystemExit("--demo (données factices) ne peut pas être publié : rien n'est publié.")
     appliquer_garde_astuce(args, log)
 
     maintenant = dt.datetime.now(ZoneInfo("Europe/Paris"))
@@ -193,12 +242,29 @@ def main():
 
     log(f"Vidéo prête : {args.sortie} ({os.path.getsize(args.sortie) / 1e6:.1f} Mo)")
 
+    slot_id = f"{maintenant.date().isoformat()}:{creneau}"
+    controle = controler_video(args.sortie, rend, info, slot_id)
+    if not controle.accepte:
+        log("::error::Contrôle avant publication REFUSÉ : " + ", ".join(controle.erreurs))
+        raise SystemExit("Vidéo non conforme : rien n'est publié (le fichier reste téléchargeable pour examen).")
+    log("Contrôle avant publication : accepté (1080x1920, H.264/AAC 48 kHz, intégrité, loudness, empreinte).")
+
     if args.publier:
         cle = os.environ.get("VIDEO_API_KEY")
         if not cle:
             raise SystemExit("VIDEO_API_KEY manquante : impossible de publier.")
-        if not publier(args.sortie, info, cle):
-            raise SystemExit("La publication a échoué sur les deux plateformes.")
+        resultat = publier(args.sortie, info, cle)
+        ecrire_resume(slot_id, info, resultat)
+        if resultat["etat"] == "complet":
+            return
+        if resultat["etat"] == "partiel":
+            log(f"::warning::Publication PARTIELLE (YouTube={resultat['youtube']}, Instagram={resultat['instagram']}). "
+                "Ne relance pas ce créneau : l'autre plateforme a déjà la vidéo, un nouvel envoi créerait un doublon.")
+            return
+        if resultat["etat"] == "incertain":
+            raise SystemExit(f"Envoi INCERTAIN ({resultat.get('detail')}) : la vidéo a peut-être été publiée. "
+                             "Vérifie YouTube et Instagram AVANT de relancer ; aucun nouvel envoi automatique.")
+        raise SystemExit("La publication a échoué sur les deux plateformes (vérifie quand même avant de relancer).")
 
 
 if __name__ == "__main__":
