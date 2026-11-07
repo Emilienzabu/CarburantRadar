@@ -19,6 +19,7 @@ VIDEO = ROOT / "video"
 WORKFLOW = ROOT / ".github" / "workflows" / "video-du-jour.yml"
 sys.path.insert(0, str(VIDEO))
 
+import controle_publication as cp  # noqa: E402
 import donnees  # noqa: E402
 import garde  # noqa: E402
 import generate_video as gv  # noqa: E402
@@ -190,6 +191,7 @@ class MainBoutEnBout(unittest.TestCase):
                 mock.patch.object(gv.audio, "synth_clips", faux_clips), \
                 mock.patch.object(gv.rendu, "Renderer", FauxRendu), \
                 mock.patch.object(gv.requests, "post", faux_post), \
+                mock.patch.object(gv, "controler_video", lambda *a, **k: cp.Resultat(True, ())), \
                 mock.patch.object(donnees, "recuperer_stations", interdit), \
                 mock.patch.object(donnees, "recuperer_classement", interdit), \
                 redirect_stdout(io.StringIO()) as sortie:
@@ -233,8 +235,9 @@ class MainBoutEnBout(unittest.TestCase):
         self.assertEqual(len(appels), 1)
 
     def test_defense_en_profondeur_refuse_un_format_geographique(self):
-        with mock.patch.object(gv, "appliquer_garde_astuce", lambda a, j=None: False):
-            code, appels, log = self.lancer(["--publier", "--demo", "--format", "ville"])
+        with mock.patch.object(gv, "appliquer_garde_astuce", lambda a, j=None: False), \
+                mock.patch.object(gv, "construire", lambda plan, k, args: donnees.info_demo("ville")):
+            code, appels, log = self.lancer(["--publier", "--format", "ville"])
         self.assertIn("Garde astuce", str(code))
         self.assertEqual(appels, [])
 
