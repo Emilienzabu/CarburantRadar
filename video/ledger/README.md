@@ -17,3 +17,26 @@ l'absence de doublon (l'exécuteur GitHub n'a aucun stockage durable). Le branch
 Limites : `reported_*` est ce que le Worker déclare, pas une preuve vérifiée à distance. Les API YouTube/Instagram ne permettent pas
 de comparer les octets d'une vidéo publiée ; une lecture de métadonnées (identifiant, compte, marqueur de créneau dans la description/légende) est possible mais n'est pas implémentée ici (modules `remote_metadata_verifier` du paquet V100, à valider
 sur les API réelles).
+
+## Protocole `slot_id` + `sha256` (PROPOSITION : modèle de référence testé, Worker réel non lu)
+
+Modèle exécutable : `video/tests/ledger_worker_reference.py` ; tests : `video/tests/test_ledger_protocole.py` (SQLite, doubles de plateformes,
+aucun réseau). Ils fixent le comportement attendu ; ils ne prouvent rien sur Cloudflare D1, sur les API YouTube/Instagram ni sur le Worker
+`video-automation` (code non lu).
+
+**Requête** (`POST /api/upload`, champs actuels conservés) : ajout de `slot_id` (`AAAA-MM-JJ:matin|soir`) et `sha256` (hex minuscule du MP4).
+Le Worker valide le calendrier (le `GLOB` du schéma ne le fait pas) et **recalcule** le SHA-256 des octets reçus.
+
+**Réponses** : `200` complet (ou rejeu en lecture seule, `rejoue: true`, aucun appel de plateforme) ; `400` entrée invalide ;
+`409` `creneau_en_cours`, `reconciliation_requise` ou `creneau_deja_utilise_par_une_autre_video` ; `502` `reconciliation_requise` après une tentative
+non confirmée. Corps : `slot_id`, `sha256`, `etat`, `rejoue`, `youtube` et `instagram` (`success`, `remote_id`, `enregistre`). Les clés
+`youtube.success` / `instagram.success` du contrat actuel sont conservées.
+
+**Ordre** : valider -> réserver -> prendre le créneau (un seul gagnant) -> pour chaque plateforme : ligne d'observation, appel, résultat enregistré
+-> `reported_complete` seulement si les deux succès ont un identifiant distant. Après tout doute sur une plateforme, la suivante n'est pas appelée.
+
+**Après crash** : jamais de republication. `reserved` (aucun appel fait) peut être repris ; `upload_started` ancien est balayé vers
+`reported_complete` (deux succès enregistrés) ou `needs_reconciliation`. Sortir de `needs_reconciliation` exige une extension du schéma (0002,
+preuves ajoutées sans réécrire les observations, car `0001` les rend immuables) : non écrite, à valider.
+
+Le générateur Python n'envoie pas encore ces champs et ne gère pas les `409`/`502` : à adapter avec le Worker, pas avant.
