@@ -14,6 +14,7 @@ Exemples :
 """
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -107,23 +108,67 @@ def construire(plan, k, args):
     raise SystemExit("Aucune ville exploitable : rien n'est publié.")
 
 
-def publier(chemin, info, cle):
+def empreinte_sha256(chemin):
+    h = hashlib.sha256()
+    with open(chemin, "rb") as f:
+        for bloc in iter(lambda: f.read(1 << 20), b""):
+            h.update(bloc)
+    return h.hexdigest()
+
+
+def interpreter_reponse_worker(res, statut_http):
+    """Réponse d'un Worker doté du journal anti-doublon (champ `etat` présent) -> dict de résultat, ou None (ancien Worker).
+
+    Le Worker ne dit « refuse » que s'il s'est arrêté AVANT toute publication ; « bloque » = créneau déjà pris, interrompu ou à
+    réconcilier (rien de nouveau n'a été envoyé) ; « reconciliation_requise » = tentative faite, issue non confirmée sur au
+    moins une plateforme. Dans aucun de ces cas on ne relance : le créneau est protégé côté Worker.
+    """
+    etat_w = res.get("etat")
+    if etat_w is None:
+        return None
+    yt, ig = res.get("youtube") or {}, res.get("instagram") or {}
+    yt_ok, ig_ok = bool(yt.get("success")), bool(ig.get("success"))
+    code = res.get("code") or res.get("error") or f"HTTP {statut_http}"
+    if etat_w == "complet" and yt_ok and ig_ok:
+        return {"etat": "complet", "youtube": True, "instagram": True, "youtube_url": yt.get("url"), "rejoue": bool(res.get("rejoue"))}
+    if etat_w == "refuse":
+        return {"etat": "refuse", "detail": code}
+    if etat_w == "bloque":
+        return {"etat": "bloque", "detail": code}
+    if etat_w == "incertain":
+        return {"etat": "incertain", "detail": code}
+    if etat_w == "reconciliation_requise":
+        if yt_ok or ig_ok:
+            return {"etat": "partiel", "youtube": yt_ok, "instagram": ig_ok, "youtube_url": yt.get("url"), "detail": code}
+        return {"etat": "bloque", "detail": "reconciliation_requise"}
+    return {"etat": "incertain", "detail": f"état du Worker non reconnu ({etat_w})"}
+
+
+def publier(chemin, info, cle, slot_id=None):
     """Envoie la vidéo au Worker. Ne réessaie JAMAIS (un envoi dont l'issue est inconnue a pu être publié).
 
-    Renvoie un dict : {"etat": "complet" | "partiel" | "echec" | "incertain", ...}
-      complet   YouTube ET Instagram confirment (champ `success` de la réponse du Worker)
+    Avec `slot_id`, la requête porte aussi `slot_id` et `sha256` (protocole anti-doublon du Worker) ; un ancien Worker ignore
+    simplement ces champs et ses réponses (sans champ `etat`) sont lues comme avant.
+
+    Renvoie un dict : {"etat": "complet" | "partiel" | "echec" | "incertain" | "refuse" | "bloque", ...}
+      complet   YouTube ET Instagram confirment (champ `success` de la réponse du Worker ; éventuellement un rejeu)
       partiel   une seule plateforme confirme : à signaler, JAMAIS à relancer tel quel (doublon sur l'autre)
-      echec     le Worker répond clairement que rien n'a été publié
+      echec     le Worker répond clairement que rien n'a été publié (ancien Worker)
       incertain délai dépassé, erreur réseau ou réponse illisible : la vidéo a peut-être été publiée
+      refuse    le Worker a refusé AVANT toute publication (entrée invalide, journal indisponible) : rien n'est publié
+      bloque    créneau déjà pris / interrompu / à réconcilier côté Worker : aucune nouvelle publication
     """
     titre, description, legende = donnees.textes_publication(info)
     log(f"Envoi au Worker : « {titre} »")
+    champs = {"profile": "carburant", "title": titre, "description": description, "caption": legende}
+    if slot_id:
+        champs.update({"slot_id": slot_id, "sha256": empreinte_sha256(chemin)})
     try:
         with open(chemin, "rb") as f:
             r = requests.post(
                 WORKER_URL,
                 headers={"Authorization": f"Bearer {cle}"},
-                data={"profile": "carburant", "title": titre, "description": description, "caption": legende},
+                data=champs,
                 files={"video": ("video-du-jour.mp4", f, "video/mp4")},
                 timeout=900,
             )
@@ -136,6 +181,11 @@ def publier(chemin, info, cle):
     except Exception:
         log(f"Réponse inattendue ({r.status_code}) : {str(r.text)[:500]}")
         return {"etat": "incertain", "detail": f"réponse illisible (HTTP {r.status_code})"}
+    interprete = interpreter_reponse_worker(res, r.status_code)
+    if interprete is not None:
+        log(f"Worker : état « {res.get('etat')} »" + (" (créneau déjà publié : rejeu en lecture seule)" if res.get("rejoue") else "")
+            + (f", code {res.get('code')}" if res.get("code") else ""))
+        return interprete
     yt = res.get("youtube", {}) or {}
     ig = res.get("instagram", {}) or {}
     log("YouTube : " + (yt.get("url") or json.dumps(yt, ensure_ascii=False)[:400]))
@@ -155,9 +205,13 @@ def ecrire_resume(slot_id, info, resultat):
     lignes = [f"### Publication {slot_id} : **{resultat['etat']}**",
               f"- format : {info.get('format')}", f"- YouTube : {resultat.get('youtube_url') or resultat.get('youtube')}",
               f"- Instagram : {resultat.get('instagram')}"]
-    if resultat["etat"] in ("partiel", "incertain", "echec"):
+    if resultat["etat"] in ("partiel", "incertain", "echec", "bloque"):
         lignes.append("- **Ne relance pas ce créneau sans avoir vérifié sur YouTube et Instagram : "
                       "une nouvelle publication créerait un doublon.**")
+    if resultat["etat"] == "refuse":
+        lignes.append(f"- Refusé par le Worker avant toute publication ({resultat.get('detail')}) : rien n'a été publié.")
+    if resultat.get("rejoue"):
+        lignes.append("- Créneau déjà publié : le Worker a répondu en lecture seule, aucune nouvelle publication.")
     try:
         with open(chemin, "a", encoding="utf-8") as f:
             f.write("\n".join(lignes) + "\n")
@@ -253,7 +307,7 @@ def main():
         cle = os.environ.get("VIDEO_API_KEY")
         if not cle:
             raise SystemExit("VIDEO_API_KEY manquante : impossible de publier.")
-        resultat = publier(args.sortie, info, cle)
+        resultat = publier(args.sortie, info, cle, slot_id)
         ecrire_resume(slot_id, info, resultat)
         if resultat["etat"] == "complet":
             return
@@ -261,6 +315,11 @@ def main():
             log(f"::warning::Publication PARTIELLE (YouTube={resultat['youtube']}, Instagram={resultat['instagram']}). "
                 "Ne relance pas ce créneau : l'autre plateforme a déjà la vidéo, un nouvel envoi créerait un doublon.")
             return
+        if resultat["etat"] == "refuse":
+            raise SystemExit(f"Refusé par le Worker avant toute publication ({resultat.get('detail')}) : rien n'est publié.")
+        if resultat["etat"] == "bloque":
+            raise SystemExit(f"Créneau {slot_id} BLOQUÉ par le Worker ({resultat.get('detail')}) : aucune nouvelle publication. "
+                             "Vérifie YouTube et Instagram, puis réconcilie le créneau côté Worker (/ledger/status) ; aucun envoi automatique.")
         if resultat["etat"] == "incertain":
             raise SystemExit(f"Envoi INCERTAIN ({resultat.get('detail')}) : la vidéo a peut-être été publiée. "
                              "Vérifie YouTube et Instagram AVANT de relancer ; aucun nouvel envoi automatique.")
