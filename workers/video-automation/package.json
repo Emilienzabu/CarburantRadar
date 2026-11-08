@@ -1,0 +1,9 @@
+{
+  "name": "video-automation-worker-tests",
+  "private": true,
+  "type": "module",
+  "description": "Tests locaux du Worker video-automation (Node >= 22.5, aucun réseau, aucune dépendance npm). Le Worker lui-même se déploie par copier-coller de src/index.js.",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 --test-reporter=spec test/*.test.mjs"
+  }
+}
