@@ -39,4 +39,11 @@ non confirmée. Corps : `slot_id`, `sha256`, `etat`, `rejoue`, `youtube` et `ins
 `reported_complete` (deux succès enregistrés) ou `needs_reconciliation`. Sortir de `needs_reconciliation` exige une extension du schéma (0002,
 preuves ajoutées sans réécrire les observations, car `0001` les rend immuables) : non écrite, à valider.
 
-Le générateur Python n'envoie pas encore ces champs et ne gère pas les `409`/`502` : à adapter avec le Worker, pas avant.
+Le générateur Python (`video/generate_video.py`) envoie ces champs et lit ces réponses ; un ancien Worker (réponse sans champ `etat`) reste
+supporté. À ne fusionner qu'avec la préparation du Worker (voir `workers/video-automation/README.md`, ordre de déploiement).
+
+## Extension `0002` et Worker candidat
+
+`0002_video_ledger_evidence.sql` ajoute (sans toucher à `0001`) les traces de tentative, les preuves de réconciliation et les décisions de
+clôture, en ajout seul (testé : `video/tests/test_ledger_0002.py`). Le Worker candidat qui les utilise est dans
+`workers/video-automation/` (non déployé). Toujours **non exécuté sur D1**.
