@@ -33,6 +33,7 @@ import donnees  # noqa: E402
 import garde  # noqa: E402
 from garde import appliquer_garde_astuce, garde_astuce_active  # noqa: E402,F401
 import rendu  # noqa: E402
+import vitrine  # noqa: E402
 
 WORKER_URL = "https://video-automation.emilienzabukovec09.workers.dev/api/upload"
 POLICES = ["Poppins-Bold.ttf", "Poppins-SemiBold.ttf", "Poppins-Medium.ttf"]
@@ -78,6 +79,8 @@ def assurer_polices(dossier):
 
 def construire(plan, k, args):
     """Récupère les données du jour et renvoie l'info à mettre en vidéo."""
+    if plan["format"] == "vitrine":   # démonstration à partir de captures : aucune donnée du flux officiel
+        return vitrine.info_vitrine()
     if args.demo:
         return donnees.info_demo(plan["format"])
     if plan["format"] == "astuce":
@@ -165,13 +168,18 @@ def ecrire_resume(slot_id, info, resultat):
         pass
 
 
+def textes_manifeste(info):
+    """Titre/description/légende : le format vitrine (jamais publié) a ses propres métadonnées."""
+    return vitrine.textes_publication(info) if info.get("format") == "vitrine" else donnees.textes_publication(info)
+
+
 def controler_video(chemin, rend, info, slot_id):
     """Écrit le manifeste de rendu (à partir de la commande ffmpeg RÉELLEMENT exécutée) puis lance le contrôle technique."""
     manifeste = os.path.splitext(chemin)[0] + ".manifeste.json"
     try:
         m = controle_publication.construire_manifeste(
             chemin, getattr(rend, "derniere_commande", None), slot_id=slot_id, format_video=info.get("format"),
-            titre=donnees.textes_publication(info)[0])
+            titre=textes_manifeste(info)[0])
         controle_publication.ecrire_manifeste(manifeste, m)
         return controle_publication.valider_avant_publication(chemin, manifeste, exiger_slot=True)
     except Exception as e:  # noqa: BLE001 - fail closed
@@ -181,13 +189,16 @@ def controler_video(chemin, rend, info, slot_id):
 def construire_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--demo", action="store_true", help="données factices (aucun accès réseau pour les prix)")
-    p.add_argument("--format", choices=["ville", "classement", "astuce"], help="vide = selon le planning")
+    p.add_argument("--format", choices=["ville", "classement", "astuce", "vitrine"],
+                   help="vide = selon le planning. « vitrine » = démonstration de l'app (captures), jamais publiée")
     p.add_argument("--creneau", choices=["auto", "matin", "soir"], default="auto")
     p.add_argument("--ville", type=normaliser_ville)
     p.add_argument("--carburant", type=normaliser_carburant)
     p.add_argument("--publier", action="store_true")
     p.add_argument("--sortie", default=os.path.join(HERE, "sortie", "video-du-jour.mp4"))
     p.add_argument("--voix", default=audio.VOIX_DEFAUT)
+    p.add_argument("--voix-locale", action="store_true",
+                   help="voix de TEST hors ligne (espeak-ng) : interdite avec --publier, qualité non représentative")
     p.add_argument("--png", help="temps en secondes séparés par des virgules : enregistre des images de contrôle")
     return p
 
@@ -196,6 +207,11 @@ def main():
     args = construire_parser().parse_args()
     if args.demo and args.publier:
         raise SystemExit("--demo (données factices) ne peut pas être publié : rien n'est publié.")
+    if args.publier and args.format == "vitrine":
+        raise SystemExit("Format vitrine : démonstration à partir de captures (valeurs non actuelles), jamais publiée "
+                         "automatiquement : rien n'est publié.")
+    if args.publier and args.voix_locale:
+        raise SystemExit("--voix-locale (voix de test) ne peut pas être publiée : rien n'est publié.")
     appliquer_garde_astuce(args, log)
 
     maintenant = dt.datetime.now(ZoneInfo("Europe/Paris"))
@@ -208,7 +224,10 @@ def main():
     if not os.path.isfile(icone):
         icone = os.path.join(HERE, "icon-512.png")
 
-    plan = donnees.plan_du_jour(k, args.format, args.ville, args.carburant)
+    if args.format == "vitrine":
+        plan = {"format": "vitrine"}
+    else:
+        plan = donnees.plan_du_jour(k, args.format, args.ville, args.carburant)
     if plan["format"] == "astuce":   # rotation sans conseil identique deux fois de suite
         plan = garde.plan_astuce(k, donnees.ASTUCES)
     log(f"Créneau {creneau}, publication n°{k}, format {plan['format']}")
@@ -216,21 +235,33 @@ def main():
     if args.publier and garde_astuce_active() and info.get("format") != "astuce":
         raise SystemExit(f"Garde astuce : format {info.get('format')!r} refusé à la publication (rien n'est publié).")
 
-    scenes_def = donnees.scenes_texte(info)
+    est_vitrine = info.get("format") == "vitrine"
+    scenes_def = vitrine.scenes_texte(info) if est_vitrine else donnees.scenes_texte(info)
     with tempfile.TemporaryDirectory() as tmp:
-        clips = audio.synth_clips(scenes_def, tmp, args.voix, log)
-        if args.publier and any(c is None for c in clips):
-            raise SystemExit("Voix indisponible : rien n'est publié (une vidéo sans voix ne serait pas au niveau). "
-                             "Relance le workflow un peu plus tard.")
-        scenes = audio.planifier(scenes_def, clips)
+        if est_vitrine:
+            clips, mots = audio.synth_clips_mots(scenes_def, tmp, args.voix, log, moteur="espeak" if args.voix_locale else "edge")
+            scenes = audio.planifier(scenes_def, clips, vitrine.DEBUT_SCENE, vitrine.FIN_SCENE)
+            vitrine.attacher_mots(scenes, scenes_def, mots)
+        else:
+            clips = audio.synth_clips(scenes_def, tmp, args.voix, log)
+            if args.publier and any(c is None for c in clips):
+                raise SystemExit("Voix indisponible : rien n'est publié (une vidéo sans voix ne serait pas au niveau). "
+                                 "Relance le workflow un peu plus tard.")
+            scenes = audio.planifier(scenes_def, clips)
         total = scenes[-1]["start"] + scenes[-1]["dur"]
         detail = ", ".join("%s %.1fs" % (s["id"], s["dur"]) for s in scenes)
         log(f"Durée : {total:.1f} s ({detail})")
 
         wav = os.path.join(tmp, "audio.wav")
-        audio.ecrire_wav(wav, audio.mixer(scenes, clips, seed=k))
+        audio.ecrire_wav(wav, audio.mixer(scenes, clips, seed=vitrine.SEED_MUSIQUE if est_vitrine else k))
 
-        rend = rendu.Renderer(info, scenes, polices, icone)
+        if est_vitrine:
+            try:
+                rend = vitrine.RendererVitrine(info, scenes, polices, icone)
+            except (FileNotFoundError, ValueError) as e:
+                raise SystemExit(f"Format vitrine impossible : {e}")
+        else:
+            rend = rendu.Renderer(info, scenes, polices, icone)
         os.makedirs(os.path.dirname(args.sortie), exist_ok=True)
         if args.png:
             for t in args.png.split(","):
