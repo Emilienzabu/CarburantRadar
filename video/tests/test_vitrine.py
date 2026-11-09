@@ -205,6 +205,14 @@ class TestRendu(unittest.TestCase):
         zone = im[1420:1520]
         self.assertFalse(np.array_equal(zone, self.bg[1420:1520]))
 
+    def test_sous_titres_dans_la_zone_sure(self):
+        """Chaque groupe de mots tient dans 940 px de large, quelle que soit la police disponible."""
+        f = self.rend.F.get("bold", 62)
+        for c in self.rend.chunks:
+            fin = c["x"][-1] + f.getlength(c["mots"][-1][0])
+            self.assertGreaterEqual(c["x"][0], 69)
+            self.assertLessEqual(fin, 1011)
+
     def test_bulles_aux_bonnes_valeurs(self):
         """Les textes des bulles viennent de VALEURS (pas de chiffre codé en double dans le rendu)."""
         src = (VIDEO / "vitrine.py").read_text(encoding="utf-8")
