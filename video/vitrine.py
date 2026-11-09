@@ -116,6 +116,7 @@ CIBLES = {
 }
 PANNEAU = (220, 585, 640, 330)             # carte « trajet » : x, y, largeur, hauteur (en pixels de la vidéo)
 SOUS_TITRES_Y = 1478
+LARGEUR_MAX_SOUS_TITRES = 940               # largeur maximale d'un groupe de mots (marges de 70 px de chaque côté)
 DISCLAIMER = "Valeurs de démonstration issues de captures de l’application"
 
 
@@ -258,7 +259,7 @@ class RendererVitrine(rendu.Renderer):
             self.cache[key] = make_sprite(w, h, fn)
         x = 30 if cote == "g" else W - 30 - w
         e = ease_out(p)
-        paste(img, self.cache[key], x + (-1 if cote == "g" else 1) * (1 - e) * 60, y_centre - h / 2, e)
+        paste(img, self.cache[key], x + (1 if cote == "g" else -1) * (1 - e) * 60, y_centre - h / 2, e)   # arrive depuis le téléphone : reste dans les marges
 
     def _texte(self, img, xy, texte, poids, taille, couleur, alpha=1.0, anchor="mm"):
         ImageDraw.Draw(img).text(xy, texte, font=self.F.get(poids, taille), fill=mix_(couleur, alpha), anchor=anchor)
@@ -513,7 +514,14 @@ class RendererVitrine(rendu.Renderer):
         for sc in self.scenes:
             mots = sc.get("mots") or []
             groupes, cur = [], []
+            esp = f.getlength(" ")
+
+            def largeur(g):
+                return sum(f.getlength(x[0]) for x in g) + esp * (len(g) - 1)
             for m in mots:
+                if cur and largeur(cur + [m]) > LARGEUR_MAX_SOUS_TITRES:   # jamais plus large que la zone sûre
+                    groupes.append(cur)
+                    cur = []
                 cur.append(m)
                 if m[0][-1:] in ",.;:!?" or len(cur) >= 4 or sum(len(x[0]) for x in cur) >= 24:
                     groupes.append(cur)
