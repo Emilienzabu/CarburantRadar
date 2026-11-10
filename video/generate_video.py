@@ -269,6 +269,11 @@ def main():
                 rend.save_png(float(t), out)
                 log(f"Image : {out}")
             return
+        if est_vitrine:   # timings à côté du MP4 : sert au diagnostic objectif de synchronisation (diagnostic_vitrine.py)
+            with open(os.path.splitext(args.sortie)[0] + ".mots.json", "w", encoding="utf-8") as f:
+                json.dump([{"id": s["id"], "start": s["start"], "dur": s["dur"], "voix_debut": s["voix_debut"], "mots": s["mots"],
+                            "plages": [[s["voix_debut"] + a, s["voix_debut"] + b] for a, b in audio._plages_parole(c)]
+                            if c is not None and len(c) else []} for s, c in zip(scenes, clips)], f, ensure_ascii=False)
         rend.encode(wav, args.sortie, log)
 
     log(f"Vidéo prête : {args.sortie} ({os.path.getsize(args.sortie) / 1e6:.1f} Mo)")
