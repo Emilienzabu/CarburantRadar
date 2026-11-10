@@ -1,28 +1,28 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 09/11/2026 14:49 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 10/11/2026 14:19 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 408 |
-| Pages villes (France) | 181 dont 180 indexables et 1 en noindex |
-| — dont communes ajoutées automatiquement (hors villes.json) | 78 |
+| Pages France générées par le nouveau système | 428 |
+| Pages villes (France) | 182 dont 179 indexables et 3 en noindex |
+| — dont communes ajoutées automatiquement (hors villes.json) | 79 |
 | Pages départements | 81 |
 | Pages régions | 13 |
-| Pages ville + carburant | 132 |
-| — dont Gazole | 58 |
+| Pages ville + carburant | 151 |
+| — dont Gazole | 62 |
 | — dont SP95 | 2 |
-| — dont SP98 | 25 |
-| — dont E10 | 38 |
+| — dont SP98 | 29 |
+| — dont E10 | 49 |
 | — dont E85 | 9 |
 | — dont GPL | 0 |
 | Pages hub (liste des villes France) | 1 |
 | Pages Espagne / Italie (pipeline inchangé) | 206 villes, 2 hubs |
-| URLs dans le sitemap | 488 |
-| Stations analysées (jeu de données) | 9828 |
-| Jours d'historique enregistrés | 30 (du 2026-10-08 au 2026-11-09) |
+| URLs dans le sitemap | 487 |
+| Stations analysées (jeu de données) | 9829 |
+| Jours d'historique enregistrés | 30 (du 2026-10-09 au 2026-11-10) |
 
 ## Espagne (pages enrichies)
 
@@ -36,7 +36,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## IndexNow (Bing, Yandex, Naver, Seznam)
 
-- 488 URLs signalées ; réponses HTTP : api.indexnow.org 200 (200 ou 202 = accepté).
+- 487 URLs signalées ; réponses HTTP : api.indexnow.org 200 (200 ou 202 = accepté).
 
 ## Correctifs appliqués aux applications
 
@@ -48,15 +48,15 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 408 / 408 |
-| Meta descriptions | 408 / 408 |
-| H1 | 408 / 408 |
-| Canonicals | 408 / 408 |
+| Titles | 428 / 428 |
+| Meta descriptions | 428 / 428 |
+| H1 | 428 / 428 |
+| Canonicals | 428 / 428 |
 
 ## Qualité du contenu
 
 - Pages avec moins de 250 mots (zone principale) : 0
-- Pages villes avec peu de données (score < 45 ou < 3 stations ou < 2 carburants → noindex) : 1
+- Pages villes avec peu de données (score < 45 ou < 3 stations ou < 2 carburants → noindex) : 3
 - Pages villes sans station : 0 (rayon de 12 km)
 - Pages villes sans prix : 0
 - Pages villes sans ville voisine affichée : 19
@@ -64,8 +64,8 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 4117 ; moyenne par page : 10.1
-- Pages orphelines indexables : 0 ; pages noindex non liées : 1
+- Liens internes distincts au total : 4311 ; moyenne par page : 10.1
+- Pages orphelines indexables : 0 ; pages noindex non liées : 3
 
 ## Pages les plus / moins riches (villes)
 
@@ -79,17 +79,17 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Moins riches | Score | Stations | Carburants |
 |---|---|---|---|
+| Boulogne-Billancourt | 39 | 4 | 3 |
+| Troyes | 40 | 5 | 3 |
 | La Rochelle | 44 | 4 | 4 |
-| Troyes | 45 | 5 | 4 |
 | Angoulême | 45 | 5 | 4 |
 | Ajaccio | 45 | 15 | 2 |
-| Thonon-les-Bains | 46 | 6 | 4 |
 
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
-- Pages villes : contenu unique moyen 51 % (min 38 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages ville + carburant : contenu unique moyen 36 % (min 25 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 45 % (min 35 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages villes : contenu unique moyen 50 % (min 39 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages ville + carburant : contenu unique moyen 35 % (min 24 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 44 % (min 33 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
