@@ -1,0 +1,79 @@
+name: Aperçu vitrine (sans publication)
+
+# Génère le format « vitrine » avec la VRAIE voix (Remy) et garde le MP4 en artefact. AUCUN secret, AUCUNE publication.
+# TEMPORAIRE : propre à la branche de la PR #37 (se déclenche quand video/** change sur cette branche) ; à retirer avant fusion
+# si l'aperçu automatique n'est pas voulu sur main.
+on:
+  push:
+    branches: ["claude/short-vitrine-2026-11-09"]
+    paths: ["video/**", ".github/workflows/apercu-vitrine.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apercu-vitrine
+  cancel-in-progress: true
+
+jobs:
+  apercu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer ffmpeg et les dépendances
+        run: |
+          command -v ffmpeg >/dev/null || (sudo apt-get update -y && sudo apt-get install -y ffmpeg)
+          pip install -r video/requirements.txt
+          pip show edge-tts | grep -i '^version'
+
+      - name: Tests (toute la suite du dossier video)
+        run: python -m unittest discover -s video/tests -p 'test_*.py'
+
+      - name: Vérifier la présence des 4 écrans
+        id: ecrans
+        run: |
+          manque=0
+          for n in radar trajet analyse carte; do
+            f="video/assets/vitrine/ecran_$n.png"
+            if [ -f "$f" ]; then sha256sum "$f"; else manque=1; echo "manquant : $f"; fi
+          done
+          if [ "$manque" = 0 ]; then echo "present=oui" >> "$GITHUB_OUTPUT"; else
+            echo "present=non" >> "$GITHUB_OUTPUT"
+            echo "::notice::Écrans absents de video/assets/vitrine/ : aperçu non généré (tests seulement)."
+          fi
+
+      - name: Générer l'aperçu avec la voix réelle (sans --publier)
+        if: steps.ecrans.outputs.present == 'oui'
+        run: |
+          python video/generate_video.py --format vitrine --sortie video/sortie/apercu-vitrine.mp4 | tee video/sortie-generation.log
+          grep -q "Voix : fr-FR-RemyMultilingualNeural" video/sortie-generation.log || { echo "::error::La voix Remy n'a pas été utilisée : aperçu non valable"; exit 1; }
+          if grep -q "horodatage ESTIMÉ" video/sortie-generation.log; then echo "::warning::Limites de mots non fournies par le service pour au moins une scène : sous-titres ESTIMÉS"; else echo "Limites de mots fournies par le service pour toutes les scènes"; fi
+
+      - name: Diagnostic objectif (synchro, niveaux, animations)
+        if: steps.ecrans.outputs.present == 'oui'
+        run: |
+          python video/diagnostic_vitrine.py video/sortie/apercu-vitrine.mp4 | tee video/sortie/diagnostic.txt
+          { echo '### Diagnostic de l’aperçu vitrine'; echo '```'; cat video/sortie/diagnostic.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Garder l'aperçu pour le télécharger
+        if: always() && steps.ecrans.outputs.present == 'oui'
+        uses: actions/upload-artifact@v4
+        with:
+          name: apercu-vitrine
+          path: |
+            video/sortie/apercu-vitrine.mp4
+            video/sortie/apercu-vitrine.manifeste.json
+            video/sortie/apercu-vitrine.mots.json
+            video/sortie/diagnostic.txt
+          retention-days: 14
+          if-no-files-found: warn
