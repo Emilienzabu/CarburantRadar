@@ -37,10 +37,10 @@ def _price(value):
 
 
 def audit_prices(displayed, official, *, source, retrieved_at, now=None):
-    """Compare {station_id, fuel, price} displayed rows to official evidence
-    {station_id, fuel, price, updated_at}. Every displayed row must match.
-    Evidence cannot be self-certified by the capture trace; caller must verify
-    its retrieval from the official host and secure provenance separately.
+    """Compare displayed station/fuel prices with independently fetched evidence.
+
+    All displayed rows must match. Invalid, stale, and future timestamps fail
+    closed; diagnostics identify the offending station without weakening limits.
     """
     if source != OFFICIAL_SOURCE:
         raise ValueError('Unapproved official evidence source')
@@ -78,8 +78,16 @@ def audit_prices(displayed, official, *, source, retrieved_at, now=None):
         if abs(shown - actual) > PRICE_TOLERANCE:
             raise ValueError('Price mismatch')
         updated = parse_utc(evidence.get('updated_at'))
-        if updated > retrieved + timedelta(minutes=5) or retrieved - updated > MAX_AGE:
-            raise ValueError('Price timestamp stale or in future')
+        age = retrieved - updated
+        if updated > retrieved + timedelta(minutes=5) or age > MAX_AGE:
+            raise ValueError(
+                'Price timestamp stale or in future: '
+                f'station_id={key[0]!r}, fuel={key[1]!r}, '
+                f'official_updated_at={updated.isoformat()}, '
+                f'evidence_retrieved_at={retrieved.isoformat()}, '
+                f'age_hours={age.total_seconds() / 3600:.2f}, '
+                f'max_age_hours={MAX_AGE.total_seconds() / 3600:.0f}'
+            )
         oldest = min(oldest, updated)
     return {'verified': True, 'rows_checked': len(seen),
             'oldest_official_price_at': oldest.isoformat(),
