@@ -1,28 +1,28 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 11/11/2026 13:17 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 12/11/2026 14:29 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 423 |
+| Pages France générées par le nouveau système | 432 |
 | Pages villes (France) | 183 dont 181 indexables et 2 en noindex |
 | — dont communes ajoutées automatiquement (hors villes.json) | 80 |
-| Pages départements | 82 |
+| Pages départements | 81 |
 | Pages régions | 13 |
-| Pages ville + carburant | 144 |
-| — dont Gazole | 61 |
+| Pages ville + carburant | 154 |
+| — dont Gazole | 65 |
 | — dont SP95 | 2 |
-| — dont SP98 | 27 |
-| — dont E10 | 45 |
+| — dont SP98 | 30 |
+| — dont E10 | 48 |
 | — dont E85 | 9 |
 | — dont GPL | 0 |
 | Pages hub (liste des villes France) | 1 |
 | Pages Espagne / Italie (pipeline inchangé) | 206 villes, 2 hubs |
-| URLs dans le sitemap | 490 |
-| Stations analysées (jeu de données) | 9827 |
-| Jours d'historique enregistrés | 30 (du 2026-10-10 au 2026-11-11) |
+| URLs dans le sitemap | 489 |
+| Stations analysées (jeu de données) | 9833 |
+| Jours d'historique enregistrés | 30 (du 2026-10-11 au 2026-11-12) |
 
 ## Espagne (pages enrichies)
 
@@ -36,7 +36,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## IndexNow (Bing, Yandex, Naver, Seznam)
 
-- 490 URLs signalées ; réponses HTTP : api.indexnow.org 200 (200 ou 202 = accepté).
+- 489 URLs signalées ; réponses HTTP : api.indexnow.org 200 (200 ou 202 = accepté).
 
 ## Correctifs appliqués aux applications
 
@@ -48,10 +48,10 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 423 / 423 |
-| Meta descriptions | 423 / 423 |
-| H1 | 423 / 423 |
-| Canonicals | 423 / 423 |
+| Titles | 432 / 432 |
+| Meta descriptions | 432 / 432 |
+| H1 | 432 / 432 |
+| Canonicals | 432 / 432 |
 
 ## Qualité du contenu
 
@@ -64,7 +64,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 4285 ; moyenne par page : 10.1
+- Liens internes distincts au total : 4373 ; moyenne par page : 10.1
 - Pages orphelines indexables : 0 ; pages noindex non liées : 2
 
 ## Pages les plus / moins riches (villes)
@@ -79,17 +79,17 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Moins riches | Score | Stations | Carburants |
 |---|---|---|---|
-| Boulogne-Billancourt | 39 | 4 | 3 |
+| Troyes | 40 | 5 | 3 |
 | La Rochelle | 44 | 4 | 4 |
-| Troyes | 45 | 5 | 4 |
 | Angoulême | 45 | 5 | 4 |
 | Ajaccio | 45 | 15 | 2 |
+| Thonon-les-Bains | 46 | 6 | 4 |
 
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
-- Pages villes : contenu unique moyen 50 % (min 39 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages ville + carburant : contenu unique moyen 35 % (min 25 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 44 % (min 32 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages villes : contenu unique moyen 50 % (min 40 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages ville + carburant : contenu unique moyen 35 % (min 26 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 45 % (min 33 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
