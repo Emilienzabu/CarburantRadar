@@ -1,0 +1,122 @@
+name: CarburantRadar V19 - diagnostic branche test (sans publication)
+
+on:
+  push:
+    branches:
+      - claude/v19-diagnostic-2026-11-11
+    paths:
+      - '.github/workflows/carburant-v19-diagnostic.yml'
+      - 'video/v19/test_workflow_v19.py'
+      - 'video/v19/preflight_v18.py'
+      - 'video/v19/test_preflight_v18.py'
+  workflow_dispatch:
+    inputs:
+      city:
+        description: 'Commune française (ex. Lyon, Bordeaux, Lille)'
+        required: true
+        default: 'Lyon'
+        type: string
+      fuel:
+        description: 'Carburant'
+        required: true
+        default: 'Gazole'
+        type: choice
+        options: [Gazole, SP95, SP98, E10, E85, GPLc]
+      insee:
+        description: 'Code INSEE facultatif pour homonymes'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cr-v19-diagnostic-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      CI: 'true'
+    steps:
+      - name: Récupérer uniquement le code de la branche choisie
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Installer les dépendances de capture
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.56.0' 'pillow>=10,<13'
+          python -m playwright install --with-deps chromium
+      - name: Installer FFmpeg et FFprobe
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Tests locaux
+        working-directory: video/v19
+        run: python -m unittest discover -p 'test_*.py' -q
+      - name: Préflight réseau (sans écriture de production)
+        id: preflight
+        working-directory: video/v19
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          set +e
+          python preflight_v18.py --out diagnostics/preflight.json > diagnostics/preflight.log 2>&1
+          result=$?
+          echo "exit_code=$result" >> "$GITHUB_OUTPUT"
+          cat diagnostics/preflight.log
+          exit 0
+      - name: Valider les paramètres du diagnostic
+        shell: bash
+        env:
+          CITY: ${{ github.event_name == 'push' && 'Lyon' || inputs.city }}
+          FUEL: ${{ github.event_name == 'push' && 'Gazole' || inputs.fuel }}
+          INSEE: ${{ github.event_name == 'push' && '' || inputs.insee }}
+        run: |
+          python - <<'PY'
+          import os, re
+          city = os.environ['CITY'].strip()
+          if not 1 <= len(city) <= 100 or any(ord(c)<32 for c in city):
+              raise SystemExit('Ville invalide')
+          if os.environ['FUEL'] not in {'Gazole','SP95','SP98','E10','E85','GPLc'}:
+              raise SystemExit('Carburant invalide')
+          insee = os.environ['INSEE'].strip()
+          if insee and not re.fullmatch(r'(?:\d{5}|2[AB]\d{3})', insee):
+              raise SystemExit('Code INSEE invalide')
+          PY
+      - name: Essai réel, brouillon uniquement
+        if: steps.preflight.outputs.exit_code == '0'
+        working-directory: video/v19
+        shell: bash
+        env:
+          CITY: ${{ github.event_name == 'push' && 'Lyon' || inputs.city }}
+          FUEL: ${{ github.event_name == 'push' && 'Gazole' || inputs.fuel }}
+          INSEE: ${{ github.event_name == 'push' && '' || inputs.insee }}
+        run: |
+          mkdir -p diagnostics
+          python - <<'PY' 2>&1 | tee diagnostics/pipeline.log
+          import os, subprocess, sys
+          cmd=[sys.executable,'pipeline_v17.py','--city',os.environ['CITY'], '--fuel',os.environ['FUEL'], '--out','diagnostics/brouillon.mp4']
+          if os.environ['INSEE'].strip(): cmd.extend(['--insee',os.environ['INSEE'].strip()])
+          print('Starting diagnostic, no publishing or deployment', flush=True)
+          raise SystemExit(subprocess.call(cmd))
+          PY
+      - name: Collecter les résultats, même en cas d'échec
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carburant-v19-diagnostic-${{ github.run_id }}
+          path: |
+            video/v19/diagnostics/
+          if-no-files-found: warn
+          retention-days: 7
