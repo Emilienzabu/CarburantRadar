@@ -1,5 +1,5 @@
 
-name: CarburantRadar V21 - diagnostic branche test (sans publication)
+name: CarburantRadar V22 - diagnostic branche test (sans publication)
 
 on:
   push:
@@ -30,7 +30,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cr-v21-diagnostic-${{ github.ref }}
+  group: cr-v22-diagnostic-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -40,7 +40,6 @@ jobs:
     env:
       PYTHONDONTWRITEBYTECODE: '1'
       CI: 'true'
-
     steps:
       - name: Récupérer uniquement le code de la branche choisie
         uses: actions/checkout@v4
@@ -68,8 +67,7 @@ jobs:
         working-directory: video/v19
         run: python -m unittest discover -p 'test_*.py' -q
 
-      - name: Préflight réseau (sans écriture de production)
-        id: preflight
+      - name: Préflight réseau (bloquant en cas d'échec)
         working-directory: video/v19
         shell: bash
         run: |
@@ -77,9 +75,8 @@ jobs:
           set +e
           python preflight_v18.py --out diagnostics/preflight.json > diagnostics/preflight.log 2>&1
           result=$?
-          echo "exit_code=$result" >> "$GITHUB_OUTPUT"
           cat diagnostics/preflight.log
-          exit 0
+          exit "$result"
 
       - name: Valider les paramètres du diagnostic
         shell: bash
@@ -100,8 +97,7 @@ jobs:
               raise SystemExit('Code INSEE invalide')
           PY
 
-      - name: Essai réel V21, brouillon uniquement
-        if: steps.preflight.outputs.exit_code == '0'
+      - name: Essai réel V22, brouillon uniquement
         working-directory: video/v19
         shell: bash
         env:
@@ -110,20 +106,26 @@ jobs:
           INSEE: ${{ github.event_name == 'push' && '' || inputs.insee }}
         run: |
           mkdir -p diagnostics
+          set -o pipefail
           python - <<'PY' 2>&1 | tee diagnostics/pipeline.log
           import os, subprocess, sys
           cmd=[sys.executable,'pipeline_v17.py','--city',os.environ['CITY'], '--fuel',os.environ['FUEL'], '--out','diagnostics/brouillon.mp4']
           if os.environ['INSEE'].strip(): cmd.extend(['--insee',os.environ['INSEE'].strip()])
-          print('Starting V21 diagnostic, no publishing or deployment', flush=True)
+          print('Starting V22 diagnostic, no publishing or deployment', flush=True)
           raise SystemExit(subprocess.call(cmd))
           PY
+
+      - name: Vérifier la présence du MP4 produit
+        working-directory: video/v19
+        run: |
+          test -s diagnostics/brouillon.mp4
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 diagnostics/brouillon.mp4
 
       - name: Collecter les résultats, même en cas d'échec
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: carburant-v21-diagnostic-${{ github.run_id }}
-          path: |
-            video/v19/diagnostics/
+          name: carburant-v22-diagnostic-${{ github.run_id }}
+          path: video/v19/diagnostics/
           if-no-files-found: warn
           retention-days: 7
