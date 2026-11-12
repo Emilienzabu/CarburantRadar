@@ -6,6 +6,7 @@ from PIL import Image
 from price_audit import audit_prices
 
 STEPS = ('choose_fuel', 'locate', 'results')
+ONBOARDING_STEPS = ('continue_without_account', 'skip_tutorial')
 SHOTS = ('01_carburant.png', '02_localisation.png', '03_resultats.png')
 
 def _bbox_valid(box, viewport=(390,844)):
@@ -14,6 +15,27 @@ def _bbox_valid(box, viewport=(390,844)):
         x,y,w,h=(float(box[k]) for k in ('x','y','width','height'))
     except (ValueError, TypeError, KeyError): return False
     return w>0 and h>0 and x>=0 and y>=0 and x+w<=viewport[0]+1 and y+h<=viewport[1]+1
+
+def _validate_steps(steps, viewport):
+    if not isinstance(steps, list) or not all(isinstance(s,dict) for s in steps):
+        raise ValueError('Invalid steps')
+    actions = [s.get('action') for s in steps]
+    prefix = []
+    while len(prefix) < len(steps) and steps[len(prefix)].get('action') in ONBOARDING_STEPS:
+        prefix.append(steps[len(prefix)])
+    prefix_actions = [s['action'] for s in prefix]
+    if prefix_actions not in ([], ['continue_without_account'], ['skip_tutorial'],
+                              ['continue_without_account', 'skip_tutorial']):
+        raise ValueError('Invalid onboarding order or duplicate')
+    if any(s.get('verified') is not True for s in prefix):
+        raise ValueError('Unverified onboarding action')
+    core = steps[len(prefix):]
+    if tuple(s.get('action') for s in core) != STEPS:
+        raise ValueError('Missing or reordered steps')
+    for step in core:
+        if not _bbox_valid(step.get('bbox'),viewport):
+            raise ValueError('Invalid target bounding box')
+    return core
 
 def validate_capture(folder, min_dsf=3, viewport=(390,844)):
     folder=Path(folder)
@@ -27,11 +49,8 @@ def validate_capture(folder, min_dsf=3, viewport=(390,844)):
         raise ValueError('Geographic audit not verified')
     if not isinstance(audit.get('station_count_audited'),int) or audit['station_count_audited'] < 1:
         raise ValueError('No audited stations')
-    steps=data.get('steps')
-    if not isinstance(steps,list) or tuple(s.get('action') for s in steps)!=STEPS: raise ValueError('Missing or reordered steps')
-    for step in steps:
-        if not _bbox_valid(step.get('bbox'),viewport): raise ValueError('Invalid target bounding box')
-    results=steps[-1]
+    core = _validate_steps(data.get('steps'), viewport)
+    results=core[-1]
     try: n=int(re.sub(r'\s','',results['stations_displayed']))
     except (TypeError,ValueError,KeyError): raise ValueError('Invalid station count')
     if n<=0: raise ValueError('No stations')
