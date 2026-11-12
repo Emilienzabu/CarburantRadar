@@ -109,7 +109,7 @@ jobs:
           set -o pipefail
           python - <<'PY' 2>&1 | tee diagnostics/pipeline.log
           import os, subprocess, sys
-          cmd=[sys.executable,'pipeline_v17.py','--city',os.environ['CITY'], '--fuel',os.environ['FUEL'], '--out','diagnostics/brouillon.mp4']
+          cmd=[sys.executable,'pipeline_v17.py','--city',os.environ['CITY'], '--fuel',os.environ['FUEL'], '--out','diagnostics/brouillon.mp4','--fallback-city','Marseille']
           if os.environ['INSEE'].strip(): cmd.extend(['--insee',os.environ['INSEE'].strip()])
           print('Starting V22 diagnostic, no publishing or deployment', flush=True)
           raise SystemExit(subprocess.call(cmd))
