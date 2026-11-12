@@ -1,14 +1,19 @@
-"""Resolve any French commune through the official French administrative geo API.
-No fixed city list. Ambiguous names require an INSEE code. Fail closed on errors.
+"""Resolve French communes via the official administrative geo API.
+
+Retry only temporary network failures. Never invent coordinates or bypass
+ambiguous commune names. All attempts remain bounded.
 """
 import json
 import math
 import re
+import time
 from dataclasses import dataclass
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
 API = 'https://geo.api.gouv.fr/communes'
+
 
 @dataclass(frozen=True)
 class Commune:
@@ -36,7 +41,8 @@ def parse_communes(payload, city, insee=None):
     if not isinstance(coordinates, list) or len(coordinates) != 2:
         raise ValueError('Coordonnées officielles manquantes')
     lon, lat = coordinates
-    if not all(isinstance(x, (float, int)) and math.isfinite(x) for x in (lat, lon)):
+    if not all(isinstance(x, (float, int)) and not isinstance(x, bool) and math.isfinite(x)
+               for x in (lat, lon)):
         raise ValueError('Coordonnées non valides')
     if not (41 <= lat <= 52 and -6 <= lon <= 10):
         raise ValueError('Coordonnées hors France métropolitaine : scénario à adapter')
@@ -46,12 +52,28 @@ def parse_communes(payload, city, insee=None):
     return Commune(v['nom'], code, lat, lon)
 
 
-def resolve(city, insee=None, opener=urlopen):
+def _retryable(exc):
+    if isinstance(exc, HTTPError):
+        return exc.code in {408, 429, 500, 502, 503, 504}
+    return isinstance(exc, (URLError, TimeoutError, ConnectionError))
+
+
+def resolve(city, insee=None, opener=urlopen, sleep=time.sleep, attempts=3):
     if not isinstance(city, str) or not (1 <= len(city.strip()) <= 100):
         raise ValueError('Nom de ville invalide')
     if insee is not None and not re.fullmatch(r'[0-9AB]{5}', insee):
         raise ValueError('Code INSEE invalide')
-    params = urlencode({'nom': city.strip(), 'fields': 'nom,code,centre', 'format': 'json', 'geometry': 'centre'})
-    with opener(API + '?' + params, timeout=12) as response:
-        data = json.load(response)
-    return parse_communes(data, city, insee)
+    if not isinstance(attempts, int) or not 1 <= attempts <= 3:
+        raise ValueError('Nombre de tentatives invalide')
+    params = urlencode({'nom': city.strip(), 'fields': 'nom,code,centre',
+                        'format': 'json', 'geometry': 'centre'})
+    for index in range(attempts):
+        try:
+            with opener(API + '?' + params, timeout=12) as response:
+                data = json.load(response)
+            return parse_communes(data, city, insee)
+        except Exception as exc:
+            if not _retryable(exc) or index == attempts - 1:
+                raise
+            sleep(index + 1)
+    raise RuntimeError('Géocodage impossible')
