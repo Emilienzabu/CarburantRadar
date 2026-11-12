@@ -19,6 +19,25 @@ class Tests(unittest.TestCase):
         self.assertIn('OSError',check_url('https://example.org',fail)['error'])
     def test_range_limited(self):
         self.assertEqual(check_url('https://example.org',lambda req,timeout:Response(b'a'*5000))['sample_bytes'],2048)
+    def test_no_range_header(self):
+        def opener(req, timeout):
+            self.assertIsNone(req.get_header('Range'))
+            return Response()
+        self.assertTrue(check_url('https://example.org', opener)['ok'])
+
+    def test_partial_content_rejected(self):
+        class Partial(Response):
+            status = 206
+        self.assertFalse(check_url('https://example.org', lambda req,timeout: Partial())['ok'])
+
+    def test_site_requires_html_and_expected_host(self):
+        from preflight_v18 import SITE
+        class SiteResponse(Response):
+            def geturl(self): return SITE
+        self.assertTrue(check_url(SITE, lambda req,timeout: SiteResponse(b'<!doctype html><html>'))['ok'])
+        self.assertFalse(check_url(SITE, lambda req,timeout: SiteResponse(b'not html'))['ok'])
+        self.assertFalse(check_url(SITE, lambda req,timeout: Response(b'<html>'))['ok'])
+
     def test_preflight_blocked(self):
         result=preflight(lambda url:{'ok':False},lambda name:{'ok':True})
         self.assertEqual(result['status'],'blocked')

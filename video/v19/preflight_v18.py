@@ -15,19 +15,34 @@ GEO='https://geo.api.gouv.fr/communes?nom=Lyon&fields=nom,code,centre&format=jso
 
 
 def check_url(url, opener=None, timeout=12):
-    """Fetch a small bounded sample, following redirects, and report final host.
-    No claim that a HEAD-only response proves the application works.
+    """Bounded GET without Range. A partial HTTP response is not sufficient.
+
+    For the website, require a 200 HTML document on the expected HTTPS host.
+    This is only a reachability check, not a verified browser capture.
     """
-    opener=opener or urllib.request.urlopen
-    req=urllib.request.Request(url,headers={'User-Agent':'CarburantRadar-V18-preflight/1.0','Range':'bytes=0-2047'})
+    from urllib.parse import urlsplit
+    opener = opener or urllib.request.urlopen
+    req = urllib.request.Request(url, headers={
+        'User-Agent': 'CarburantRadar-V20-preflight/1.0',
+        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+    })
     try:
-        with opener(req,timeout=timeout) as resp:
-            status=getattr(resp,'status',200)
-            final=resp.geturl()
-            chunk=resp.read(2048)
-            return {'ok':status==200 and len(chunk)>0,'status':status,'final_url':final,'sample_bytes':len(chunk)}
+        with opener(req, timeout=timeout) as resp:
+            status = getattr(resp, 'status', 200)
+            final = resp.geturl()
+            chunk = resp.read(2048)
+            is_site = url == SITE
+            parsed = urlsplit(final)
+            host_ok = (parsed.scheme == 'https' and parsed.hostname in
+                       {'carburantradar.fr', 'www.carburantradar.fr'})
+            html_ok = b'<html' in chunk.lower() or b'<!doctype html' in chunk.lower()
+            ok = status == 200 and bool(chunk) and (not is_site or (host_ok and html_ok))
+            return {'ok': ok, 'status': status, 'final_url': final,
+                    'sample_bytes': len(chunk),
+                    'site_html_sample_valid': html_ok if is_site else None,
+                    'site_host_valid': host_ok if is_site else None}
     except Exception as e:
-        return {'ok':False,'error':type(e).__name__+': '+str(e)[:200]}
+        return {'ok': False, 'error': type(e).__name__ + ': ' + str(e)[:200]}
 
 
 def check_binary(name,runner=subprocess.run):
