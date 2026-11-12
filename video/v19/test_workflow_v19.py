@@ -30,6 +30,14 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("os.environ['CITY']",YAML)
         self.assertIn('subprocess.call(cmd)',YAML)
     def test_working_directory(self): self.assertIn('working-directory: video/v19',YAML)
-    def test_fail_closed(self): self.assertIn("steps.preflight.outputs.exit_code == '0'",YAML)
+    def test_fail_closed(self):
+        # V21: later steps gated on the preflight exit code.
+        # V22: the preflight step itself fails the job (exit "$result", no exit 0).
+        gated="steps.preflight.outputs.exit_code == '0'" in YAML
+        blocking='exit "$result"' in YAML and 'exit 0' not in YAML
+        self.assertTrue(gated or blocking, 'Preflight failure must stop the real run')
+    def test_v22_requires_real_mp4(self):
+        if 'V22' in YAML[:120]:
+            self.assertIn('test -s diagnostics/brouillon.mp4',YAML)
 
 if __name__=='__main__': unittest.main()

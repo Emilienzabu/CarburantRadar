@@ -7,6 +7,7 @@ import json
 import shutil
 import subprocess
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,6 +40,9 @@ def check_url(url, opener=None, timeout=12):
                     'sample_bytes': len(chunk),
                     'site_html_sample_valid': html_ok if is_site else None,
                     'site_host_valid': host_ok if is_site else None}
+    except urllib.error.HTTPError as e:
+        # urlopen raises on 4xx/5xx: keep the status so transient ones can be retried.
+        return {'ok': False, 'status': e.code, 'error': 'HTTPError: ' + str(e)[:200]}
     except Exception as e:
         return {'ok': False, 'error': type(e).__name__ + ': ' + str(e)[:200]}
 
