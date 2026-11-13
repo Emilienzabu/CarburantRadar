@@ -1,0 +1,10 @@
+'use strict';
+const {test}=require('node:test');const assert=require('node:assert/strict');const {view}=require('./radar-view-model');const {emptyGarage,addVehicle}=require('./garage');
+const garage=addVehicle(emptyGarage(),{id:'v',name:'Voiture',fuel:'Gazole',consumption:6,tankCapacity:50,fillPercent:80,illustration:'berline'});
+const stations=[{id:'1',name:'Station A',price:1.6},{id:'2',name:'Station B',price:1.7}];
+const base={top:[],calculated:[],uncalculated:['1'],unavailable:['2'],blockers:['2'],certified:false};
+test('route failure shown without invented cost and with retry',()=>{const x=view({garage,stations,ranking:base,showMore:true});const c=x.more.find(x=>x.id==='2');assert.equal(c.routeUnavailable,true);assert.equal(c.blocksCertification,true);assert.equal(c.totalCost,null);assert.equal(c.durationOutboundMinutes,null);assert.equal(c.canCalculate,true);assert.equal(x.status,'unverified')});
+test('failed provider never reports verified',()=>{const x=view({garage,stations,ranking:{...base,status:'error',error:'Proxy inaccessible',certified:true}});assert.equal(x.status,'error');assert.match(x.message,/Proxy inaccessible/)});
+test('cancelled calculation is distinct',()=>{const x=view({garage,stations,ranking:{...base,status:'cancelled'}});assert.equal(x.status,'cancelled');assert.match(x.message,/annulée/)});
+test('non-finite total does not masquerade as measured',()=>{const x=view({garage,stations,ranking:{...base,top:[{id:'1'}],calculated:[{id:'1',totalCost:NaN}]}});assert.equal(x.top[0].calculated,false)});
+test('unavailable route does not disable explicit retry',()=>{const x=view({garage,stations,ranking:base,showMore:true});assert.equal(x.more.find(x=>x.id==='2').canCalculate,true)});
