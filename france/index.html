@@ -1900,7 +1900,7 @@ async function fetchOSRM(candidates,requestId){
     var coords=lo+','+la+';'+batch.map(function(s){return s.lon+','+s.lat;}).join(';');
     try{
       osrmCalls++;
-      var data=await radarFetchOSRM(OSRM+coords+'?annotations=duration,distance&sources=0,'+batch.map(function(_,i){return i+1;}).join(',')+'&destinations=0,'+batch.map(function(_,i){return i+1;}).join(','));
+      var data=await radarFetchOSRM(OSRM+coords+'?annotations=duration,distance&sources=0;'+batch.map(function(_,i){return i+1;}).join(';')+'&destinations=0;'+batch.map(function(_,i){return i+1;}).join(';'));
       if(requestId!==radarRequestId)return;
       if(data.code!=='Ok'||!Array.isArray(data.distances)||!Array.isArray(data.durations))throw new Error('osrm_invalid');
       batch.forEach(function(s,i){
