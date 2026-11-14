@@ -17,5 +17,5 @@ test('V2: pagination invalide interdit la certification',async()=>{
 });
 test('legacy proxy stays explicitly uncertified',async()=>{
  const fetchFn=async()=>({ok:true,json:async()=>({})});
- const p=createRealProviders({fetchFn,snapshotV2Url:undefined});try{const r=await p.loadStations({fuel:'Gazole',origin});assert.equal(r.complete,false)}catch(e){assert.ok(e)}
+ const p=createRealProviders({fetchFn});try{const r=await p.loadStations({fuel:'Gazole',origin});assert.equal(r.complete,false)}catch(e){assert.ok(e)}
 });
