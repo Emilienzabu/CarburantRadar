@@ -1,0 +1,13 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const {loadSourceSnapshot}=require('./source-snapshot-loader');
+const rows=Array.from({length:5},(_,i)=>({id:String(i+1),value:i}));
+const make=(data=rows)=>async({offset,limit})=>({total_count:data.length,results:data.slice(offset,offset+limit)});
+test('complete ordered source with two matching passes',async()=>{let calls=0;const result=await loadSourceSnapshot({fetchPage:async x=>{calls++;return make()(x)},pageSize:2});assert.equal(result.total,5);assert.equal(result.verifiedTwice,true);assert.equal(calls,6);});
+test('detects changed records with same total between passes',async()=>{let calls=0;await assert.rejects(loadSourceSnapshot({fetchPage:async x=>{calls++;return make(calls>3?[...rows.slice(0,4),{id:'5',value:99}]:rows)(x)},pageSize:2}),/source_changed_between_passes/);});
+test('rejects missing source pages',async()=>{await assert.rejects(loadSourceSnapshot({fetchPage:async x=>({total_count:5,results:x.offset===2?[]:rows.slice(x.offset,x.offset+2)}),pageSize:2}),/source_short_page/);});
+test('rejects duplicate IDs',async()=>{await assert.rejects(loadSourceSnapshot({fetchPage:make([{id:'1'},{id:'1'}]),pageSize:2}),/source_duplicate_id/);});
+test('rejects changed total',async()=>{await assert.rejects(loadSourceSnapshot({fetchPage:async x=>({total_count:x.offset?6:5,results:rows.slice(x.offset,x.offset+2)}),pageSize:2}),/source_total_changed/);});
+test('rejects source exceeding cap',async()=>{await assert.rejects(loadSourceSnapshot({fetchPage:make(),maxRecords:4}),/source_limit/);});
+test('rejects abort before fetch',async()=>{const controller=new AbortController();controller.abort();await assert.rejects(loadSourceSnapshot({fetchPage:make(),signal:controller.signal}),/aborted/);});
+test('supports empty source without fabricating stations',async()=>{const result=await loadSourceSnapshot({fetchPage:make([])});assert.equal(result.total,0);assert.deepEqual(result.rows,[]);});

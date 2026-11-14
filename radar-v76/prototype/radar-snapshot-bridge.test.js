@@ -1,0 +1,26 @@
+'use strict';
+const {test}=require('node:test');const assert=require('node:assert/strict');
+const {loadSnapshotStations,rankSnapshot}=require('./radar-snapshot-bridge');
+const origin={lat:43.3,lon:5.4};
+const rows=Array.from({length:5},(_,i)=>({id:String(i),lat:43.3,lon:5.4,price:1.5+i/10}));
+const page=(patch={})=>async({offset,limit})=>({schemaVersion:2,complete:true,snapshot:'v1',checksum:'hash',createdAt:'2026-11-12T00:00:00Z',total:rows.length,results:rows.slice(offset,offset+limit),nextCursor:offset+limit<rows.length?offset+limit:null,...patch});
+const args={queryPage:page(),origin,radiusKm:5,fuel:'Gazole',pageSize:2};
+const bad=(fn,reason)=>assert.rejects(fn, e=>e.message===reason);
+for(const [name,patch,reason] of [
+ ['missing completion',{complete:false},'invalid_snapshot_page'],['bad schema',{schemaVersion:1},'invalid_snapshot_page'],['bad total',{total:-1},'invalid_snapshot_page'],['bad checksum',{checksum:''},'invalid_snapshot_page'],['bad cursor',{nextCursor:-1},'invalid_cursor'],['premature end',{nextCursor:null},'incomplete_snapshot'],['oversized page',{results:rows},'invalid_page_size'],['zero progress',{results:[],nextCursor:0},'invalid_page_progress']])test(name,()=>bad(()=>loadSnapshotStations({...args,queryPage:page(patch)}),reason));
+test('full pages are collected and pinned',async()=>{let calls=[];const q=async p=>{calls.push(p);return page()(p)};const r=await loadSnapshotStations({...args,queryPage:q});assert.equal(r.stations.length,5);assert.equal(r.metadata.pages,3);assert.equal(r.metadata.complete,true);assert.equal(calls[1].snapshot,'v1');});
+test('snapshot drift rejected',()=>bad(()=>loadSnapshotStations({...args,queryPage:async p=>({...await page()(p),snapshot:p.offset?'v2':'v1'})}),'snapshot_changed'));
+test('total drift rejected',()=>bad(()=>loadSnapshotStations({...args,queryPage:async p=>({...await page()(p),total:p.offset?6:5})}),'snapshot_changed'));
+test('timestamp drift rejected',()=>bad(()=>loadSnapshotStations({...args,queryPage:async p=>({...await page()(p),createdAt:p.offset?'2026-11-11':'2026-11-12T00:00:00Z'})}),'snapshot_changed'));
+test('duplicate ids rejected',()=>bad(()=>loadSnapshotStations({...args,queryPage:async p=>({...await page()(p),results:p.offset===2?[rows[0],rows[1]]:rows.slice(p.offset,p.offset+2)})}),'duplicate_station'));
+test('page limit rejected',()=>bad(()=>loadSnapshotStations({...args,maxPages:2}),'page_limit'));
+test('aborted rejected',()=>bad(()=>loadSnapshotStations({...args,signal:{aborted:true}}),'aborted'));
+test('invalid fuel rejected',()=>bad(()=>loadSnapshotStations({...args,fuel:'Unknown'}),'invalid_loader_config'));
+test('invalid origin rejected',()=>bad(()=>loadSnapshotStations({...args,origin:{lat:100,lon:0}}),'invalid_origin'));
+test('invalid radius rejected',()=>bad(()=>loadSnapshotStations({...args,radiusKm:100}),'invalid_loader_config'));
+test('invalid page size rejected',()=>bad(()=>loadSnapshotStations({...args,pageSize:101}),'invalid_loader_config'));
+test('invalid max pages rejected',()=>bad(()=>loadSnapshotStations({...args,maxPages:0}),'invalid_loader_config'));
+test('empty complete snapshot accepted',async()=>{const q=page({total:0,results:[],nextCursor:null});const r=await loadSnapshotStations({...args,queryPage:q});assert.equal(r.stations.length,0)});
+test('certified ranking only after full snapshot',async()=>{const vehicle={id:'v',name:'Voiture',fuel:'Gazole',consumption:6,tankCapacity:50,illustration:'citadine_bleue',fillPercent:80};const r=await rankSnapshot({...args,vehicle,fillPercent:80,now:Date.parse('2026-11-12T12:00:00Z'),routeBatch:async({stations})=>stations.map(s=>({id:s.id,distanceRoundTripKm:10,durationOutboundMinutes:8}))});assert.equal(r.ranking.certified,true);assert.equal(r.ranking.top.length,5);assert.equal(r.ranking.top[0].durationOutboundMinutes,8);assert.equal(r.freshness.price.status,'unknown');});
+test('vehicle fuel mismatch rejected',()=>bad(()=>rankSnapshot({...args,vehicle:{fuel:'E10'}}),'vehicle_fuel_mismatch'));
+test('routing failures cannot certify top',async()=>{const vehicle={id:'v',name:'Voiture',fuel:'Gazole',consumption:6,tankCapacity:50,illustration:'citadine_bleue',fillPercent:80};const r=await rankSnapshot({...args,vehicle,fillPercent:80,routeBatch:async()=>[]});assert.equal(r.ranking.certified,false)});

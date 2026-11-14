@@ -1,0 +1,37 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const {createRadar,normalizeStations}=require('./radar-controller');
+const {emptyGarage,addVehicle,editVehicle,setDefaultVehicle}=require('./garage');
+const base=addVehicle(emptyGarage(),{id:'a',name:'A',fuel:'Gazole',consumption:6,tankCapacity:50,illustration:'citadine_bleue',fillPercent:80});
+const s=[{id:1,lat:43.3,lon:5.4,fuel:'Gazole',price:1.7},{id:2,lat:43.4,lon:5.5,fuel:'Gazole',price:1.65}];
+const from={lat:43.31,lon:5.41};
+function createMock(){let calls=0;const radar=createRadar({fetchRoutes:async ({stations})=>{calls++;return stations.map((x,i)=>({id:x.id,distanceRoundTripKm:i===0?4:36}));}});radar.setGarage(base);radar.setStations(s,from);return {radar,get calls(){return calls}};}
+test('sans garage résultat vide',()=>assert.equal(createRadar().snapshot().results.length,0));
+test('validation des stations',()=>assert.throws(()=>normalizeStations([null],'Gazole')));
+test('doublons refusés',()=>assert.throws(()=>normalizeStations([s[0],s[0]],'Gazole')));
+test('filtre carburant',()=>assert.equal(normalizeStations([...s,{id:3,fuel:'E10',price:1}], 'Gazole').length,2));
+test('filtre prix absent',()=>assert.equal(normalizeStations([...s,{id:3,fuel:'Gazole',price:null}],'Gazole').length,2));
+test('configuration véhicule requise',()=>assert.throws(()=>createRadar().setStations(s,from)));
+test('état initial prêt',()=>assert.equal(createMock().radar.snapshot().phase,'ready'));
+test('coûts non renseignés avant routage',()=>assert.equal(createMock().radar.snapshot().pending,2));
+test('classement final fondé sur le coût total',async()=>{const {radar}=createMock();const x=await radar.calculate();assert.equal(x.phase,'complete');assert.equal(x.results[0].id,'1');});
+test('changement de jauge sans nouveau routage',async()=>{const x=createMock();await x.radar.calculate();x.radar.updateFillPercent(20);assert.equal(x.calls,1);assert.equal(x.radar.snapshot().results[0].litersToBuy,10)});
+test('jauge invalide rejetée',()=>assert.throws(()=>createMock().radar.updateFillPercent(0)));
+test('borne inférieure préserve station candidate',()=>assert.deepEqual(createMock().radar.shortlistByLowerBound(67),['2']));
+test('réponse partielle',async()=>{const r=createRadar({fetchRoutes:async({stations})=>stations.map((x,i)=>({id:x.id,distanceRoundTripKm:i?null:4}))});r.setGarage(base);r.setStations(s,from);assert.equal((await r.calculate()).phase,'partial')});
+test('erreur réseau => état erreur',async()=>{const r=createRadar({fetchRoutes:async()=>{throw Error('offline')}});r.setGarage(base);r.setStations(s,from);assert.equal((await r.calculate()).phase,'route_error')});
+test('réponse identifiant inconnu rejetée',async()=>{const r=createRadar({fetchRoutes:async()=>[{id:'bad',distanceRoundTripKm:2},{id:'2',distanceRoundTripKm:2}]});r.setGarage(base);r.setStations(s,from);assert.equal((await r.calculate()).phase,'route_error')});
+test('réponse avec identifiant dupliqué rejetée',async()=>{const r=createRadar({fetchRoutes:async()=>[{id:'1',distanceRoundTripKm:2},{id:'1',distanceRoundTripKm:2}]});r.setGarage(base);r.setStations(s,from);assert.equal((await r.calculate()).phase,'route_error')});
+test('distance négative rejetée',async()=>{const r=createRadar({fetchRoutes:async()=>[{id:'1',distanceRoundTripKm:-2},{id:'2',distanceRoundTripKm:2}]});r.setGarage(base);r.setStations(s,from);assert.equal((await r.calculate()).phase,'route_error')});
+test('recherche remplacée ne doit pas publier ancien résultat',async()=>{
+ let finish;const r=createRadar({fetchRoutes:()=>new Promise(resolve=>{finish=resolve})});
+ r.setGarage(base);r.setStations(s,from);const old=r.calculate();r.setStations([s[0]],from);
+ finish([{id:'1',distanceRoundTripKm:4},{id:'2',distanceRoundTripKm:36}]);
+ assert.deepEqual(await old,{status:'superseded'});assert.equal(r.snapshot().results.length,1);
+});
+test('changement de carburant exige nouveau chargement',()=>{const x=createMock();const g=editVehicle(base,'a',{fuel:'E10'});assert.equal(x.radar.setGarage(g).phase,'needs_stations')});
+test('recalcul sans stations',async()=>{const r=createRadar({fetchRoutes:async()=>[]});r.setGarage(base);r.setStations([],from);assert.equal((await r.calculate()).phase,'complete')});
+test('notifications reçues',async()=>{let n=0;const r=createRadar({fetchRoutes:async({stations})=>stations.map(x=>({id:x.id,distanceRoundTripKm:2})),onUpdate:()=>n++});r.setGarage(base);r.setStations(s,from);await r.calculate();assert.ok(n>=4)});
+test('modification véhicule sans changement carburant conserve routes',async()=>{const x=createMock();await x.radar.calculate();x.radar.setGarage(editVehicle(base,'a',{consumption:7}));assert.equal(x.radar.snapshot().phase,'complete');assert.equal(x.calls,1)});
+test('tri avec toutes routes absentes',async()=>{const r=createRadar({fetchRoutes:async({stations})=>stations.map(x=>({id:x.id,distanceRoundTripKm:null}))});r.setGarage(base);r.setStations(s,from);assert.equal((await r.calculate()).pending,2)});
+test('calcul annulé remplacé',async()=>{const x=createMock();x.radar.cancel();assert.equal(x.radar.snapshot().phase,'ready')});

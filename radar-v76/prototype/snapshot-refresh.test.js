@@ -1,0 +1,23 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const {createRefresher}=require('./snapshot-refresh');
+const {createPersistence,memoryAdapters}=require('./snapshot-persistence');
+const rows=n=>Array.from({length:n},(_,i)=>({id:String(i+1),geom:{lat:43.3,lon:5.4},gazole_prix:1.7}));
+function setup(download,opts={}){const a=memoryAdapters(),p=createPersistence({objects:a.objects,coordinator:a.coordinator});return {p,refresh:createRefresher({persistence:p,download,...opts})};}
+const source=n=>({complete:true,total:n,rows:rows(n)});
+test('publishes validated snapshot',async()=>{const {p,refresh}=setup(async()=>source(3));assert.equal((await refresh.run({version:'v1'})).status,'published');assert.equal((await p.query({lat:43.3,lon:5.4,radiusKm:5,fuel:'Gazole'})).total,3);});
+test('keeps previous on incomplete update',async()=>{let bad=false;const {p,refresh}=setup(async()=>bad?{complete:false,total:2,rows:rows(2)}:source(3));await refresh.run({version:'v1'});bad=true;assert.equal((await refresh.run({version:'v2'})).status,'failed');assert.equal((await p.query({lat:43.3,lon:5.4,radiusKm:5,fuel:'Gazole'})).snapshot,'v1');});
+test('rejects mismatched count',async()=>{const {refresh}=setup(async()=>({...source(2),total:4}));assert.equal((await refresh.run({version:'v1'})).reason,'count_mismatch');});
+test('rejects unexpected large decrease',async()=>{const {refresh}=setup(async()=>source(5));assert.equal((await refresh.run({version:'v1',previousCount:10})).reason,'suspicious_station_drop');});
+test('rejects missing minimum',async()=>{const {refresh}=setup(async()=>source(0));assert.equal((await refresh.run({version:'v1'})).reason,'incomplete_source');});
+test('rejects invalid version',async()=>{const {refresh}=setup(async()=>source(2));assert.equal((await refresh.run({version:'bad/path'})).reason,'invalid_version');});
+test('does not overwrite active on invalid rows',async()=>{let invalid=false;const {p,refresh}=setup(async()=>invalid?{complete:true,total:1,rows:[{id:'a'}]}:source(2));await refresh.run({version:'v1'});invalid=true;assert.equal((await refresh.run({version:'v2'})).status,'failed');assert.equal((await p.query({lat:43.3,lon:5.4,radiusKm:5,fuel:'Gazole'})).snapshot,'v1');});
+test('abort before start skips',async()=>{const {refresh}=setup(async()=>source(2));const c=new AbortController();c.abort();assert.equal((await refresh.run({version:'v1',signal:c.signal})).status,'skipped');});
+test('abort during download prevents publish',async()=>{const c=new AbortController();const {refresh}=setup(async()=>{c.abort();return source(2)});assert.equal((await refresh.run({version:'v1',signal:c.signal})).reason,'aborted');});
+test('lease denied skips',async()=>{const {refresh}=setup(async()=>source(2),{lease:{acquire:async()=>false,release:async()=>{throw Error('should not release')}}});assert.equal((await refresh.run({version:'v1'})).reason,'lease_unavailable');});
+test('lease released on error',async()=>{let released=0;const {refresh}=setup(async()=>{throw Error('offline')},{lease:{acquire:async()=>true,release:async()=>{released++}}});assert.equal((await refresh.run({version:'v1'})).reason,'offline');assert.equal(released,1);});
+test('concurrent local run skips',async()=>{let unblock;const wait=new Promise(r=>unblock=r);const {refresh}=setup(async()=>{await wait;return source(2)});const a=refresh.run({version:'v1'});assert.equal((await refresh.run({version:'v2'})).reason,'already_running');unblock();assert.equal((await a).status,'published');});
+test('status tracks attempts and last error',async()=>{const {refresh}=setup(async()=>{throw Error('offline')},{clock:()=>123});await refresh.run({version:'v1'});assert.deepEqual(refresh.status(),{running:false,attempts:1,lastSuccess:null,lastError:{code:'offline',at:123}});});
+test('status tracks success',async()=>{const {refresh}=setup(async()=>source(2),{clock:()=>42});await refresh.run({version:'v1'});assert.deepEqual(refresh.status().lastSuccess,{version:'v1',count:2,at:42});});
+test('rejects configuration errors',()=>{assert.throws(()=>createRefresher({}),/invalid_refresh_config/);});
+test('rejects negative previous count',async()=>{const {refresh}=setup(async()=>source(2));assert.equal((await refresh.run({version:'v1',previousCount:-1})).reason,'invalid_previous_count');});

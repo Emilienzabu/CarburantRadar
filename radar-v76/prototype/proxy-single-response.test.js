@@ -1,0 +1,14 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const {normalizeSingleResponse,loadSingleResponse}=require('./proxy-single-response');
+const station=(id)=>({id,geom:{lat:43.3,lon:5.4},gazole_prix:1.7});
+const page=(results)=>({schemaVersion:2,results,complete:true,nextCursor:null,total:results.length,sourceTotal:results.length,snapshot:'single-response-'+results.length});
+test('single response complete valid',()=>assert.equal(normalizeSingleResponse(page([station('1')]),'Gazole').stations.length,1));
+test('reject legacy without source total',()=>assert.throws(()=>normalizeSingleResponse({...page([]),sourceTotal:undefined},'Gazole')));
+test('reject incomplete cursor page',()=>assert.throws(()=>normalizeSingleResponse({...page([]),complete:false,nextCursor:'next'},'Gazole')));
+test('reject filtered total mismatch',()=>assert.throws(()=>normalizeSingleResponse({...page([station('1')]),total:2},'Gazole')));
+test('reject duplicate ids',()=>assert.throws(()=>normalizeSingleResponse(page([station('1'),station('1')]),'Gazole')));
+test('reject missing requested fuel',()=>assert.throws(()=>normalizeSingleResponse(page([{id:'1',geom:{lat:43.3,lon:5.4}}]),'Gazole')));
+test('reject impossible source total',()=>assert.throws(()=>normalizeSingleResponse({...page([station('1')]),sourceTotal:0},'Gazole')));
+test('endpoint includes path and fuel',async()=>{let called;const result=await loadSingleResponse({fetchFn:async url=>{called=new URL(url);return {ok:true,json:async()=>page([station('1')])}},origin:{lat:43.3,lon:5.4},radiusKm:10,fuel:'Gazole'});assert.equal(called.pathname,'/v2/france');assert.equal(called.searchParams.get('fuel'),'Gazole');assert.equal(result.complete,true)});
+test('HTTP errors are not completeness',async()=>await assert.rejects(loadSingleResponse({fetchFn:async()=>({ok:false,status:503}),origin:{lat:43.3,lon:5.4},radiusKm:10,fuel:'Gazole'}),/proxy_http_503/));

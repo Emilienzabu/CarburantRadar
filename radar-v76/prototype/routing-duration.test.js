@@ -1,0 +1,25 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const {buildUrl,extractDuration,resolveRoutes,createRouteCache}=require('./routing');
+const origin={lat:43.3,lon:5.4},station={id:'s',lat:43.31,lon:5.41};
+const route=async({out=600,back=900,distOut=3000,distBack=4000,cache=createRouteCache()}={})=>{
+ const calls=[];
+ const fetchFn=async url=>{calls.push(url);const isBack=url.includes('destinations=0');return {ok:true,json:async()=>({code:'Ok',distances:[[isBack?distBack:distOut]],durations:[[isBack?back:out]]})};};
+ return {r:await resolveRoutes({origin,stations:[station],fetchFn,cache}),calls,fetchFn,cache};
+};
+test('URL asks distance and duration together',()=>assert.match(buildUrl('https://host/table',origin,[station],true),/annotations=distance,duration/));
+test('outbound duration parsed',()=>assert.deepEqual(extractDuration({durations:[[60,120]]},2,true),[60,120]));
+test('inbound duration parsed',()=>assert.deepEqual(extractDuration({durations:[[60],[120]]},2,false),[60,120]));
+test('missing duration becomes unknown',()=>assert.deepEqual(extractDuration({distances:[[3]]},1,true),[null]));
+test('null duration stays unknown',()=>assert.deepEqual(extractDuration({durations:[[null]]},1,true),[null]));
+test('negative duration rejected',()=>assert.deepEqual(extractDuration({durations:[[-1]]},1,true),[null]));
+test('non numeric duration rejected',()=>assert.deepEqual(extractDuration({durations:[['10']]},1,true),[null]));
+test('malformed outbound matrix rejected',()=>assert.throws(()=>extractDuration({durations:[[1],[2]]},2,true)));
+test('malformed inbound matrix rejected',()=>assert.throws(()=>extractDuration({durations:[[1,2]]},2,false)));
+test('round trip distance and outward time independently',async()=>{const {r,calls}=await route();assert.equal(r[0].distanceRoundTripKm,7);assert.equal(r[0].durationOutboundMinutes,10);assert.equal(r[0].durationReturnMinutes,15);assert.equal(calls.length,2)});
+test('fractional minute preserved for UI rounding',async()=>{const {r}=await route({out:95});assert.equal(r[0].durationOutboundMinutes,95/60)});
+test('zero duration accepted',async()=>{const {r}=await route({out:0});assert.equal(r[0].durationOutboundMinutes,0)});
+test('null time does not invalidate valid distance',async()=>{const {r}=await route({out:null});assert.equal(r[0].status,'routed');assert.equal(r[0].durationOutboundMinutes,null)});
+test('route cache preserves both times',async()=>{const cache=createRouteCache();const a=await route({cache});const b=await route({cache});assert.equal(b.calls.length,0);assert.equal(b.r[0].durationOutboundMinutes,10);assert.equal(b.r[0].durationReturnMinutes,15)});
+test('legacy cache has no invented time',async()=>{const cache=createRouteCache();cache.set('5.4,43.3|s|5.41,43.31',{distanceRoundTripKm:7,expiresAt:Date.now()+10000});const {r,calls}=await route({cache});assert.equal(calls.length,0);assert.equal(r[0].durationOutboundMinutes,null)});
+test('outbound and return durations can differ',async()=>{const {r}=await route({out:420,back:780});assert.equal(r[0].durationOutboundMinutes,7);assert.equal(r[0].durationReturnMinutes,13)});
