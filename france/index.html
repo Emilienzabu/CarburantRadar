@@ -1749,9 +1749,41 @@ async function chargerStationsRadar(lat,lon,rayon,carburant){
 var radarCostStatus="";
 var radarDataCoverage='';
 var radarRequestId=0;
+var radarProgress=null;
+function radarProgressStart(id){
+  radarProgress={id:id,location:true,stations:null,total:0,routes:0,costs:0,failed:0,stage:'stations'};
+  radarProgressShow(id);
+}
+function radarProgressShow(id){
+  var p=radarProgress;
+  if(!p||p.id!==id||id!==radarRequestId)return;
+  var lines=['✓ Position récupérée'];
+  if(p.stations===null){lines.push('⏳ Récupération des stations...');}
+  else {
+    lines.push('✓ '+p.stations+' stations trouvées');
+    if(p.stage==='routes'){
+      lines.push('⏳ Calcul des itinéraires : '+p.routes+'/'+p.total);
+      lines.push('⏳ Calcul des coûts : '+p.costs+'/'+p.total);
+      lines.push('Classement provisoire : '+p.costs+' coût(s) connu(s)');
+    }else if(p.stage==='done'){
+      lines.push('✓ Calculs terminés : '+p.costs+'/'+p.total+' coûts disponibles');
+    }
+  }
+  var el=document.getElementById('status');
+  if(!el)return;
+  el.textContent=lines.join('\n');
+  el.style.whiteSpace='pre-line';
+  el.className='on';
+}
+function radarProgressFinish(id){
+  if(!radarProgress||radarProgress.id!==id||id!==radarRequestId)return;
+  radarProgress=null;
+  var el=document.getElementById('status');
+  if(el)el.style.whiteSpace='';
+}
 function load(){
   var requestId=++radarRequestId;
-  sstat('Chargement des prix...');scontent('<div class="empty"><div class="spinner"></div><div style="font-size:14px;color:var(--text)">Recherche en cours...</div></div>');
+  radarProgressStart(requestId);scontent('<div class="empty"><div class="spinner"></div><div style="font-size:14px;color:var(--text)">Recherche en cours...</div></div>');
   document.getElementById('stats').className='stats';
   chargerStationsRadar(la,lo,ra,fu)
   .then(function(raw){
@@ -1768,9 +1800,19 @@ function load(){
       if(!Number.isFinite(rl)||!Number.isFinite(rn)||rl < -90||rl > 90||rn < -180||rn > 180)return;
       st.push({id:r.id,adresse:r.adresse||'',ville:r.ville||'',cp:r.cp||'',lat:rl,lon:rn,prix:Number.isFinite(px)&&px>0&&px<20?px:null,distance:hv(la,lo,rl,rn),duree:null,distRoute:null,automate:r._v2HorairesInconnus?false:r.horaires_automate_24_24==='Oui',horairesInconnus:!!r._v2HorairesInconnus});
     });
-    radarCostStatus='Calcul des coûts réels en cours';
-    sstat('Calcul des trajets aller-retour...');fetchOSRM(st.filter(function(s){return s.prix>0;}),requestId);
-  }).catch(function(){if(requestId!==radarRequestId)return;sstat('Erreur - verifie ta connexion');scontent('<div class="empty"><div style="font-size:30px">!</div><div style="color:var(--text);font-weight:700;margin:8px 0">Erreur</div><div style="font-size:13px">Actualise pour reessayer</div></div>');});
+    var candidates=st.filter(function(s){return s.prix>0;});
+    radarProgress.stations=st.length;
+    radarProgress.total=candidates.length;
+    radarProgress.stage='routes';
+    radarCostStatus='Classement provisoire : calcul des itinéraires en cours';
+    render(); // Montrer les prix immédiatement, avant toute requête OSRM.
+    radarProgressShow(requestId);
+    Promise.resolve(fetchOSRM(candidates,requestId)).catch(function(){
+      if(requestId!==radarRequestId)return;
+      radarCostStatus='Itinéraires indisponibles : classement partiel';
+      render();radarProgressFinish(requestId);
+    });
+  }).catch(function(){if(requestId!==radarRequestId)return;radarProgressFinish(requestId);sstat('Erreur - verifie ta connexion');scontent('<div class="empty"><div style="font-size:30px">!</div><div style="color:var(--text);font-weight:700;margin:8px 0">Erreur</div><div style="font-size:13px">Actualise pour reessayer</div></div>');});
 }
 // Calcule les coûts sur des trajets OSRM dans les deux sens, sans estimer de fausses distances.
 // La limite protège le service public OSRM. Si elle est atteinte, l'interface le signale.
@@ -1825,7 +1867,7 @@ async function radarFetchOSRM(url){
 async function fetchOSRM(candidates,requestId){
   var config=radarVehicleConfig();
   if(requestId!==radarRequestId)return;
-  if(!config){radarCostStatus='Paramètres du véhicule invalides';render();return;}
+  if(!config){radarCostStatus='Paramètres du véhicule invalides';render();radarProgressFinish(requestId);return;}
   // On n'élimine pas les stations les plus chères a priori : une station proche
   // peut être moins coûteuse au total qu'une station moins chère mais éloignée.
   // Borne inférieure mathématique : tout trajet routier aller-retour est au moins
@@ -1842,6 +1884,7 @@ async function fetchOSRM(candidates,requestId){
       &&s.lat>=-90&&s.lat<=90&&s.lon>=-180&&s.lon<=180;
   });
   var selected=ranked.slice(0,limit).map(function(entry){return entry.station;});
+  if(radarProgress&&radarProgress.id===requestId){radarProgress.total=selected.length;radarProgressShow(requestId);}
   var failed=0;
   var osrmCalls=0;
   var startedAt=Date.now();
@@ -1850,7 +1893,7 @@ async function fetchOSRM(candidates,requestId){
   for(var offset=0;offset<selected.length;offset+=20){
     if(requestId!==radarRequestId)return;
     var batch=selected.slice(offset,offset+20);
-    if(typeof sstat==='function')sstat('Calcul des trajets : '+Math.min(offset+batch.length,selected.length)+' / '+selected.length+' stations candidates...');
+    radarProgressShow(requestId);
     // Laisser le navigateur afficher la progression avant une requête longue.
     await new Promise(function(resolve){setTimeout(resolve,0);});
     if(requestId!==radarRequestId)return;
@@ -1872,6 +1915,13 @@ async function fetchOSRM(candidates,requestId){
       failed+=batch.length;
       if(e&&e.message==='osrm_http_429'){rateLimited=true;break;}
     }
+    if(radarProgress&&radarProgress.id===requestId){
+      radarProgress.routes=Math.min(offset+batch.length,selected.length);
+      radarProgress.costs=selected.filter(function(s){return Number.isFinite(s.coutTotal);}).length;
+      radarProgressShow(requestId);
+    }
+    radarCostStatus='Classement provisoire : '+(radarProgress?radarProgress.costs:0)+' coûts calculés';
+    render();radarProgressShow(requestId);
     // Les candidats sont triés par coût minimal garanti. Si dix trajets
     // connus coûtent moins que toutes les bornes encore non évaluées,
     // aucun appel OSRM supplémentaire ne peut modifier le Top 10.
@@ -1897,7 +1947,7 @@ async function fetchOSRM(candidates,requestId){
   var certified=costs.length>=10&&unresolved.every(function(entry){return entry.lowerBound>=tenth;});
   var elapsedSeconds=((Date.now()-startedAt)/1000).toFixed(1);
   radarCostStatus=radarDataCoverage+'Calcul routier : '+osrmCalls+' requête(s), '+elapsedSeconds+' s. '+(certified?'Top 10 certifié parmi les stations reçues uniquement. ': 'Classement partiel : Top 10 non certifié. ')+(stoppedByProof?'Calcul routier arrêté dès que le Top 10 est démontré. ':'')+(candidates.length>limit&&!certified?'Analyse limitée à 300 stations. ':'')+(rateLimited?'Service itinéraires temporairement limité : calcul interrompu. ':'')+(failed?'Trajets indisponibles pour '+failed+' station(s). ':'');
-  render();updateMapMarkers();
+  render();updateMapMarkers();radarProgressFinish(requestId);
 }
 function render(){
   var names=getNames(),favs=getFavs(),wp=st.filter(function(s){return s.prix>0;}),ps=wp.map(function(s){return s.prix;});
