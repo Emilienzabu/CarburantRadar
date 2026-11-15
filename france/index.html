@@ -783,6 +783,10 @@ button:active{transform:scale(.97)}
   </div>
 </div>
 
+<div id="crGuide" hidden aria-live="polite"><div id="crGuideHalo" aria-hidden="true"></div><div id="crGuideBubble" role="dialog" aria-label="Visite guidée"><div class="cr-guide-head"><span id="crGuideCount"></span><button type="button" onclick="fermerTuto()" aria-label="Fermer le tutoriel">✕</button></div><strong id="crGuideTitle"></strong><p id="crGuideText"></p><div class="cr-guide-actions"><button id="crGuidePrev" onclick="tutoPrecedent()">Retour</button><button id="crGuideNext" onclick="tutoSuivant()">Suivant</button></div><button class="cr-guide-skip" onclick="fermerTuto()">Passer le tutoriel</button></div></div>
+<style>
+#crGuide[hidden]{display:none!important}#crGuideHalo{position:fixed;z-index:9997;pointer-events:none;border:2px solid var(--accent);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.62),0 0 0 5px rgba(255,155,0,.17);transition:top .2s,left .2s,width .2s,height .2s}#crGuideBubble{position:fixed;z-index:9998;box-sizing:border-box;background:#181820;color:#fff;border:1px solid #454552;border-radius:15px;padding:16px;box-shadow:0 10px 35px #000b;font-size:14px;line-height:1.5}#crGuideBubble:before{display:none}#crGuideHalo:after{content:'↓';position:absolute;top:-32px;left:14px;color:var(--accent);font-size:27px;font-weight:800;text-shadow:0 1px 4px #000}.cr-guide-head,.cr-guide-actions{display:flex;justify-content:space-between;align-items:center;gap:10px}.cr-guide-head{color:var(--text-muted);font-size:11px;margin-bottom:7px}.cr-guide-head button{background:none;color:var(--text);width:auto;padding:0 4px}#crGuideTitle{font-size:15px}#crGuideText{margin:8px 0 14px;color:#e6e6ed;font-size:13px}#crGuideBubble .cr-guide-head{color:#c6c6d1}#crGuideBubble .cr-guide-skip{color:#c6c6d1}#crGuideBubble .cr-guide-head button{color:#fff}.cr-guide-actions button{width:auto;padding:9px 14px;border-radius:8px}.cr-guide-actions button:last-child{background:var(--accent);color:var(--accent-text)}.cr-guide-skip{display:block;width:auto;margin:8px auto 0;background:none;color:var(--text-muted);font-size:11px;padding:3px}.cr-fill-info{border:1px solid var(--border);background:transparent;color:var(--text-muted);border-radius:50%;width:18px!important;height:18px!important;min-width:18px;padding:0!important;font-size:11px;line-height:16px;flex-shrink:0}
+</style>
 <div class="modal" id="tutoModal">
   <div class="modal-box" style="max-width:360px;text-align:center">
     <div id="tutoIcone" style="font-size:40px;margin-bottom:10px"></div>
@@ -822,7 +826,41 @@ function urlBase64ToUint8Array(base64String){
 setTimeout(function(){var s=document.getElementById('splash');if(s)s.style.display='none';},3000);
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('../service-worker.js',{scope:'/CarburantRadar/france/'}).catch(function(){});
+  // Chemin relatif compatible avec le domaine personnalisé et GitHub Pages.
+  // updateViaCache:none permet de vérifier le script SW sans cache HTTP.
+  navigator.serviceWorker.register('../service-worker.js',{updateViaCache:'none'})
+    .then(function(reg){
+      var updating=false;
+      function checkUpdate(){
+        if(!navigator.onLine||updating)return;
+        updating=true;
+        reg.update().catch(function(){}).finally(function(){updating=false;});
+      }
+      // Vérification au lancement, au retour dans l'application et périodiquement.
+      checkUpdate();
+      document.addEventListener('visibilitychange',function(){if(!document.hidden)checkUpdate();});
+      window.addEventListener('online',checkUpdate);
+      setInterval(function(){if(!document.hidden)checkUpdate();},60*60*1000);
+    }).catch(function(){});
+  // Lorsqu'un nouveau SW prend le contrôle, proposer un rechargement.
+  // Ne jamais effacer localStorage, IndexedDB ni les données du compte.
+  var crHadController=!!navigator.serviceWorker.controller;
+  var crUpdateShown=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    if(!crHadController){crHadController=true;return;}
+    if(crUpdateShown)return;
+    crUpdateShown=true;
+    var notice=document.createElement('div');
+    notice.id='crUpdateNotice';
+    notice.setAttribute('role','status');
+    notice.style.cssText='position:fixed;bottom:75px;left:12px;right:12px;max-width:440px;margin:auto;z-index:2147483640;padding:12px 14px;border-radius:12px;background:#222;color:#fff;box-shadow:0 5px 24px #0008;font:600 13px system-ui;display:flex;align-items:center;gap:10px';
+    var label=document.createElement('span');label.textContent='Nouvelle version disponible';label.style.flex='1';
+    var btn=document.createElement('button');btn.textContent='Actualiser';btn.style.cssText='background:#f5a623;color:#111;border:0;border-radius:8px;padding:9px 12px;font-weight:700;cursor:pointer';
+    btn.onclick=function(){location.reload();};
+    var close=document.createElement('button');close.textContent='×';close.setAttribute('aria-label','Plus tard');close.style.cssText='background:transparent;color:white;border:0;font-size:22px;padding:2px 6px;cursor:pointer';
+    close.onclick=function(){notice.remove();};
+    notice.append(label,btn,close);document.body.appendChild(notice);
+  });
   // Ecouteur pour les messages du service worker (notifications)
   navigator.serviceWorker.addEventListener('message', function(event) {
     if (event.data.type === 'NOTIFICATION_CLICK' && event.data.stationId) {
@@ -1066,43 +1104,88 @@ function onboardingOuvrirCompte(mode){
   setTimeout(function(){document.getElementById('compteEmail').focus();},300);
 }
 
-// ===== Tutoriel de démarrage =====
+// ===== Visite guidée interactive — version pilote =====
+// Aucune donnée fictive n'est enregistrée ; les recherches utilisent les vrais services.
 var TUTO_ETAPES=[
-  {icone:'🔍',titre:'Recherche automatique',texte:"CarburantRadar compare en temps réel les stations autour de toi, à partir des prix officiels. Ajuste le rayon de recherche et le carburant en haut de l'écran Radar."},
-  {icone:'🔔',titre:'Alertes de prix',texte:"Active une alerte dans Menu > Compte pour être prévenu quand une station de ta zone passe sous ton seuil, ou atteint son meilleur prix depuis plusieurs jours."},
-  {icone:'📍',titre:'Repères & destinations',texte:"Enregistre les lieux que tu visites souvent (travail, famille...) dans Menu > Mes lieux. Tu pourras chercher des stations autour d'eux sans y être, même en cliquant directement sur la carte."},
-  {icone:'🧭',titre:'Mode Trajet',texte:"Trouve la meilleure station sur le chemin d'une destination plutôt qu'autour de toi, avec le vrai détour calculé — pas juste la plus proche à vol d'oiseau."},
-  {icone:'⚙️',titre:'Personnalisation',texte:"Dans Menu > Personnalisation : thème clair/sombre, pays, véhicule (pour calculer tes économies), carburant et rayon par défaut."},
-  {icone:'🎉',titre:"C'est prêt !",texte:'Tu peux revoir ce tutoriel à tout moment depuis Menu > Infos > "Revoir le tutoriel".'}
+ {page:'radar',target:'#crVehSel',titre:'Choisis un véhicule',texte:'Voici le véhicule utilisé pour calculer le coût du trajet. Tu pourras ajouter le tien plus tard.'},
+ {page:'radar',target:'#rg [data-k="5"]',titre:'Cherche près de toi',texte:'Appuie sur 5 km pour limiter la recherche aux stations proches.',action:'click'},
+ {page:'radar',target:'#crFillRange',titre:'Quelle quantité acheter ?',texte:'Règle le curseur sur 50 %. Réservoir à moitié plein ? Pour le remplir, tu achètes 50 %, pas 100 %.',action:'input'},
+ {page:'radar',target:'#locBtn',titre:'Lance la recherche',texte:'Appuie sur Me localiser. La position GPS est demandée seulement avec ton autorisation.',action:'click'},
+ {page:'radar',target:'#stats',titre:'Prix autour de toi',texte:'Ces chiffres indiquent le nombre de stations trouvées, le prix minimum et le prix moyen.'},
+ {page:'radar',target:'#content',titre:'Compare le coût total',texte:'Le coût total tient compte du carburant acheté et de l’aller-retour. Un prix au litre plus bas n’est pas toujours le meilleur choix.'},
+ {page:'radar',target:'#nav-map',titre:'Ouvre la carte',texte:'Appuie sur Carte pour voir les stations et leurs prix sur une carte.',action:'click'},
+ {page:'map',target:'#map',titre:'Stations sur la carte',texte:'Tu peux explorer les stations sur la carte. Les repères personnels se gèrent dans le menu.'},
+ {page:'map',target:'#nav-trajet',titre:'Découvre les trajets',texte:'Appuie sur Trajet pour comparer les stations sur un parcours.',action:'click'},
+ {page:'trajet',target:'#trajetDest',titre:'Une destination',texte:'Saisis une destination pour trouver les stations sur ta route. Tu peux aussi utiliser tes repères.'},
+ {page:'trajet',target:'#nav-analyse',titre:'Découvre Analyse',texte:'Appuie sur Analyse pour suivre les prix et les stations favorites.',action:'click'},
+ {page:'analyse',target:'#analyseList',titre:'Suivre les évolutions',texte:'Tu peux consulter les prix moyens et l’historique disponible pour les stations suivies.'},
+ {page:'analyse',target:'#nav-radar',titre:'À toi de jouer !',texte:'Retourne au Radar. Tu peux refaire cette visite depuis le menu Infos.',action:'click'}
 ];
-var tutoIndex=0;
+var tutoIndex=0,tutoActif=false,tutoLastAction=0;
+function tutoElements(){return {b:document.getElementById('crGuideBubble'),h:document.getElementById('crGuideHalo')};}
 function ouvrirTuto(){
-  tutoIndex=0;
-  renderTutoEtape();
-  document.getElementById('tutoModal').classList.add('on');
+ var ancien=document.getElementById('tutoModal');if(ancien)ancien.classList.remove('on');
+ var bienvenue=document.getElementById('onboardingModal');if(bienvenue)bienvenue.classList.remove('on');
+ if(tutoActif)fermerTuto(false);
+ tutoActif=true;tutoIndex=0;
+ document.getElementById('crGuide').hidden=false;
+ document.addEventListener('click',tutoClick,true);
+ document.addEventListener('input',tutoInput,true);
+ window.addEventListener('resize',tutoPlace);
+ window.addEventListener('scroll',tutoPlace,true);
+ showPage('radar');renderTutoEtape();
+}
+function tutoPlace(){
+ if(!tutoActif)return;
+ var e=TUTO_ETAPES[tutoIndex],target=document.querySelector(e.target),els=tutoElements();
+ if(!target||!target.getClientRects().length){els.h.style.display='none';return;}
+ var r=target.getBoundingClientRect(),pad=5;
+ els.h.style.display='block';els.h.style.left=Math.max(3,r.left-pad)+'px';els.h.style.top=Math.max(3,r.top-pad)+'px';els.h.style.width=Math.min(innerWidth-6,r.width+pad*2)+'px';els.h.style.height=Math.max(18,r.height+pad*2)+'px';
+ // Le panneau reste toujours lisible, hors de la zone des boutons surlignés.
+ var b=els.b,bh=b.offsetHeight||190,bw=Math.min(340,innerWidth-28);
+ var nav=document.querySelector('.nav-bar'),navTop=nav?nav.getBoundingClientRect().top:innerHeight-80;
+ var top=Math.max(12,Math.min(navTop-bh-12,innerHeight-bh-12));
+ if(r.top<top+bh+12 && r.bottom>top-12){
+   if(r.bottom+bh+18<navTop)top=r.bottom+14;
+   else if(r.top-bh-16>=12)top=r.top-bh-14;
+ }
+ b.style.width=bw+'px';b.style.left=Math.round((innerWidth-bw)/2)+'px';b.style.right='auto';b.style.top=Math.max(10,top)+'px';
 }
 function renderTutoEtape(){
-  var e=TUTO_ETAPES[tutoIndex];
-  document.getElementById('tutoIcone').textContent=e.icone;
-  document.getElementById('tutoTitre').textContent=e.titre;
-  document.getElementById('tutoTexte').textContent=e.texte;
-  document.getElementById('tutoDots').innerHTML=TUTO_ETAPES.map(function(_,i){
-    return '<div style="width:6px;height:6px;border-radius:50%;background:'+(i===tutoIndex?'var(--accent)':'var(--border)')+'"></div>';
-  }).join('');
-  document.getElementById('tutoPrecedent').style.visibility=(tutoIndex===0)?'hidden':'visible';
-  document.getElementById('tutoSuivant').textContent=(tutoIndex===TUTO_ETAPES.length-1)?'Terminer':'Suivant';
+ if(!tutoActif)return;
+ var e=TUTO_ETAPES[tutoIndex],active=document.querySelector('.page.active');
+ var current=active?active.id.replace('page-',''):'';
+ if(e.page!==current && !(e.action==='click'&&e.target.indexOf('#nav-')===0))showPage(e.page);
+ document.getElementById('crGuideCount').textContent=(tutoIndex+1)+' / '+TUTO_ETAPES.length;
+ document.getElementById('crGuideTitle').textContent=e.titre;
+ document.getElementById('crGuideText').textContent=e.texte;
+ document.getElementById('crGuideNext').textContent=e.action?'Passer cette action':'Suivant';
+ document.getElementById('crGuidePrev').disabled=tutoIndex===0;
+ var target=document.querySelector(e.target);
+ if(target&&e.target!=='#content'&&e.target!=='#map'&&e.target.indexOf('#nav-')!==0){
+   var r=target.getBoundingClientRect();if(r.top<110||r.bottom>innerHeight-245)target.scrollIntoView({behavior:'instant',block:'center'});
+ }
+ requestAnimationFrame(function(){requestAnimationFrame(tutoPlace)});
 }
-function tutoSuivant(){
-  if(tutoIndex<TUTO_ETAPES.length-1){tutoIndex++;renderTutoEtape();}
-  else{fermerTuto();}
+function tutoActionDone(){if(Date.now()-tutoLastAction<350)return;tutoLastAction=Date.now();setTimeout(function(){if(tutoActif)tutoSuivant();},180);}
+function tutoClick(ev){
+ if(!tutoActif||ev.target.closest('#crGuideBubble'))return;
+ var e=TUTO_ETAPES[tutoIndex],target=document.querySelector(e.target);
+ if(e.action==='click'&&target&&target.contains(ev.target))tutoActionDone();
 }
-function tutoPrecedent(){
-  if(tutoIndex>0){tutoIndex--;renderTutoEtape();}
+function tutoInput(ev){
+ if(!tutoActif)return;var e=TUTO_ETAPES[tutoIndex],target=document.querySelector(e.target);
+ if(e.action==='input'&&target&&target===ev.target&&Number(target.value)===50)tutoActionDone();
 }
-function fermerTuto(){
-  try{setLs('cr_tuto_vu',true);}catch(e){}
-  document.getElementById('tutoModal').classList.remove('on');
+function tutoSuivant(){if(tutoIndex<TUTO_ETAPES.length-1){tutoIndex++;renderTutoEtape();}else fermerTuto();}
+function tutoPrecedent(){if(tutoIndex>0){tutoIndex--;renderTutoEtape();}}
+function fermerTuto(memoriser){
+ tutoActif=false;if(memoriser!==false)try{setLs('cr_tuto_vu',true);}catch(e){}
+ var g=document.getElementById('crGuide');if(g)g.hidden=true;
+ document.removeEventListener('click',tutoClick,true);document.removeEventListener('input',tutoInput,true);
+ window.removeEventListener('resize',tutoPlace);window.removeEventListener('scroll',tutoPlace,true);
 }
+function crFillInfo(){alert('Quantité à acheter : le pourcentage correspond au carburant que tu ajoutes, pas au niveau final du réservoir.\n\nExemple : ton réservoir est à moitié plein et tu veux le remplir ? Choisis 50 %, pas 100 %.');}
 
 function showPage(name){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -2913,7 +2996,7 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
   var FILL = 0.8;     // part du réservoir remplie à chaque plein
   try{var savedFill=Number(localStorage.getItem('cr_fill_pct'));if(Number.isFinite(savedFill)&&savedFill>=5&&savedFill<=100)FILL=savedFill/100;}catch(e){}
   W.crFillFraction=FILL;
-  W.crSetFillPercent=function(v){var pct=Math.max(5,Math.min(100,Math.round(Number(v)||80)));FILL=pct/100;W.crFillFraction=FILL;try{localStorage.setItem('cr_fill_pct',String(pct));}catch(e){};var label=document.getElementById('crFillPct');if(label)label.textContent=pct+' %';var gauge=document.getElementById('crFillGauge');if(gauge){gauge.style.setProperty('--fill',pct+'%');gauge.setAttribute('aria-label','Réservoir : '+pct+' % à acheter');}if(W.st&&W.st.length&&typeof W.render==='function')W.render();};
+  W.crSetFillPercent=function(v){var pct=Math.max(5,Math.min(100,Math.round(Number(v)||80)));FILL=pct/100;W.crFillFraction=FILL;try{localStorage.setItem('cr_fill_pct',String(pct));}catch(e){};var label=document.getElementById('crFillPct');if(label)label.textContent=pct+' %';var gauge=document.getElementById('crFillGauge');if(gauge){gauge.style.setProperty('--needle',((pct*1.8)-90)+'deg');gauge.setAttribute('aria-label','Carburant à acheter : '+pct+' %');}if(W.st&&W.st.length&&typeof W.render==='function')W.render();};
   var ROAD = 1.3;     // facteur route / vol d'oiseau, pour estimer quand la vraie route n'est pas calculée
   var NCAND = 20;     // nombre de stations dont on calcule la vraie route
   var LS_LIST = 'cr_vehicles', LS_DEF = 'cr_vehicle_default';
@@ -3118,7 +3201,7 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
       var bar = document.getElementById(pair[0]);
       if (!bar) return;
       bar.innerHTML = '<select aria-label="Choisir un véhicule" id="' + pair[1] + '" class="cr-vsel">' +
-        list.map(function (v) { return '<option value="' + esc(v.id) + '"' + (v.id === a.id ? ' selected' : '') + '>' + esc(v.nom) + '</option>'; }).join('') + '</select>'+(pair[0]==='crVehicleBar'?'<div class="cr-fill"><input id="crFillRange" aria-label="Pourcentage du réservoir à acheter" type="range" min="5" max="100" step="5" value="'+Math.round(FILL*100)+'" oninput="crSetFillPercent(this.value)"><span class="cr-fill-gauge" id="crFillGauge" role="img" aria-label="Réservoir : '+Math.round(FILL*100)+' % à acheter" style="--fill:'+Math.round(FILL*100)+'%"><span id="crFillPct">'+Math.round(FILL*100)+' %</span></span></div>':'');
+        list.map(function (v) { return '<option value="' + esc(v.id) + '"' + (v.id === a.id ? ' selected' : '') + '>' + esc(v.nom) + '</option>'; }).join('') + '</select>'+(pair[0]==='crVehicleBar'?'<div class="cr-fill"><input id="crFillRange" aria-label="Pourcentage du réservoir à acheter" type="range" min="5" max="100" step="5" value="'+Math.round(FILL*100)+'" oninput="crSetFillPercent(this.value)"><span class="cr-fill-gauge" id="crFillGauge" role="img" aria-label="Carburant à acheter : '+Math.round(FILL*100)+' %" style="--needle:'+((FILL*180)-90)+'deg"><svg viewBox="0 0 88 52" aria-hidden="true"><path d="M 8 44 A 36 36 0 0 1 80 44" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M 8 44 L 13 44 M 17 20 L 21 24 M 44 8 L 44 14 M 71 20 L 67 24 M 80 44 L 75 44" fill="none" stroke="currentColor" stroke-width="2"/><g class="cr-needle"><path d="M 44 44 L 44 13" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round"/><circle cx="44" cy="44" r="4" fill="var(--accent)"/></g></svg><span id="crFillPct">'+Math.round(FILL*100)+' %</span></span><button type="button" class="cr-fill-info" title="Comprendre le pourcentage" aria-label="Comprendre le pourcentage à acheter" onclick="crFillInfo()">i</button></div>':'');
       document.getElementById(pair[1]).onchange = function () { W.crSetActive(this.value); };
     });
   }
@@ -3220,7 +3303,7 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
     '.cr-vbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}' +
     '.cr-vbar label{font-size:12px;color:var(--text-muted);white-space:nowrap}' +
     '.cr-vsel{flex:1;min-width:0;background:var(--bg-surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 10px;font-size:13px}' +
-    '.cr-fill{display:flex;align-items:center;gap:5px;flex:1;min-width:0}.cr-fill input{width:100%;min-width:35px;accent-color:var(--accent)}.cr-fill-gauge{position:relative;flex:0 0 43px;width:43px;height:43px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--accent) var(--fill),var(--border) 0);isolation:isolate}.cr-fill-gauge:before{content:"";position:absolute;inset:5px;background:var(--bg);border-radius:50%;z-index:-1}.cr-fill-gauge #crFillPct{font-size:10px;font-weight:700;color:var(--text);white-space:nowrap}.cr-seo-only{position:absolute!important;width:1px;height:1px;padding:0!important;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}' +
+    '.cr-fill{display:flex;align-items:center;gap:5px;flex:1;min-width:0}.cr-fill input{width:100%;min-width:35px;accent-color:var(--accent)}.cr-fill-gauge{position:relative;flex:0 0 56px;width:56px;height:48px;display:flex;align-items:center;justify-content:flex-start;flex-direction:column;color:var(--text-muted)}.cr-fill-gauge svg{width:54px;height:34px;overflow:visible}.cr-fill-gauge .cr-needle{transform-origin:44px 44px;transform:rotate(var(--needle));transition:transform .18s ease}.cr-fill-gauge #crFillPct{font-size:10px;font-weight:700;color:var(--text);white-space:nowrap;margin-top:-2px}.cr-seo-only{position:absolute!important;width:1px;height:1px;padding:0!important;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}' +
     '.cr-vrow{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px;margin-top:8px}' +
     '.cr-vdef{border-color:var(--accent)}' +
     '.cr-vtop{display:flex;align-items:center;gap:8px}.cr-vname{font-size:14px;font-weight:700}' +
