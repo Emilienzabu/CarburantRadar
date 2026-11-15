@@ -750,7 +750,7 @@ button:active{transform:scale(.97)}
     <select id="alertSeuil" class="modal-input" >
       <option value="2">-2% (fréquent)</option><option value="3" selected>-3% (recommandé)</option><option value="5">-5% (plus rare)</option><option value="8">-8% (rare)</option>
     </select>
-    <div class="modal-row"><button class="modal-cancel" onclick="closeAlertModal()">Annuler</button><button class="modal-ok" onclick="confirmAlert()">Activer</button></div>
+    <div class="modal-row"><button class="modal-cancel" onclick="closeAlertModal()">Annuler</button><button class="modal-ok" id="crConfirmAlertBtn" onclick="confirmAlert()">Activer</button></div>
   </div>
 </div>
 <div class="modal" id="repModal">
@@ -1638,30 +1638,55 @@ function activateAlert(){
   var infoExistant=getLs('cr_alert_info');
   document.getElementById('alertRayon').value=(infoExistant&&infoExistant.rayon)||5;
   document.getElementById('alertSeuil').value=(infoExistant&&infoExistant.seuil)||3;
+  var feedback=document.getElementById('crAlertFeedback');if(feedback)feedback.style.display='none';
+  crAlertBusy(false);
   document.getElementById('alertModal').classList.add('on');
 }
 function closeAlertModal(){document.getElementById('alertModal').classList.remove('on');document.getElementById('alertToggle').checked=false;}
-function confirmAlert(){
-  var carb=document.getElementById('alertCarb').value,locVal=document.getElementById('alertLoc').value,lat2,lon2;
-  var rayon=parseInt(document.getElementById('alertRayon').value),seuil=parseInt(document.getElementById('alertSeuil').value);
-  if(locVal==='current'){lat2=la;lon2=lo;}else{var rep=getReps()[parseInt(locVal)];lat2=rep.lat;lon2=rep.lon;}
-  if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window)){alert('Notifications non supportées sur ce navigateur.');closeAlertModal();return;}
-  Notification.requestPermission().then(function(perm){
-    if(perm!=='granted'){alert('Autorise les notifications.');closeAlertModal();return;}
-    navigator.serviceWorker.ready.then(function(reg){
-      // Réutilise l'abonnement push existant s'il y en a déjà un, sinon en crée un nouveau
-      return reg.pushManager.getSubscription().then(function(existant){
-        if(existant)return existant;
-        return reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)});
-      });
-    }).then(function(subscription){
-      fetch(PROXY+'/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat:lat2,lon:lon2,carburant:carb,rayon:rayon,seuil:seuil,names:getNames(),sub:subscription.toJSON()})})
-      .then(function(r){return r.json();}).then(function(d){
-        if(d.ok){setLs('cr_alert_key',d.key);setLs('cr_alert_info',{carburant:carb,lat:lat2,lon:lon2,rayon:rayon,seuil:seuil});document.getElementById('alertModal').classList.remove('on');updateAlertUI();}
-        else{alert('Erreur activation.');closeAlertModal();}
-      }).catch(function(){alert('Erreur activation.');closeAlertModal();});
-    }).catch(function(){alert('Impossible de créer l\'abonnement aux notifications sur cet appareil.');closeAlertModal();});
-  });
+function crAlertFeedback(message, isError){
+  var el=document.getElementById('crAlertFeedback');
+  if(!el){el=document.createElement('div');el.id='crAlertFeedback';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='font-size:13px;line-height:1.45;margin:10px 0;padding:10px;border-radius:9px;';var row=document.querySelector('#alertModal .modal-row');if(row)row.parentNode.insertBefore(el,row);}
+  el.textContent=message;el.style.display='block';el.style.background=isError?'rgba(210,55,55,.12)':'var(--input-bg)';el.style.color=isError?'#e36c6c':'var(--text)';
+}
+function crAlertBusy(busy){
+  var btn=document.getElementById('crConfirmAlertBtn');
+  if(!btn)return;
+  btn.disabled=busy;btn.textContent=busy?'Activation en cours…':'Activer';
+}
+function crAlertTimeout(promise,ms,message){
+  return Promise.race([promise,new Promise(function(_,reject){setTimeout(function(){reject(new Error(message));},ms);})]);
+}
+async function confirmAlert(){
+  var btn=document.getElementById('crConfirmAlertBtn');if(btn&&btn.disabled)return;
+  crAlertBusy(true);crAlertFeedback('Vérification des notifications…',false);
+  try{
+    var carb=document.getElementById('alertCarb').value,locVal=document.getElementById('alertLoc').value;
+    var rayon=parseInt(document.getElementById('alertRayon').value,10),seuil=parseInt(document.getElementById('alertSeuil').value,10),lat2,lon2;
+    if(locVal==='current'){lat2=la;lon2=lo;}
+    else{var rep=getReps()[parseInt(locVal,10)];if(rep){lat2=rep.lat;lon2=rep.lon;}}
+    if(!Number.isFinite(lat2)||!Number.isFinite(lon2))throw new Error('Choisis une position ou un repère valide.');
+    if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window))throw new Error('Ce navigateur ne prend pas en charge les notifications push.');
+    if(!window.isSecureContext)throw new Error('Les notifications nécessitent une connexion HTTPS sécurisée.');
+    if(Notification.permission==='denied')throw new Error('Les notifications sont bloquées. Autorise-les dans les paramètres du navigateur ou de l’application.');
+    // Ne pas attendre navigator.serviceWorker.ready indéfiniment : il peut rester en attente si le worker échoue.
+    var reg=await crAlertTimeout(navigator.serviceWorker.ready,10000,'Le service de notifications ne démarre pas. Ferme puis rouvre l’application et réessaie.');
+    if(!reg||!reg.pushManager)throw new Error('Le service de notifications est indisponible.');
+    crAlertFeedback('Autorisation des notifications…',false);
+    var perm=Notification.permission==='granted'?'granted':await crAlertTimeout(Notification.requestPermission(),15000,'La demande d’autorisation n’a pas abouti.');
+    if(perm!=='granted')throw new Error('Autorise les notifications pour activer cette alerte.');
+    crAlertFeedback('Création de l’abonnement…',false);
+    var subscription=await crAlertTimeout(reg.pushManager.getSubscription(),10000,'Impossible de vérifier l’abonnement aux notifications.');
+    if(!subscription)subscription=await crAlertTimeout(reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)}),15000,'Le service de notifications ne répond pas. Réessaie plus tard.');
+    crAlertFeedback('Enregistrement de l’alerte…',false);
+    var response=await crAlertTimeout(fetch(PROXY+'/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat:lat2,lon:lon2,carburant:carb,rayon:rayon,seuil:seuil,names:getNames(),sub:subscription.toJSON()})}),15000,'Le serveur des alertes ne répond pas.');
+    if(!response.ok)throw new Error('Le serveur a refusé l’alerte (HTTP '+response.status+').');
+    var data=await response.json();
+    if(!data.ok||!data.key)throw new Error(data.error||'Le serveur n’a pas confirmé l’activation.');
+    setLs('cr_alert_key',data.key);setLs('cr_alert_info',{carburant:carb,lat:lat2,lon:lon2,rayon:rayon,seuil:seuil});
+    document.getElementById('alertModal').classList.remove('on');updateAlertUI();
+  }catch(error){
+    crAlertFeedback((error&&error.message)||'Impossible d’activer l’alerte. Réessaie.',true);
+  }finally{crAlertBusy(false);}
 }
 function deactivateAlert(){
   var key=getLs('cr_alert_key');if(!key){updateAlertUI();return;}
