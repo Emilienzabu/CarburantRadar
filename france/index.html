@@ -415,7 +415,7 @@ button:active{transform:scale(.97)}
       <div id="suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--input-bg);border-radius:0 0 8px 8px;z-index:100;max-height:200px;overflow-y:auto;border:1px solid var(--input-border);border-top:none"></div>
     </div>
     <div id="trajetReperes" style="display:none;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px"></div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Carburant</div>
+    <div id="trajetFuelFallbackLabel" style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Carburant (véhicule non configuré)</div>
     <select id="trajetCarb" class="modal-input" style="margin-bottom:16px">
       <option value="Gazole">Diesel</option>
       <option value="SP95">SP95</option>
@@ -1031,13 +1031,9 @@ function getNavigationUrl(lat, lon) {
 
 // Fonction pour generer l'URL de navigation avec waypoints (pour le mode Trajet)
 function getNavigationUrlWithWaypoints(originLat, originLon, waypointLat, waypointLon, dest) {
-  var pref = getNavPref();
-  if (pref === 'waze') {
-    // Waze ne supporte pas les waypoints dans l'URL, on ouvre juste vers la destination finale
-    return 'https://www.waze.com/ul?ll=' + waypointLat + ',' + waypointLon + '&navigate=yes&to=' + encodeURIComponent(dest);
-  } else {
-    return 'https://www.google.com/maps/dir/?api=1&origin=' + originLat + ',' + originLon + '&waypoints=' + waypointLat + ',' + waypointLon + '&destination=' + encodeURIComponent(dest) + '&travelmode=driving';
-  }
+  // Google Maps is the supported multi-stop option; Waze links cannot preserve both stops.
+  return 'https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(originLat+','+originLon)+
+    '&waypoints='+encodeURIComponent(waypointLat+','+waypointLon)+'&destination='+encodeURIComponent(dest)+'&travelmode=driving';
 }
 
 // ===== Écran d'accueil (onboarding) + installation PWA =====
@@ -2135,7 +2131,7 @@ function autocomplete(){
       results.forEach(function(r){
         var nom=r.display_name.split(',').slice(0,3).join(', ');
         var div=document.createElement('div');div.className='suggest-item';div.textContent=nom;
-        div.onclick=function(){document.getElementById('trajetDest').value=nom;sug.style.display='none';};
+        div.onclick=function(){document.getElementById('trajetDest').value=nom;trajetDestCoords={lat:Number(r.lat),lon:Number(r.lon)};sug.style.display='none';};
         sug.appendChild(div);
       });
       sug.style.display='block';
@@ -2150,8 +2146,7 @@ document.addEventListener('click',function(e){
 // Mode Trajet
 var trajetDestCoords=null,trajetDestLat=null,trajetDestLon=null;
 function initTrajetPage(){
-  var info=getLs('cr_alert_info');
-  document.getElementById('trajetCarb').value=(info&&info.carburant)?info.carburant:fu;
+  if(typeof crSyncFuelControls==='function')crSyncFuelControls();
   renderTrajetReperes();
 }
 function renderTrajetReperes(){
@@ -2186,93 +2181,113 @@ function enregistrerDestinationFavorite(){
   renderDestFavList();renderTrajetReperes();synchroniserVersServeur();
   alert('Destination ajoutée à tes favoris !');
 }
+// Route-based search. No simulated routes or estimated detours are presented as confirmed.
+var crTripRun=0;
+function crTripStatus(message){var el=document.getElementById('trajetResult');if(el)el.textContent=message;}
+function crTripFinish(){var b=document.getElementById('trajetBtn');if(b){b.disabled=false;b.textContent='Trouver la meilleure station';}}
+function crTripJson(url,ms){
+  var ctl=new AbortController(),timer=setTimeout(function(){ctl.abort();},ms||15000);
+  return fetch(url,{signal:ctl.signal}).then(function(r){if(!r.ok)throw Error('HTTP '+r.status);return r.json();}).finally(function(){clearTimeout(timer);});
+}
+function crTripCoordValid(lat,lon){return Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180;}
+function crTripSamples(line){
+  // Sample the actual road geometry, not the straight line between departure and arrival.
+  if(!Array.isArray(line)||line.length<2)throw Error('route_geometry');
+  var lengths=[0],total=0;
+  for(var i=1;i<line.length;i++){
+    total+=hv(line[i-1][1],line[i-1][0],line[i][1],line[i][0]);lengths.push(total);
+  }
+  var count=Math.min(28,Math.max(2,Math.ceil(total/12)+1)),out=[];
+  for(var j=0;j<count;j++){
+    var target=total*j/(count-1),k=1;
+    while(k<lengths.length-1&&lengths[k]<target)k++;
+    var den=lengths[k]-lengths[k-1],t=den>0?(target-lengths[k-1])/den:0;
+    out.push({lat:line[k-1][1]+t*(line[k][1]-line[k-1][1]),lon:line[k-1][0]+t*(line[k][0]-line[k-1][0])});
+  }
+  return out;
+}
+async function crTripMapLimit(items,limit,fn){
+  var next=0,results=new Array(items.length);
+  await Promise.all(Array.from({length:Math.min(limit,items.length)},async function(){
+    while(next<items.length){var i=next++;try{results[i]=await fn(items[i],i);}catch(e){results[i]=null;}}
+  }));return results;
+}
 function lancerTrajet(){
   var dest=document.getElementById('trajetDest').value.trim();
-  if(!dest){alert('Entre une destination !');return;}
-  var btn=document.getElementById('trajetBtn'),res=document.getElementById('trajetResult');
-  if(la===null){
-    btn.textContent='Localisation...';btn.disabled=true;
-    res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Localisation en cours...</div></div>';
-    obtenirPosition(function(){lancerTrajetSuite(dest);},function(){
-      alert('Impossible de te localiser. Vérifie que tu as autorisé la géolocalisation.');
-      btn.textContent='Trouver la meilleure station';btn.disabled=false;res.innerHTML='';
-    });
-    return;
-  }
-  lancerTrajetSuite(dest);
+  if(!dest){crTripStatus('Saisis une destination.');return;}
+  var run=++crTripRun,b=document.getElementById('trajetBtn');b.disabled=true;b.textContent='Recherche en cours…';
+  crTripStatus('Localisation du départ…');
+  if(la===null||lo===null){obtenirPosition(function(){crTripExecute(dest,run);},function(){if(run!==crTripRun)return;crTripStatus('Position indisponible : autorise la géolocalisation, puis réessaie.');crTripFinish();});}
+  else crTripExecute(dest,run);
 }
-function lancerTrajetSuite(dest){
-  var carb=document.getElementById('trajetCarb').value,champPrix=PK[carb];
-  var btn=document.getElementById('trajetBtn'),res=document.getElementById('trajetResult');
-  btn.textContent='Recherche en cours...';btn.disabled=true;
-  res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Géocodage de la destination...</div></div>';
-  (trajetDestCoords?Promise.resolve([{lat:trajetDestCoords.lat,lon:trajetDestCoords.lon}]):
-    fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(dest)+'&countrycodes=fr&limit=1&format=json',{headers:{'Accept-Language':'fr'}}).then(function(r){return r.json();})
-  )
-  .then(function(geo){
-    if(!geo||!geo.length)throw new Error('dest_not_found');
-    var dLat=parseFloat(geo[0].lat),dLon=parseFloat(geo[0].lon);
+async function crTripExecute(dest,run){
+  try{
+    var fuel=typeof crFuelForActive==='function'?crFuelForActive():fu;
+    var field=PK[fuel];if(!field)throw Error('fuel');
+    crTripStatus('Recherche de la destination…');
+    var geo=trajetDestCoords?[{lat:trajetDestCoords.lat,lon:trajetDestCoords.lon}]:await crTripJson('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(dest)+'&countrycodes=fr&limit=1&format=json',15000);
+    if(!geo||!geo.length)throw Error('destination');
+    var dLat=Number(geo[0].lat),dLon=Number(geo[0].lon);
+    if(!crTripCoordValid(dLat,dLon))throw Error('destination');
     trajetDestLat=dLat;trajetDestLon=dLon;
-    res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Calcul du trajet direct...</div></div>';
-    return fetch('https://router.project-osrm.org/route/v1/driving/'+lo+','+la+';'+dLon+','+dLat+'?overview=false')
-    .then(function(r){return r.json();})
-    .then(function(route){
-      var dureeDirecte=route.routes[0].duration;var distDirecte=route.routes[0].distance;
-      res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Recherche des stations...</div></div>';
-      var distKm=hv(la,lo,dLat,dLon),rayonPt=Math.max(10,Math.min(distKm*0.3,40));
-      var pts=[{lat:la,lon:lo},{lat:(la+dLat)/2,lon:(lo+dLon)/2},{lat:dLat,lon:dLon}];
-      return Promise.all(pts.map(function(pt){
-        return fetch(PROXY+'?lat='+pt.lat+'&lon='+pt.lon+'&dist='+rayonPt).then(function(r){return r.json();}).catch(function(){return {results:[]};});
-      })).then(function(results){
-        var seen={},stations=[];
-        results.forEach(function(raw){
-          if(!raw||!Array.isArray(raw.results))return;
-          raw.results.forEach(function(r){
-            if(seen[r.id])return;seen[r.id]=true;
-            var px=parseFloat(r[champPrix]);
-            if(isNaN(px)||px<=0||!isOpen(r.horaires))return;
-            var rl=r.geom?r.geom.lat:parseFloat(r.latitude)/100000,rn=r.geom?r.geom.lon:parseFloat(r.longitude)/100000;
-            stations.push({id:r.id,adresse:r.adresse||'',ville:r.ville||'',cp:r.cp||'',lat:rl,lon:rn,prix:px});
-          });
-        });
-        if(!stations.length)throw new Error('no_stations');
-        res.innerHTML='<div class="empty"><div class="spinner"></div><div style="font-size:13px;color:var(--text)">Calcul des détours...</div></div>';
-        crTrajetPreSort(stations,la,lo,dLat,dLon);
-        return Promise.all(stations.slice(0,15).map(function(s){
-          return fetch('https://router.project-osrm.org/route/v1/driving/'+lo+','+la+';'+s.lon+','+s.lat+';'+dLon+','+dLat+'?overview=false')
-          .then(function(r){return r.json();})
-          .then(function(data){s.dureeAvec=data.routes[0].duration;s.detour=s.dureeAvec-dureeDirecte;s.detourKm=(data.routes[0].distance-distDirecte)/1000;return s;})
-          .catch(function(){s.dureeAvec=null;s.detour=null;s.detourKm=null;return s;});
-        })).then(function(candidats){
-          var avecDetour=candidats.filter(function(s){return s.detour!==null;});
-          if(!avecDetour.length)avecDetour=candidats;
-          crTrajetRank(avecDetour);
-          var best=avecDetour[0];
-          var names=getNames(),nom=names[String(best.id)]||best.adresse;
-          var detourMin=best.detour!==null?Math.round(best.detour/60):null;
-          var dureeAvecMin=best.dureeAvec!==null?Math.round(best.dureeAvec/60):null;
-          var dureeDirecteMin=Math.round(dureeDirecte/60);
-          var avert=detourMin!==null&&detourMin>10?'<div style="background:var(--warning-bg);border:1px solid var(--accent);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--accent);margin-bottom:10px">'+ic('warning','12px')+' Aucune station idéale trouvée. Meilleure option disponible (+'+detourMin+' min).</div>':'';
-          var navUrl = getNavigationUrlWithWaypoints(la, lo, best.lat, best.lon, dest);
-          res.innerHTML='<div class="card best" style="margin-top:16px"><div class="badge">MEILLEURE STATION SUR LA ROUTE</div><br>'+avert+
-            '<div class="name">'+nom+'</div><div class="addr">'+best.cp+' '+best.ville+'</div>'+
-            '<div class="metrics" style="margin-top:10px">'+
-            '<div class="m"><div class="ml">Prix/L</div><div class="mv p">'+best.prix.toFixed(3)+' €</div></div>'+
-            '<div class="m"><div class="ml">Détour</div><div class="mv t">'+(detourMin!==null?(detourMin<=1?'Aucun':'+'+detourMin+' min'):'--')+'</div></div>'+
-            '<div class="m"><div class="ml">Durée totale</div><div class="mv d">'+(dureeAvecMin!==null?dureeAvecMin+' min':'--')+'</div></div></div>'+
-            '<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:10px">Trajet direct : '+dureeDirecteMin+' min · Score : '+best.score+'/100</div>'+
-            '<a class="go" href="'+navUrl+'" target="_blank">'+ic('compass','14px')+' Ouvrir l\'itinéraire complet</a>'+
-            '<button class="add-btn" style="margin-top:8px" onclick="enregistrerDestinationFavorite()">'+ic('star','13px')+' Ajouter cette destination aux favoris</button></div>';
-          btn.textContent='Trouver la meilleure station';btn.disabled=false;
-        });
+    crTripStatus('Calcul de la route réelle…');
+    var direct=await crTripJson('https://router.project-osrm.org/route/v1/driving/'+lo+','+la+';'+dLon+','+dLat+'?overview=full&geometries=geojson',20000);
+    if(!direct.routes||!direct.routes[0]||!direct.routes[0].geometry||!direct.routes[0].geometry.coordinates)throw Error('route');
+    var base=direct.routes[0],points=crTripSamples(base.geometry.coordinates);
+    crTripStatus('Recherche des stations le long de la route ('+points.length+' zones)…');
+    var stationResults=await crTripMapLimit(points,5,function(pt){return crTripJson(PROXY+'?lat='+pt.lat+'&lon='+pt.lon+'&dist=9&limit=100',16000);});
+    var seen=new Set(),stations=[],goodZones=0;
+    stationResults.forEach(function(raw){
+      if(!raw||!Array.isArray(raw.results))return;goodZones++;
+      raw.results.forEach(function(r){
+        if(!r||r.id==null||seen.has(String(r.id)))return;
+        var px=Number(r[field]),lat=r.geom?Number(r.geom.lat):Number(r.latitude)/100000,lon=r.geom?Number(r.geom.lon):Number(r.longitude)/100000;
+        if(!crTripCoordValid(lat,lon)||!Number.isFinite(px)||px<=0)return;
+        seen.add(String(r.id));stations.push({id:r.id,adresse:r.adresse||'',ville:r.ville||'',cp:r.cp||'',lat:lat,lon:lon,prix:px,horaires:r.horaires});
       });
     });
-  }).catch(function(e){
-    var msg=e.message==='dest_not_found'?'Destination introuvable — essaie une adresse plus précise':
-      e.message==='no_stations'?'Aucune station trouvée — essaie une destination plus lointaine':'Erreur — vérifie ta connexion';
-    res.innerHTML='<div class="empty"><div style="color:var(--text);font-weight:700;margin-bottom:8px">'+msg+'</div></div>';
-    btn.textContent='Trouver la meilleure station';btn.disabled=false;
-  });
+    if(!goodZones)throw Error('stations_service');
+    if(!stations.length)throw Error('stations');
+    crTripStatus('Comparaison des détours routiers…');
+    // Preserve cost-based preselection; evaluate more candidates than the former top 15.
+    crTrajetPreSort(stations,la,lo,dLat,dLon);
+    var candidates=stations.slice(0,Math.min(40,stations.length));
+    var checked=await crTripMapLimit(candidates,5,async function(s){
+      var u='https://router.project-osrm.org/route/v1/driving/'+lo+','+la+';'+s.lon+','+s.lat+';'+dLon+','+dLat+'?overview=false';
+      var data=await crTripJson(u,20000);
+      if(!data.routes||!data.routes[0])return null;
+      s.dureeAvec=data.routes[0].duration;s.detour=Math.max(0,s.dureeAvec-base.duration);
+      s.detourKm=Math.max(0,(data.routes[0].distance-base.distance)/1000);
+      return s;
+    });
+    if(run!==crTripRun)return;
+    var valid=checked.filter(Boolean);
+    if(!valid.length)throw Error('detours');
+    crTrajetRank(valid);
+    var best=valid[0],names=getNames(),nom=names[String(best.id)]||best.adresse||'Station-service';
+    var detourMin=Math.round(best.detour/60),durationMin=Math.round(best.dureeAvec/60),baseMin=Math.round(base.duration/60);
+    // The ranking uses the same vehicle/fill model as the radar. Show a rounded comparison, not an absolute guarantee.
+    var nav=getNavigationUrlWithWaypoints(la,lo,best.lat,best.lon,dest);
+    var res=document.getElementById('trajetResult');res.innerHTML='';
+    var card=document.createElement('div');card.className='card best';card.style.marginTop='16px';
+    var heading=document.createElement('div');heading.className='name';heading.textContent=nom;card.appendChild(heading);
+    var addr=document.createElement('div');addr.className='addr';addr.textContent=[best.cp,best.ville].filter(Boolean).join(' ');card.appendChild(addr);
+    var metrics=document.createElement('div');metrics.className='metrics';metrics.style.marginTop='10px';
+    [['Prix/L',best.prix.toFixed(3)+' €'],['Détour routier','+'+detourMin+' min'],['Durée totale',durationMin+' min'],['Coût estimé',best.crTotal.toFixed(2)+' €']].forEach(function(pair){
+      var m=document.createElement('div');m.className='m';var label=document.createElement('div');label.className='ml';label.textContent=pair[0];var val=document.createElement('div');val.className='mv';val.textContent=pair[1];m.appendChild(label);m.appendChild(val);metrics.appendChild(m);
+    });card.appendChild(metrics);
+    var note=document.createElement('div');note.style.cssText='font-size:12px;color:var(--text-muted);margin:12px 0;line-height:1.5';
+    note.textContent='Meilleure option parmi '+valid.length+' stations avec itinéraire vérifié ('+stations.length+' stations recensées, '+goodZones+'/'+points.length+' zones interrogées). Trajet direct : '+baseMin+' min. Coût estimé = carburant à acheter + carburant consommé sur le détour. Horaires et prix à vérifier avant le départ.';
+    card.appendChild(note);
+    if(goodZones<points.length){var warn=document.createElement('p');warn.style.color='var(--accent)';warn.textContent='Recherche partielle : certaines zones n’ont pas répondu.';card.appendChild(warn);}
+    var link=document.createElement('a');link.className='go';link.href=nav;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Itinéraire avec arrêt (Google Maps)';card.appendChild(link);
+    var fav=document.createElement('button');fav.className='add-btn';fav.style.marginTop='8px';fav.textContent='Ajouter cette destination aux favoris';fav.onclick=enregistrerDestinationFavorite;card.appendChild(fav);
+    res.appendChild(card);
+  }catch(e){
+    if(run!==crTripRun)return;
+    var errors={fuel:'Configure le carburant de ton véhicule.',destination:'Destination introuvable : précise ton adresse.',route:'Impossible de calculer la route routière.',route_geometry:'Le service de trajet n’a pas fourni une route exploitable.',stations_service:'Le service des stations ne répond pas.',stations:'Aucune station avec un prix disponible sur cette route.',detours:'Impossible de vérifier les détours : aucun classement fiable ne peut être affiché.'};
+    crTripStatus(errors[e.message]||'Recherche impossible pour le moment. Vérifie ta connexion puis réessaie.');
+  }finally{if(run===crTripRun)crTripFinish();}
 }
 
 // ===== ANALYSE (accordéon) =====
@@ -3196,14 +3211,15 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
   // ------------------------------------------------------------ véhicule actif et carburant
   function applyFuelOfActive() {
     var v = getActive(), k = v.type ? keyOfType(v.type) : null;
-    if (!k) return false;
+    if (!k) { if(typeof W.crSyncFuelControls==='function')W.crSyncFuelControls(); return false; }
     var tc = document.getElementById('trajetCarb');   // le mode Trajet a sa propre liste de carburants
     if (tc) { for (var j = 0; j < tc.options.length; j++) { if (tc.options[j].value === k) { tc.value = k; break; } } }
-    if (W.fu === k) return false;
+    if (W.fu === k) { if(typeof W.crSyncFuelControls==='function')W.crSyncFuelControls(); return false; }
     W.fu = k;
     try { localStorage.setItem('cr_fu', k); } catch (e) { }
     var bs = document.querySelectorAll('.fb');
     for (var i = 0; i < bs.length; i++) { bs[i].classList.remove('a'); if (bs[i].getAttribute('data-f') === k) bs[i].classList.add('a'); }
+    if(typeof W.crSyncFuelControls==='function')W.crSyncFuelControls();
     return true;
   }
   function refreshRanking() {
@@ -3214,6 +3230,7 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
     activeId = id;
     applyFuelOfActive();
     renderBar();
+    if(typeof W.crSyncFuelControls==='function')W.crSyncFuelControls();
     refreshRanking();
     if (typeof W.synchroniserVersServeur === 'function') W.synchroniserVersServeur();
   };
@@ -3309,6 +3326,14 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
   }
 
   // ------------------------------------------------------------ interface exposée aux correctifs de synchronisation
+  W.crSyncFuelControls = function () {
+    var v=getActive(), typed=!!(v.type&&keyOfType(v.type));
+    var fg=document.getElementById('fg');if(fg)fg.style.display=typed?'none':'';
+    var tc=document.getElementById('trajetCarb'),lbl=document.getElementById('trajetFuelFallbackLabel');
+    if(tc){tc.style.display=typed?'none':'';if(typed)tc.value=keyOfType(v.type);else tc.value=W.fu||'Gazole';}
+    if(lbl)lbl.style.display=typed?'none':'';
+  };
+  W.crFuelForActive = function () { var v=getActive();return v.type&&keyOfType(v.type)||W.fu||'Gazole'; };
   W.crGetVehicles = function () { return getVehicles(); };
   W.crActiveVehicle = function () { var v = getActive(); return {reservoir:v.reservoir,conso:v.conso,type:v.type}; };
   W.crGetDefaultId = function () { return getDefaultId(); };
@@ -3349,7 +3374,7 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
     applyFuelOfActive();
     var box = document.getElementById('crVehiclesCard');
     if (box) box.addEventListener('click', onClick);
-    renderBar(); renderCard();
+    renderBar(); renderCard();W.crSyncFuelControls();
   }
   init();
 })();
