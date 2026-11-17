@@ -322,6 +322,23 @@ button:active{transform:scale(.97)}
 @keyframes bobR{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
 .pulse{transform-box:fill-box;transform-origin:center;animation:pulseRing 1.6s ease-in-out infinite}
 .bob-d{animation:bobD 1.2s ease-in-out infinite}.bob-u{animation:bobU 1.2s ease-in-out infinite}.bob-r{animation:bobR 1.2s ease-in-out infinite}
+
+/* Preview UX: verified route alternatives; clear touch targets */
+.cr-trip-choice{display:flex;flex-direction:column;gap:5px;width:100%;min-height:56px;padding:12px 14px;margin:7px 0;text-align:left;background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:13px;cursor:pointer}
+.cr-trip-choice span:first-child{font-weight:700}.cr-trip-choice span:last-child{font-size:12px;color:var(--text-muted)}
+.cr-trip-choice.selected{border-color:var(--accent);background:var(--bg-sunken)}
+.cr-trip-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Ergonomie préversion 03 : carte et analyse */
+.cr-map-wrap{position:relative;width:100%;height:calc(100vh - 190px)}.cr-map-wrap #map{height:100%;width:100%}
+.cr-map-center{position:absolute;right:14px;bottom:95px;z-index:550;width:44px;height:44px;border-radius:12px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text);font-size:28px;box-shadow:0 2px 12px rgba(0,0,0,.25);cursor:pointer}
+.cr-map-center:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cr-analyse-overview{padding:14px;margin-bottom:18px;background:var(--bg-surface);border:1px solid var(--border);border-radius:14px}
+.cr-overview-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px}
+.cr-overview-head span,.cr-overview-hint{font-size:11px;color:var(--text-muted)}
+.cr-overview-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.cr-overview-grid>div{background:var(--bg-sunken);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:5px}
+.cr-overview-grid small{font-size:11px;color:var(--text-muted)}.cr-overview-grid strong{font-size:17px;color:var(--text)}
 </style>
 <script type="application/ld+json">
 {
@@ -335,6 +352,84 @@ button:active{transform:scale(.97)}
 }
 </script>
 <style>.cr-seo-only{position:absolute!important;width:1px;height:1px;padding:0!important;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+<style>
+/* Preview UX 02: mobile density, quick navigation and accessibility */
+.cr-quick-menu{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 16px 8px}
+.cr-quick-menu button{min-height:44px;border-radius:10px;border:1px solid var(--border);background:var(--bg-sunken);color:var(--text);font-size:12px;font-weight:700;padding:8px;cursor:pointer}
+.cr-quick-menu button:focus-visible,.suggest-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cr-legacy-tabs{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important}
+.cr-stats-compact{gap:6px!important;margin-top:8px!important;margin-bottom:10px!important}
+.cr-stats-compact .stat{padding:8px 5px!important;min-width:0!important}
+.cr-stats-compact .stat .sl{font-size:10px!important}
+.cr-stats-compact .stat .sv{font-size:15px!important}
+#page-trajet .cr-vbar,#page-radar .cr-vbar{gap:8px;align-items:center}
+#page-trajet .card.best .metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#page-trajet .card.best .metrics .m{min-width:0}
+@media(max-width:360px){.cr-quick-menu{gap:5px;padding:10px}.cr-quick-menu button{font-size:11px}.cr-stats-compact .stat .sv{font-size:13px!important}}
+@media(prefers-reduced-motion:reduce){.cr-trip-choice,.cr-fill-gauge .cr-needle{transition:none!important}}
+.cr-quick-menu button:focus-visible,.cr-trip-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+<style id="crV07Styles">
+#sideMenu{display:flex;flex-direction:column;overflow:hidden;width:min(86vw,350px)}
+#sideMenu .cr-quick-menu,#sideMenu #menuTabs{display:none!important}
+#crV07Head{display:flex;align-items:center;gap:10px;padding:15px 16px;min-height:62px;border-bottom:1px solid var(--border)}
+#crV07Head strong{flex:1;font-size:17px}#crV07Head button{width:36px;height:36px;margin:0;padding:5px;background:transparent;color:var(--text);font-size:22px}
+#crV07Viewport{position:relative;flex:1;min-height:0;overflow:hidden}#crV07Main,#crV07Detail{position:absolute;inset:0;overflow-y:auto;transition:transform .27s cubic-bezier(.2,.8,.2,1),opacity .2s}#crV07Main{transform:translateX(0)}#crV07Detail{transform:translateX(105%);opacity:0;pointer-events:none}#sideMenu.cr-v07-detail #crV07Main{transform:translateX(-25%);opacity:0;pointer-events:none}#sideMenu.cr-v07-detail #crV07Detail{transform:translateX(0);opacity:1;pointer-events:auto}
+.cr-v07-row{width:100%;min-height:57px;display:flex;align-items:center;gap:12px;padding:13px 16px;margin:0;background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0;color:var(--text);font-size:14px;font-weight:600;text-align:left}.cr-v07-row .cr-v07-icon{width:22px;flex:none;text-align:center;color:var(--text-muted)}.cr-v07-row .cr-v07-label{flex:1}.cr-v07-row .cr-v07-chevron{color:var(--text-muted)}.cr-v07-row:active{background:var(--bg-sunken)}.cr-v07-section{padding:14px 15px}.cr-v07-section .acc-header{display:none}.cr-v07-section .acc-body{display:block!important;grid-template-rows:none!important;border:0!important}.cr-v07-section .acc-inner{overflow:visible}.cr-v07-section .acc-pad{opacity:1;transform:none;padding:0}.cr-v07-section .side-item{margin-bottom:10px}.cr-v07-section .menu-tab-group{display:block!important;animation:none!important}.cr-v07-section .menu-tab-group>.acc-header{display:none}.cr-v07-section .menu-tab-group>.acc-body{display:block!important}.cr-v07-section .menu-tab-group>.acc-body:not(.open){display:block!important}.cr-v07-section .acc-body .acc-inner{overflow:visible}.cr-v07-section .acc-body{overflow:visible}#crV07Detail .cr-v07-row{font-weight:500}
+#crV07AlertRange{width:100%;accent-color:var(--accent);margin:14px 0 5px}#crV07AlertEnds{display:flex;justify-content:space-between;color:var(--text-muted);font-size:11px}#crV07AlertValue{font-weight:700;color:var(--accent)}
+#sideMenu > .side-header,#sideMenu > .menu-tab-group,#sideMenu > .cr-quick-menu,#sideMenu > #menuTabs{display:none!important}
+#crV07Main{display:flex;flex-direction:column}#crV07Install{margin-top:auto!important;border-top:1px solid var(--border)}
+#page-map.active .cr-map-wrap{height:var(--cr-v07-map-height,calc(100dvh - 110px))}#page-map.active #map{height:100%}
+body:has(#page-map.active) .nav-bar{background:#1c1c25!important;border-color:#454552!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:0 6px 24px #0007!important}
+.cr-map-center{border-radius:50%!important;width:46px!important;height:46px!important;bottom:calc(100px + env(safe-area-inset-bottom,0px))!important;right:18px!important;background:#fff!important;color:#222!important;border:1px solid #ddd!important;box-shadow:0 2px 9px #0004!important;font-size:0!important;display:grid;place-items:center}
+.cr-map-center::before,.cr-map-center::after{content:none!important}
+.cr-map-center svg{display:block;width:25px;height:25px;pointer-events:none}
+
+#crGuideHalo{z-index:10002!important}#crGuideBubble{z-index:10003!important}#crGuideHalo:after{display:none!important}
+
+/* V07 mobile regression fixes */
+html:has(#page-map.active),body:has(#page-map.active){height:100%;overflow:hidden!important;overscroll-behavior:none}
+body:has(#page-map.active){padding-bottom:0!important}
+#page-map.active{overflow:hidden;touch-action:pan-x pan-y}
+#crV07Main,#crV07Detail{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;box-sizing:border-box;padding-bottom:calc(115px + env(safe-area-inset-bottom,0px))}
+#crV07Main{min-height:0}#crV07Detail{min-height:0}#crV07Install{margin-top:0!important;border-top:0!important}
+#crV07Detail .menu-tab-group[data-tab="infos"] > .acc-title{display:none!important}
+#crV07Detail #menuInstallBtn{display:none!important}
+@media(prefers-reduced-motion:reduce){#crV07Main,#crV07Detail{transition:none!important}}
+/* V07 : ergonomie tactile. La sélection reste possible dans les textes ordinaires. */
+:where(button,a,summary,select,label,[role="button"],[role="tab"],[role="menuitem"],[role="option"],[onclick],[data-action],.cr-v07-row,.nav-bar,.leaflet-control,.leaflet-interactive),
+:where(button,a,summary,select,label,[role="button"],[role="tab"],[role="menuitem"],[role="option"],[onclick],[data-action],.cr-v07-row,.nav-bar,.leaflet-control,.leaflet-interactive) :where(*) {
+  -webkit-user-select:none!important;
+  user-select:none!important;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;
+}
+/* Les champs restent éditables et sélectionnables, y compris dans un composant cliquable. */
+:where(input,textarea,[contenteditable="true"]),
+:where(input,textarea,[contenteditable="true"]) :where(*) {
+  -webkit-user-select:text!important;
+  user-select:text!important;
+  -webkit-touch-callout:default;
+}
+/* Centrage géométrique indépendant des styles de bouton et des polices. */
+#page-map .cr-map-center {
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  box-sizing:border-box!important;
+  padding:0!important;
+  line-height:0!important;
+  text-align:center!important;
+}
+#page-map .cr-map-center svg {
+  display:block!important;
+  flex:0 0 24px!important;
+  width:24px!important;
+  height:24px!important;
+  margin:0!important;
+  transform:none!important;
+}
+</style>
 </head>
 <body>
 <div id="splash">
@@ -345,7 +440,7 @@ button:active{transform:scale(.97)}
 </div>
 <header>
   <div class="ico" style="background:none;padding:0"><img src="../icons/icon-96.png" alt="" width="36" height="36" style="border-radius:10px" onerror="this.parentElement.setAttribute('data-icon','fuel');this.remove();hydraterIcones();"></div>
-  <div><div class="h1">Carburant<span>Radar</span></div><div class="sub">PRIX EN TEMPS REEL</div></div>
+  <div><div class="h1">Carburant<span>Radar</span></div><div class="sub">PRIX DÉCLARÉS PAR LES STATIONS</div></div>
   <button class="menu-btn" onclick="openMenu()"><span data-icon="menu" data-icon-taille="20px"></span></button>
 </header>
 <div class="nav-bar">
@@ -355,12 +450,12 @@ button:active{transform:scale(.97)}
   <button class="nav-btn" id="nav-analyse" onclick="showPage('analyse')"><span data-icon="chart" data-icon-taille="20px"></span>Analyse</button>
 </div>
 
-<div class="page" id="page-map"><div id="map"></div></div>
+<div class="page" id="page-map"><div class="cr-map-wrap"><div id="map"></div><button type="button" class="cr-map-center" onclick="crMapRecenter()" aria-label="Recentrer la carte sur ma position" title="Ma position"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button></div></div>
 
 <div class="page active" id="page-radar">
   <div style="padding:20px 20px 0">
     <h1 style="font-size:15px;font-weight:700;color:var(--text-muted);margin:0 0 12px;text-transform:none">Comparer les prix du carburant près de chez vous</h1>
-    <button id="locBtn" onclick="locate()">Me localiser</button>
+    <button id="locBtn" onclick="locate()" aria-label="Me localiser ou actualiser les stations">Me localiser</button>
     <div id="crVehicleBar" class="cr-vbar"></div>
       <div class="fuels" id="fg">
       <button class="fb a" data-f="Gazole" onclick="sf(this)">Diesel</button>
@@ -376,8 +471,8 @@ button:active{transform:scale(.97)}
       <button class="rb" data-k="20" onclick="sr(this)">20 km</button>
       <button class="rb" data-k="50" onclick="sr(this)">50 km</button>
     </div>
-    <div id="status"></div>
-    <div class="stats" id="stats">
+    <div id="status" role="status" aria-live="polite"></div>
+    <div class="stats cr-stats-compact" id="stats" aria-label="Résumé des prix de la zone">
       <div class="stat"><div class="sl">Stations</div><div class="sv" id="sc" style="color:var(--accent)">0</div></div>
       <div class="stat"><div class="sl">Prix min</div><div class="sv" id="sm" style="color:var(--success)">0</div></div>
       <div class="stat"><div class="sl">Prix moy</div><div class="sv" id="sa" style="color:var(--danger)">0</div></div>
@@ -411,8 +506,8 @@ button:active{transform:scale(.97)}
     <div id="crVehicleBar2" class="cr-vbar"></div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Destination</div>
     <div style="position:relative;margin-bottom:12px">
-      <input id="trajetDest" class="modal-input" placeholder="Ex: Aix-en-Provence, 13100..." style="margin-bottom:0" oninput="autocomplete();trajetDestCoords=null;" autocomplete="off">
-      <div id="suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--input-bg);border-radius:0 0 8px 8px;z-index:100;max-height:200px;overflow-y:auto;border:1px solid var(--input-border);border-top:none"></div>
+      <input id="trajetDest" class="modal-input" placeholder="Ex: Aix-en-Provence, 13100..." style="margin-bottom:0" oninput="window.autocomplete();trajetDestCoords=null;trajetDestLat=null;trajetDestLon=null;crTripInvalidate();" autocomplete="off">
+      <div id="suggestions" role="listbox" aria-label="Suggestions de destinations" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--input-bg);border-radius:0 0 8px 8px;z-index:100;max-height:200px;overflow-y:auto;border:1px solid var(--input-border);border-top:none"></div>
     </div>
     <div id="trajetReperes" style="display:none;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px"></div>
     <div id="trajetFuelFallbackLabel" style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Carburant (véhicule non configuré)</div>
@@ -425,7 +520,7 @@ button:active{transform:scale(.97)}
       <option value="GPLc">GPL</option>
     </select>
     <button onclick="lancerTrajet()" id="trajetBtn">Trouver la meilleure station</button>
-    <div id="trajetResult"></div>
+    <div id="trajetResult" aria-live="polite" aria-atomic="false"></div>
     <div class="app-footer">
       <div class="footer-copy">© 2026 CarburantRadar</div>
       <div class="footer-links">
@@ -442,6 +537,7 @@ button:active{transform:scale(.97)}
   <div style="padding:20px">
     <div style="font-size:16px;font-weight:800;margin-bottom:4px"><span data-icon="chart" data-icon-taille="18px"></span> Analyse des prix</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Évolution du prix vs moyenne zone</div>
+    <div id="crAnalyseOverview" aria-live="polite"></div>
     <div id="analyseList"></div>
     <div class="app-footer">
       <div class="footer-copy">© 2026 CarburantRadar</div>
@@ -467,7 +563,7 @@ button:active{transform:scale(.97)}
     <h2>Comment ça fonctionne</h2>
     <p>L'application récupère les prix des carburants pratiqués par les stations-service françaises et les affiche sur une carte ainsi que sous forme de liste triable.</p>
     <ul>
-      <li><b>Choix du carburant</b> : Diesel, SP95, SP98, E10, E85 ou GPL, sélectionnable en un tap.</li>
+      <li><b>Carburant</b> : le véhicule sélectionné détermine automatiquement le carburant utilisé pour comparer les stations.</li>
       <li><b>Recherche autour d'une position</b> : avec ton accord, l'app utilise ta position (ou une adresse choisie) pour afficher les stations dans un rayon que tu définis (5, 10, 20 ou 50 km).</li>
       <li><b>Comparaison</b> : chaque station est classée selon un score combinant son prix et le temps de trajet pour s'y rendre, avec un onglet Analyse pour suivre l'évolution des prix dans le temps.</li>
       <li><b>Système d'alertes</b> : tu peux être notifié quand une station de ta zone devient particulièrement avantageuse par rapport à la moyenne locale.</li>
@@ -587,8 +683,15 @@ button:active{transform:scale(.97)}
 
 <div class="overlay" id="overlay" onclick="closeMenu()"></div>
 <div class="side-menu" id="sideMenu">
+  <nav class="cr-quick-menu" aria-label="Accès rapide aux réglages">
+    <button type="button" onclick="switchMenuTab('compte')">Compte</button>
+    <button type="button" onclick="switchMenuTab('lieux')">Lieux et favoris</button>
+    <button type="button" onclick="switchMenuTab('perso')">Véhicules et réglages</button>
+    <button type="button" onclick="crOpenAlertSettings()">Mes alertes</button>
+    <button type="button" onclick="switchMenuTab('infos')">Aide</button>
+  </nav>
   <div class="side-header"><div class="side-title">Menu</div><button class="close-btn" onclick="closeMenu()"><span data-icon="close" data-icon-taille="16px"></span></button></div>
-  <div class="menu-tabs" id="menuTabs">
+  <div class="menu-tabs cr-legacy-tabs" id="menuTabs">
     <button class="menu-tab a" data-tab="compte" onclick="switchMenuTab('compte')"><span data-icon="user" data-icon-taille="14px"></span> Compte</button>
     <button class="menu-tab" data-tab="lieux" onclick="switchMenuTab('lieux')"><span data-icon="pin" data-icon-taille="14px"></span> Mes lieux</button>
     <button class="menu-tab" data-tab="perso" onclick="switchMenuTab('perso')"><span data-icon="settings" data-icon-taille="14px"></span> Personnalisation</button>
@@ -713,9 +816,9 @@ button:active{transform:scale(.97)}
     <!-- Savings Info -->
     <div class="side-item">
       <div class="side-item-name">À propos des économies</div>
-      <div class="side-item-sub">Comment sont calculées vos économies</div>
+      <div class="side-item-sub">Comment CarburantRadar compare les stations</div>
       <div style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.4;">
-        Les stations sont classées par coût total : le plein (80 % du réservoir × prix de la station) plus le carburant brûlé pour l'aller-retour (distance × consommation × prix de la station). Plus votre véhicule consomme, ou plus son réservoir est petit, plus la distance compte face au prix.
+        CarburantRadar ne compare pas uniquement les prix à la pompe. Il prend aussi en compte la consommation de votre véhicule, la capacité de son réservoir et la distance aller-retour jusqu'à chaque station. Les stations sont ainsi classées selon le coût total estimé, pour vous aider à trouver la plus avantageuse.
       </div>
     </div>
   </div>
@@ -728,7 +831,7 @@ button:active{transform:scale(.97)}
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="ouvrirInfoDepuisMenu('confidentialite')"><span data-icon="lock" data-icon-taille="14px"></span> Politique de confidentialité</button>
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="ouvrirInfoDepuisMenu('contact')"><span data-icon="mail" data-icon-taille="14px"></span> Contact</button>
     <button class="side-item" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px" onclick="closeMenu();ouvrirTuto()"><span data-icon="info" data-icon-taille="14px"></span> Revoir le tutoriel</button>
-    <button class="side-item" id="menuInstallBtn" style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px;margin-bottom:0" onclick="installerApp()"><span data-icon="download" data-icon-taille="14px"></span> Télécharger l'application</button>
+    <button class="side-item" id="menuInstallBtn" hidden style="width:100%;text-align:left;border:none;cursor:pointer;font:inherit;color:var(--text);font-weight:600;font-size:14px;margin-bottom:0" onclick="installerApp()"><span data-icon="download" data-icon-taille="14px"></span> Télécharger l'application</button>
   </div>
   </div>
 </div>
@@ -806,6 +909,7 @@ var la=null,lo=null,fu=localStorage.getItem('cr_fu')||'Gazole',ra=parseInt(local
 var PK={Gazole:'gazole_prix',SP95:'sp95_prix',SP98:'sp98_prix',E10:'e10_prix',E85:'e85_prix',GPLc:'gplc_prix'};
 var FL={Gazole:'Diesel',SP95:'SP95',SP98:'SP98',E10:'E10',E85:'E85',GPLc:'GPL'};
 var PROXY='https://carburant-proxy.emilienzabukovec09.workers.dev';
+
 // Activation volontaire uniquement après déploiement/validation du Worker V2.
 var SNAPSHOT_V2_URL=localStorage.getItem('cr_snapshot_v2_url')||'';
 
@@ -1136,7 +1240,9 @@ function tutoPlace(){
  var e=TUTO_ETAPES[tutoIndex],target=document.querySelector(e.target),els=tutoElements();
  if(!target||!target.getClientRects().length){els.h.style.display='none';return;}
  var r=target.getBoundingClientRect(),pad=5;
+ if(target.closest('.nav-bar')){pad=2;}
  els.h.style.display='block';els.h.style.left=Math.max(3,r.left-pad)+'px';els.h.style.top=Math.max(3,r.top-pad)+'px';els.h.style.width=Math.min(innerWidth-6,r.width+pad*2)+'px';els.h.style.height=Math.max(18,r.height+pad*2)+'px';
+ if(target.closest('.nav-bar')){els.h.style.borderRadius='16px';}else{els.h.style.borderRadius='12px';}
  // Le panneau reste toujours lisible, hors de la zone des boutons surlignés.
  var b=els.b,bh=b.offsetHeight||190,bw=Math.min(340,innerWidth-28);
  var nav=document.querySelector('.nav-bar'),navTop=nav?nav.getBoundingClientRect().top:innerHeight-80;
@@ -1230,6 +1336,17 @@ function addUserMarker(){
   var icon=L.divIcon({html:'<div style="width:16px;height:16px;background:var(--success);border:3px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(61,220,151,0.8)"></div>',iconSize:[16,16],iconAnchor:[8,8],className:''});
   userMarker=L.marker([la,lo],{icon:icon}).addTo(map).bindPopup(ic('pin','14px')+' Ma position');
 }
+function crMapRecenter(){
+  if(!map)return;
+  if(Number.isFinite(la)&&Number.isFinite(lo)){map.setView([la,lo],13);return;}
+  if(typeof locate==='function')locate();
+}
+function crMapColor(price,min,max){
+  if(!Number.isFinite(price)||price<=0)return 'var(--text-muted)';
+  if(!Number.isFinite(min)||!Number.isFinite(max)||max<=min)return 'var(--accent)';
+  var ratio=(price-min)/(max-min);
+  return ratio<=0.34?'var(--success)':ratio>=0.67?'var(--danger)':'var(--accent)';
+}
 function updateMapMarkers(){
   if(!map)return;
   stationMarkers.forEach(function(m){m.remove();});stationMarkers=[];
@@ -1238,12 +1355,16 @@ function updateMapMarkers(){
     stationMarkers.push(L.marker([r.lat,r.lon],{icon:icon}).addTo(map).bindPopup('<div class="map-popup-name">'+echapperHTML(r.name)+'</div>'));
   });
   var names=getNames();
+  var prices=st.map(function(x){return Number(x.prix);}).filter(function(x){return Number.isFinite(x)&&x>0;});
+  var minPrice=prices.length?Math.min.apply(null,prices):null,maxPrice=prices.length?Math.max.apply(null,prices):null;
   st.forEach(function(s){
-    if(!s.lat||!s.lon)return;
-    var nom=names[String(s.id)]||s.adresse,px=s.prix?(s.prix.toFixed(3)+'€'):'N/A',color=s.prix?'var(--accent)':'var(--text-muted)';
+    if(!Number.isFinite(Number(s.lat))||!Number.isFinite(Number(s.lon)))return;
+    var nom=names[String(s.id)]||s.adresse,px=Number(s.prix)>0?(Number(s.prix).toFixed(3)+' €'):'Prix indisponible',color=crMapColor(Number(s.prix),minPrice,maxPrice);
     var icon=L.divIcon({html:'<div style="background:'+color+';color:#000;border-radius:8px;padding:2px 5px;font-size:10px;font-weight:700;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)">'+px+'</div>',iconSize:[null,null],iconAnchor:[0,0],className:''});
     var navUrl = getNavigationUrl(s.lat, s.lon);
-    stationMarkers.push(L.marker([s.lat,s.lon],{icon:icon}).addTo(map).bindPopup('<div class="map-popup-name">'+echapperHTML(nom)+'</div><div class="map-popup-price">'+px+'</div><a class="map-popup-go" href="'+navUrl+'" target="_blank">Y aller</a>'));
+    var cost=Number.isFinite(s.coutTotal)?'<div style="font-size:12px;margin:5px 0">Coût total estimé : <strong>'+s.coutTotal.toFixed(2)+' €</strong></div>':'';
+    var note='<div style="font-size:10px;color:var(--text-muted)">Couleur relative aux prix des stations affichées</div>';
+    stationMarkers.push(L.marker([s.lat,s.lon],{icon:icon}).addTo(map).bindPopup('<div class="map-popup-name">'+echapperHTML(nom||'Station')+'</div><div class="map-popup-price">'+px+'</div>'+cost+note+'<a class="map-popup-go" href="'+navUrl+'" target="_blank" rel="noopener noreferrer">Y aller</a>'));
   });
 }
 
@@ -1370,6 +1491,13 @@ function toggleAcc(id){
 function switchMenuTab(tab){
   document.querySelectorAll('.menu-tab-group').forEach(function(g){g.style.display=(g.dataset.tab===tab)?'':'none';});
   document.querySelectorAll('.menu-tab').forEach(function(b){b.classList.remove('a');if(b.dataset.tab===tab)b.classList.add('a');});
+}
+function crOpenAlertSettings(){
+  switchMenuTab('compte');
+  var acc=document.getElementById('alertAcc');
+  if(acc&&!acc.classList.contains('open'))toggleAcc('alertAcc');
+  var h=acc&&acc.previousElementSibling;
+  if(h&&typeof h.scrollIntoView==='function')h.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function openMenu(){renderFavList();renderRepList();renderDestFavList();updateAlertUI();updateCompteUI();initSettings();switchMenuTab('compte');var mib=document.getElementById('menuInstallBtn');if(mib)mib.style.display=estEnModeStandalone()?'none':'block';document.getElementById('overlay').classList.add('on');document.getElementById('sideMenu').classList.add('on');}
 
@@ -1607,6 +1735,7 @@ if (document.getElementById('page-radar').classList.contains('active')) {
 }
 function synchroniserVersServeur(){
   if(!estConnecte())return;
+  if(typeof crGetVehicles!=='function'||typeof crGetDefaultId!=='function')return; /* module véhicules pas encore chargé : on ne synchronise pas de données incomplètes */
   var statut=document.getElementById('compteSyncStatut');
   fetch(PROXY+'/account',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()},body:JSON.stringify({data:collecterDonneesLocales()})})
   .then(function(r){return r.json();}).then(function(d){
@@ -2130,8 +2259,9 @@ function autocomplete(){
       while(sug.firstChild)sug.removeChild(sug.firstChild);
       results.forEach(function(r){
         var nom=r.display_name.split(',').slice(0,3).join(', ');
-        var div=document.createElement('div');div.className='suggest-item';div.textContent=nom;
+        var div=document.createElement('div');div.className='suggest-item';div.setAttribute('role','option');div.setAttribute('tabindex','0');div.textContent=nom;
         div.onclick=function(){document.getElementById('trajetDest').value=nom;trajetDestCoords={lat:Number(r.lat),lon:Number(r.lon)};sug.style.display='none';};
+        div.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();div.click();}};
         sug.appendChild(div);
       });
       sug.style.display='block';
@@ -2166,12 +2296,14 @@ function choisirRepereTrajet(i){
   var r=getReps()[i];if(!r)return;
   document.getElementById('trajetDest').value=r.name;
   trajetDestCoords={lat:r.lat,lon:r.lon};
+  crTripInvalidate();
   var sug=document.getElementById('suggestions');if(sug)sug.style.display='none';
 }
 function choisirDestFavoriteTrajet(i){
   var d=getDestFavs()[i];if(!d)return;
   document.getElementById('trajetDest').value=d.name;
   trajetDestCoords={lat:d.lat,lon:d.lon};
+  crTripInvalidate();
   var sug=document.getElementById('suggestions');if(sug)sug.style.display='none';
 }
 function enregistrerDestinationFavorite(){
@@ -2183,8 +2315,17 @@ function enregistrerDestinationFavorite(){
 }
 // Route-based search. No simulated routes or estimated detours are presented as confirmed.
 var crTripRun=0;
-function crTripStatus(message){var el=document.getElementById('trajetResult');if(el)el.textContent=message;}
-function crTripFinish(){var b=document.getElementById('trajetBtn');if(b){b.disabled=false;b.textContent='Trouver la meilleure station';}}
+function crTripInvalidate(){
+  ++crTripRun;
+  window.crTripVerifiedCandidates=null;
+  window.crTripVerifiedMeta=null;
+  var result=document.getElementById('trajetResult');
+  if(result){result.textContent='';result.setAttribute('aria-busy','false');}
+  crTripFinish();
+}
+
+function crTripStatus(message){var el=document.getElementById('trajetResult');if(el){el.textContent=message;el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.setAttribute('aria-busy',String(message.indexOf('…')>=0));}}
+function crTripFinish(){var b=document.getElementById('trajetBtn');if(b){b.disabled=false;b.textContent='Trouver la meilleure station';}var el=document.getElementById('trajetResult');if(el)el.setAttribute('aria-busy','false');}
 function crTripJson(url,ms){
   var ctl=new AbortController(),timer=setTimeout(function(){ctl.abort();},ms||15000);
   return fetch(url,{signal:ctl.signal}).then(function(r){if(!r.ok)throw Error('HTTP '+r.status);return r.json();}).finally(function(){clearTimeout(timer);});
@@ -2215,7 +2356,7 @@ async function crTripMapLimit(items,limit,fn){
 function lancerTrajet(){
   var dest=document.getElementById('trajetDest').value.trim();
   if(!dest){crTripStatus('Saisis une destination.');return;}
-  var run=++crTripRun,b=document.getElementById('trajetBtn');b.disabled=true;b.textContent='Recherche en cours…';
+  var run=++crTripRun,b=document.getElementById('trajetBtn');window.crTripVerifiedCandidates=null;b.disabled=true;b.textContent='Recherche en cours…';
   crTripStatus('Localisation du départ…');
   if(la===null||lo===null){obtenirPosition(function(){crTripExecute(dest,run);},function(){if(run!==crTripRun)return;crTripStatus('Position indisponible : autorise la géolocalisation, puis réessaie.');crTripFinish();});}
   else crTripExecute(dest,run);
@@ -2264,6 +2405,8 @@ async function crTripExecute(dest,run){
     var valid=checked.filter(Boolean);
     if(!valid.length)throw Error('detours');
     crTrajetRank(valid);
+    window.crTripVerifiedCandidates=valid.slice();
+    window.crTripVerifiedMeta={dest:dest,goodZones:goodZones,totalZones:points.length,stations:stations.length,baseMin:Math.round(base.duration/60)};
     var best=valid[0],names=getNames(),nom=names[String(best.id)]||best.adresse||'Station-service';
     var detourMin=Math.round(best.detour/60),durationMin=Math.round(best.dureeAvec/60),baseMin=Math.round(base.duration/60);
     // The ranking uses the same vehicle/fill model as the radar. Show a rounded comparison, not an absolute guarantee.
@@ -2277,12 +2420,13 @@ async function crTripExecute(dest,run){
       var m=document.createElement('div');m.className='m';var label=document.createElement('div');label.className='ml';label.textContent=pair[0];var val=document.createElement('div');val.className='mv';val.textContent=pair[1];m.appendChild(label);m.appendChild(val);metrics.appendChild(m);
     });card.appendChild(metrics);
     var note=document.createElement('div');note.style.cssText='font-size:12px;color:var(--text-muted);margin:12px 0;line-height:1.5';
-    note.textContent='Meilleure option parmi '+valid.length+' stations avec itinéraire vérifié ('+stations.length+' stations recensées, '+goodZones+'/'+points.length+' zones interrogées). Trajet direct : '+baseMin+' min. Coût estimé = carburant à acheter + carburant consommé sur le détour. Horaires et prix à vérifier avant le départ.';
+    note.textContent='Meilleure option calculée parmi '+valid.length+' stations avec itinéraire vérifié ('+stations.length+' stations recensées, '+goodZones+'/'+points.length+' zones interrogées). Trajet direct : '+baseMin+' min. Coût estimé = carburant à acheter + carburant consommé sur le détour. Horaires et prix à vérifier avant le départ.';
     card.appendChild(note);
     if(goodZones<points.length){var warn=document.createElement('p');warn.style.color='var(--accent)';warn.textContent='Recherche partielle : certaines zones n’ont pas répondu.';card.appendChild(warn);}
     var link=document.createElement('a');link.className='go';link.href=nav;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Itinéraire avec arrêt (Google Maps)';card.appendChild(link);
     var fav=document.createElement('button');fav.className='add-btn';fav.style.marginTop='8px';fav.textContent='Ajouter cette destination aux favoris';fav.onclick=enregistrerDestinationFavorite;card.appendChild(fav);
     res.appendChild(card);
+    crTripRenderAlternatives(valid);
   }catch(e){
     if(run!==crTripRun)return;
     var errors={fuel:'Configure le carburant de ton véhicule.',destination:'Destination introuvable : précise ton adresse.',route:'Impossible de calculer la route routière.',route_geometry:'Le service de trajet n’a pas fourni une route exploitable.',stations_service:'Le service des stations ne répond pas.',stations:'Aucune station avec un prix disponible sur cette route.',detours:'Impossible de vérifier les détours : aucun classement fiable ne peut être affiché.'};
@@ -2290,12 +2434,45 @@ async function crTripExecute(dest,run){
   }finally{if(run===crTripRun)crTripFinish();}
 }
 
+// Preview UX: verified alternatives and quick re-ranking without network requests.
+function crTripRenderAlternatives(candidates){
+  var root=document.getElementById('trajetResult');if(!root||!candidates||!candidates.length)return;
+  var old=document.getElementById('crTripAlternatives');if(old)old.remove();
+  var section=document.createElement('section');section.id='crTripAlternatives';section.setAttribute('aria-label','Comparer les stations vérifiées');
+  var title=document.createElement('h3');title.textContent='Autres stations à comparer';title.style.cssText='font-size:14px;margin:20px 0 10px';section.appendChild(title);
+  candidates.slice(0,3).forEach(function(s,i){
+    var b=document.createElement('button');b.type='button';b.className='cr-trip-choice';b.setAttribute('aria-pressed',String(i===0));
+    var names=getNames(),nom=names[String(s.id)]||s.adresse||'Station-service';
+    var heading=document.createElement('span');heading.textContent=(i+1)+'. '+nom;
+    var detail=document.createElement('span');detail.textContent=s.crTotal.toFixed(2)+' € · '+s.prix.toFixed(3)+' €/L · +'+Math.round(s.detour/60)+' min';
+    b.appendChild(heading);b.appendChild(detail);
+    b.onclick=function(){
+      var best=root.querySelector('.card.best');if(!best)return;
+      var h=best.querySelector('.name'),a=best.querySelector('.addr'),metrics=best.querySelectorAll('.metrics .mv'),link=best.querySelector('a.go');
+      if(h)h.textContent=nom;if(a)a.textContent=[s.cp,s.ville].filter(Boolean).join(' ');
+      [s.prix.toFixed(3)+' €','+'+Math.round(s.detour/60)+' min',Math.round(s.dureeAvec/60)+' min',s.crTotal.toFixed(2)+' €'].forEach(function(v,j){if(metrics[j])metrics[j].textContent=v;});
+      if(link)link.href=getNavigationUrlWithWaypoints(la,lo,s.lat,s.lon,document.getElementById('trajetDest').value.trim());
+      section.querySelectorAll('.cr-trip-choice').forEach(function(x){x.classList.remove('selected');x.setAttribute('aria-pressed','false');});b.classList.add('selected');b.setAttribute('aria-pressed','true');
+    };
+    if(i===0)b.classList.add('selected');section.appendChild(b);
+  });
+  root.appendChild(section);
+}
+function crTripReRank(){
+  var candidates=window.crTripVerifiedCandidates;
+  if(!candidates||!candidates.length)return;
+  crTrajetRank(candidates);
+  var root=document.getElementById('trajetResult');if(!root)return;
+  crTripRenderAlternatives(candidates);
+  var first=root.querySelector('#crTripAlternatives .cr-trip-choice');if(first)first.click();
+}
 // ===== ANALYSE (accordéon) =====
 var analyseItems={}; // id ('ZONE' ou id station) -> {periode:7, rayon:5}
 var analyseOpenId=null;
 
 function etatParDefaut(){return {periode:7,rayon:5,carburant:fu};}
 function initAnalysePage(){
+  crRenderAnalyseOverview();
   if(!analyseItems.ZONE)analyseItems.ZONE=etatParDefaut();
   renderAnalyseListe();
   if(analyseOpenId)chargerAnalyseItem(analyseOpenId);
@@ -2365,6 +2542,13 @@ function panneauSquelette(){
     '<div id="analyseGraphContainer" style="display:none;position:relative;background:var(--bg-surface);border:1px solid var(--border);border-radius:14px;padding:16px"><canvas id="analyseGraph"></canvas></div>';
 }
 
+function crRenderAnalyseOverview(){
+  var target=document.getElementById('crAnalyseOverview');if(!target)return;
+  var prices=(Array.isArray(st)?st:[]).map(function(s){return Number(s.prix);}).filter(function(v){return Number.isFinite(v)&&v>0;});
+  if(!prices.length){target.innerHTML='<div class="cr-analyse-overview"><strong>Vue rapide</strong><div class="cr-overview-hint">Lance une recherche dans Radar pour afficher les prix disponibles, puis consulte les historiques ci-dessous.</div></div>';return;}
+  var min=Math.min.apply(null,prices),mean=prices.reduce(function(a,b){return a+b;},0)/prices.length;
+  target.innerHTML='<div class="cr-analyse-overview"><div class="cr-overview-head"><strong>Prix actuellement chargés</strong><span>'+prices.length+' stations avec prix</span></div><div class="cr-overview-grid"><div><small>Prix minimum</small><strong>'+min.toFixed(3)+' €/L</strong></div><div><small>Prix moyen</small><strong>'+mean.toFixed(3)+' €/L</strong></div></div><div class="cr-overview-hint">Résumé des stations du dernier Radar, pour le carburant sélectionné. Ce n’est pas un historique : ouvre « Moyenne zone » pour voir l’évolution.</div></div>';
+}
 function renderAnalyseListe(){
   var favs=getFavs(),names=getNames(),ids=Object.keys(favs);
   var etatZone=analyseItems.ZONE||etatParDefaut();
@@ -3036,7 +3220,7 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
   var FILL = 0.8;     // part du réservoir remplie à chaque plein
   try{var savedFill=Number(localStorage.getItem('cr_fill_pct'));if(Number.isFinite(savedFill)&&savedFill>=5&&savedFill<=100)FILL=savedFill/100;}catch(e){}
   W.crFillFraction=FILL;
-  W.crSetFillPercent=function(v){var pct=Math.max(5,Math.min(100,Math.round(Number(v)||80)));FILL=pct/100;W.crFillFraction=FILL;try{localStorage.setItem('cr_fill_pct',String(pct));}catch(e){};var label=document.getElementById('crFillPct');if(label)label.textContent=pct+' %';var gauge=document.getElementById('crFillGauge');if(gauge){gauge.style.setProperty('--needle',((pct*1.8)-90)+'deg');gauge.setAttribute('aria-label','Carburant à acheter : '+pct+' %');}if(W.st&&W.st.length&&typeof W.render==='function')W.render();};
+  W.crSetFillPercent=function(v){var pct=Math.max(5,Math.min(100,Math.round(Number(v)||80)));FILL=pct/100;W.crFillFraction=FILL;try{localStorage.setItem('cr_fill_pct',String(pct));}catch(e){};['','2'].forEach(function(suffix){var label=document.getElementById('crFillPct'+suffix);if(label)label.textContent=pct+' %';var range=document.getElementById('crFillRange'+suffix);if(range&&Number(range.value)!==pct)range.value=pct;var gauge=document.getElementById('crFillGauge'+suffix);if(gauge){gauge.style.setProperty('--needle',((pct*1.8)-90)+'deg');gauge.setAttribute('aria-label','Carburant à acheter : '+pct+' %');}});if(W.st&&W.st.length&&typeof W.render==='function')W.render();var trip=document.getElementById('page-trajet');if(trip&&trip.classList.contains('active')&&document.getElementById('trajetResult')&&document.getElementById('trajetResult').querySelector('.card.best')){if(typeof W.crTripReRank==='function')W.crTripReRank();}};
   var ROAD = 1.3;     // facteur route / vol d'oiseau, pour estimer quand la vraie route n'est pas calculée
   var NCAND = 20;     // nombre de stations dont on calcule la vraie route
   var LS_LIST = 'cr_vehicles', LS_DEF = 'cr_vehicle_default';
@@ -3232,6 +3416,7 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
     renderBar();
     if(typeof W.crSyncFuelControls==='function')W.crSyncFuelControls();
     refreshRanking();
+    if (typeof W.crTripInvalidate==='function')W.crTripInvalidate();
     if (typeof W.synchroniserVersServeur === 'function') W.synchroniserVersServeur();
   };
 
@@ -3243,7 +3428,7 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
       var bar = document.getElementById(pair[0]);
       if (!bar) return;
       bar.innerHTML = '<select aria-label="Choisir un véhicule" id="' + pair[1] + '" class="cr-vsel">' +
-        list.map(function (v) { return '<option value="' + esc(v.id) + '"' + (v.id === a.id ? ' selected' : '') + '>' + esc(v.nom) + '</option>'; }).join('') + '</select>'+(pair[0]==='crVehicleBar'?'<div class="cr-fill"><input id="crFillRange" aria-label="Pourcentage du réservoir à acheter" type="range" min="5" max="100" step="5" value="'+Math.round(FILL*100)+'" oninput="crSetFillPercent(this.value)"><span class="cr-fill-gauge" id="crFillGauge" role="img" aria-label="Carburant à acheter : '+Math.round(FILL*100)+' %" style="--needle:'+((FILL*180)-90)+'deg"><svg viewBox="0 0 88 52" aria-hidden="true"><path d="M 8 44 A 36 36 0 0 1 80 44" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M 8 44 L 13 44 M 17 20 L 21 24 M 44 8 L 44 14 M 71 20 L 67 24 M 80 44 L 75 44" fill="none" stroke="currentColor" stroke-width="2"/><g class="cr-needle"><path d="M 44 44 L 44 13" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round"/><circle cx="44" cy="44" r="4" fill="var(--accent)"/></g></svg><span id="crFillPct">'+Math.round(FILL*100)+' %</span></span><button type="button" class="cr-fill-info" title="Comprendre le pourcentage" aria-label="Comprendre le pourcentage à acheter" onclick="crFillInfo()">i</button></div>':'');
+        list.map(function (v) { return '<option value="' + esc(v.id) + '"' + (v.id === a.id ? ' selected' : '') + '>' + esc(v.nom) + '</option>'; }).join('') + '</select>'+('<div class="cr-fill"><input id="'+(pair[0]==='crVehicleBar'?'crFillRange':'crFillRange2')+'" aria-label="Pourcentage du réservoir à acheter" type="range" min="5" max="100" step="5" value="'+Math.round(FILL*100)+'" oninput="crSetFillPercent(this.value)"><span class="cr-fill-gauge" id="'+(pair[0]==='crVehicleBar'?'crFillGauge':'crFillGauge2')+'" role="img" aria-label="Carburant à acheter : '+Math.round(FILL*100)+' %" style="--needle:'+((FILL*180)-90)+'deg"><svg viewBox="0 0 88 52" aria-hidden="true"><path d="M 8 44 A 36 36 0 0 1 80 44" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M 8 44 L 13 44 M 17 20 L 21 24 M 44 8 L 44 14 M 71 20 L 67 24 M 80 44 L 75 44" fill="none" stroke="currentColor" stroke-width="2"/><g class="cr-needle"><path d="M 44 44 L 44 13" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round"/><circle cx="44" cy="44" r="4" fill="var(--accent)"/></g></svg><span id="'+(pair[0]==='crVehicleBar'?'crFillPct':'crFillPct2')+'">'+Math.round(FILL*100)+' %</span></span><button type="button" class="cr-fill-info" title="Comprendre le pourcentage" aria-label="Comprendre le pourcentage à acheter" onclick="crFillInfo()">i</button></div>');
       document.getElementById(pair[1]).onchange = function () { W.crSetActive(this.value); };
     });
   }
@@ -3377,6 +3562,38 @@ if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall'
     renderBar(); renderCard();W.crSyncFuelControls();
   }
   init();
+})();
+</script>
+<script id="crV07Script">
+(function(){
+function init(){
+ var side=document.getElementById('sideMenu');if(!side||document.getElementById('crV07Head'))return;
+ var groups={};side.querySelectorAll('.menu-tab-group').forEach(function(g){var k=g.dataset.tab;(groups[k]||(groups[k]=[])).push(g)});
+ var header=document.createElement('div');header.id='crV07Head';header.innerHTML='<button id="crV07Back" aria-label="Retour" style="display:none">‹</button><strong id="crV07Title">Menu</strong><button id="crV07Close" aria-label="Fermer">×</button>';
+ var view=document.createElement('div');view.id='crV07Viewport';var main=document.createElement('div');main.id='crV07Main';var detail=document.createElement('div');detail.id='crV07Detail';view.append(main,detail);side.prepend(view);side.prepend(header);
+ var stash=document.createElement('div');stash.id='crV07Stash';stash.hidden=true;stash.style.display='none';side.append(stash);var openedSub=null;
+ function clearDetail(){if(openedSub){openedSub.a.after(openedSub.body);openedSub=null}Array.from(detail.children).forEach(function(c){if(c.classList.contains('cr-v07-row'))c.remove();else if(c.classList.contains('cr-v07-section')){while(c.firstChild)stash.appendChild(c.firstChild);c.remove()}else stash.appendChild(c)})}
+ var items=[['compte','Compte','♙'],['lieux','Lieux et favoris','⌖'],['perso','Véhicules et réglages','⚙'],['alertes','Alertes prix','♧'],['infos','Aide et informations','ⓘ']];
+ function row(label,icon,action){var b=document.createElement('button');b.type='button';b.className='cr-v07-row';b.innerHTML='<span class="cr-v07-icon">'+icon+'</span><span class="cr-v07-label"></span><span class="cr-v07-chevron">›</span>';b.querySelector('.cr-v07-label').textContent=label;b.onclick=action;return b}
+ var current='',sub='';function setHead(t,back){document.getElementById('crV07Title').textContent=t;document.getElementById('crV07Back').style.display=back?'':'none'}
+ function home(){current='';sub='';side.classList.remove('cr-v07-detail');setHead('Menu',false)}
+ function section(key){current=key;sub='';clearDetail();setHead(items.find(function(x){return x[0]===key})[1],true);side.classList.add('cr-v07-detail');detail.scrollTop=0;
+  if(key==='alertes'){var holder=document.createElement('div');holder.className='cr-v07-section';(groups.compte||[]).filter(function(g){return !!g.querySelector('#alertAcc')}).forEach(function(g){holder.append(g)});detail.append(holder);var btn=row('Configurer les alertes','⚙',function(){if(typeof openAlertModal==='function')openAlertModal();else {var m=document.getElementById('alertModal');if(m)m.classList.add('on')}});detail.append(btn);return}
+  var gs=(groups[key]||[]).filter(function(g){return !g.querySelector('#alertAcc')});if(key==='compte'){gs.forEach(function(g){var h=document.createElement('div');h.className='cr-v07-section';h.append(g);detail.append(h)});return}
+  if(key==='perso'){gs.forEach(function(g){var h=document.createElement('div');h.className='cr-v07-section';h.append(g);detail.append(h)});return}
+  gs.forEach(function(g){var accs=Array.from(g.querySelectorAll(':scope > .acc-header'));if(accs.length){accs.forEach(function(a){var body=a.nextElementSibling;detail.append(row(a.querySelector('.acc-title')?.textContent.trim()||'Rubrique','•',function(){sub=a.querySelector('.acc-title')?.textContent.trim()||'Rubrique';clearDetail();openedSub={a:a,body:body};var h=document.createElement('div');h.className='cr-v07-section';h.append(body);detail.append(h);setHead(sub,true)}))})}else{var h=document.createElement('div');h.className='cr-v07-section';h.append(g);detail.append(h)}})
+ }
+ items.forEach(function(x){main.append(row(x[1],x[2],function(){section(x[0])}))});var install=row('Télécharger l’application','↓',function(){if(typeof installerApp==='function')installerApp()});install.id='crV07Install';install.style.marginTop='0';main.append(install);
+ document.getElementById('crV07Back').onclick=function(){if(sub){section(current)}else home()};document.getElementById('crV07Close').onclick=function(){closeMenu()};
+ var oldOpen=window.openMenu;window.openMenu=function(){if(oldOpen)oldOpen();home();install.style.display=typeof estEnModeStandalone==='function'&&estEnModeStandalone()?'none':''};
+ var oldClose=window.closeMenu;window.closeMenu=function(){if(oldClose)oldClose();home()};
+ window.crOpenAlertSettings=function(){window.openMenu();section('alertes')};
+ document.querySelectorAll('.nav-bar .nav-btn').forEach(function(b){b.addEventListener('click',function(){if(side.classList.contains('on'))window.closeMenu()},true)});
+ function mapHeight(){var nav=document.querySelector('.nav-bar'),head=document.querySelector('header');if(!nav||!head)return;var h=Math.max(150,Math.round(window.innerHeight-head.getBoundingClientRect().bottom));document.documentElement.style.setProperty('--cr-v07-map-height',h+'px');if(window.map&&typeof map.invalidateSize==='function')setTimeout(function(){map.invalidateSize()},80)}
+ window.addEventListener('resize',mapHeight);if(window.ResizeObserver){new ResizeObserver(mapHeight).observe(document.querySelector('.nav-bar'))}setTimeout(mapHeight,80);
+ var sel=document.getElementById('alertSeuil');if(sel){var V=[2,3,5,8];sel.innerHTML=V.map(function(n){return '<option value="'+n+'">-'+n+'%</option>'}).join('');sel.value='3';var wrap=document.createElement('div');wrap.innerHTML='<div style="font-size:12px;margin-bottom:5px">Seuil : <span id="crV07AlertValue">3 %</span></div><input type="range" id="crV07AlertRange" min="0" max="3" step="1" value="1" aria-label="Seuil des alertes en pourcentage"><div id="crV07AlertEnds"><span>2 % · Plus d’alertes</span><span>8 % · Très rares</span></div><div id="crV07AlertFrequency" style="font-size:12px;margin:10px 0;color:var(--text-muted)">Équilibré</div>';sel.style.display='none';sel.parentNode.insertBefore(wrap,sel);var r=wrap.querySelector('input');function sync(v){v=Number(v);if(V.indexOf(v)<0)v=3;sel.value=String(v);r.value=String(V.indexOf(v));wrap.querySelector('#crV07AlertValue').textContent=v+' %';wrap.querySelector('#crV07AlertFrequency').textContent=({2:'Sensible',3:'Équilibré',5:'Sélectif',8:'Très sélectif'})[v]+' · fréquence indicative'}r.oninput=function(){sync(V[Number(r.value)])};sel.addEventListener('change',function(){sync(sel.value)});var modal=document.getElementById('alertModal');if(modal){new MutationObserver(function(){if(modal.classList.contains('on'))sync(sel.value)}).observe(modal,{attributes:true,attributeFilter:['class']})}}
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
 </body>
