@@ -1,32 +1,32 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 18/11/2026 00:31 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 18/11/2026 15:09 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
 | Indicateur | Valeur |
 |---|---|
-| Pages France générées par le nouveau système | 460 |
+| Pages France générées par le nouveau système | 463 |
 | Pages villes (France) | 185 dont 184 indexables et 1 en noindex |
 | — dont communes ajoutées automatiquement (hors villes.json) | 82 |
 | Pages départements | 83 |
 | Pages régions | 13 |
-| Pages ville + carburant | 178 |
-| — dont Gazole | 69 |
+| Pages ville + carburant | 181 |
+| — dont Gazole | 68 |
 | — dont SP95 | 2 |
-| — dont SP98 | 44 |
-| — dont E10 | 54 |
+| — dont SP98 | 46 |
+| — dont E10 | 56 |
 | — dont E85 | 9 |
 | — dont GPL | 0 |
 | Pages hub (liste des villes France) | 1 |
 | Pages Espagne / Italie (pipeline inchangé) | 560 villes, 52 hubs |
 | URLs dans le sitemap | 897 |
-| Stations analysées (jeu de données) | 9825 |
+| Stations analysées (jeu de données) | 9827 |
 | Jours d'historique enregistrés | 30 (du 2026-10-17 au 2026-11-18) |
 
 ## Espagne (pages enrichies)
 
-- Source : API officielle du Ministerio ; 11531 stations exploitables ; données du 18/11/2026 00:01 UTC.
+- Source : API officielle du Ministerio ; 11523 stations exploitables ; données du 18/11/2026 14:22 UTC.
 - Pages villes : 457 dont 456 indexables (354 ajoutées automatiquement) ; pages provinces : 50.
 
 ## Italie (pages enrichies)
@@ -48,10 +48,10 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 | Balise | Valeurs distinctes / pages |
 |---|---|
-| Titles | 460 / 460 |
-| Meta descriptions | 460 / 460 |
-| H1 | 460 / 460 |
-| Canonicals | 460 / 460 |
+| Titles | 463 / 463 |
+| Meta descriptions | 463 / 463 |
+| H1 | 463 / 463 |
+| Canonicals | 463 / 463 |
 
 ## Qualité du contenu
 
@@ -64,7 +64,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Maillage interne (pages France générées)
 
-- Liens internes distincts au total : 4692 ; moyenne par page : 10.2
+- Liens internes distincts au total : 4712 ; moyenne par page : 10.2
 - Pages orphelines indexables : 0 ; pages noindex non liées : 2
 
 ## Pages les plus / moins riches (villes)
@@ -88,8 +88,8 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 ## Doublons de contenu (zone principale, séquences de 6 mots)
 
 - Pages villes : contenu unique moyen 51 % (min 41 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages ville + carburant : contenu unique moyen 33 % (min 20 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 44 % (min 34 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages ville + carburant : contenu unique moyen 34 % (min 21 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 44 % (min 33 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
