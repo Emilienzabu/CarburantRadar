@@ -85,3 +85,38 @@ Le workflow d'aperçu prépare les deux pilotes et leurs fiches. Le planificateu
 éditorial sélectionne les sujets à partir d'un historique fourni. Le raccord
 au planning quotidien, l'archivage des reçus, les accès statistiques réels et
 l'exécution planifiée de la collecte restent à valider avant activation.
+## Collecte programmée avec les connexions Cloudflare existantes
+
+La branche fournit le module `video/cloudflare/statistiques.mjs`. Lors de
+l'intégration autorisée dans la version courante de `video-automation`, importer
+`statistiques` dans le module principal et placer ces lignes au début de
+`async fetch(request, env)`, avant le routage de publication :
+
+```js
+const resultatStats = await statistiques(request, env);
+if (resultatStats) return resultatStats;
+```
+
+L'import relatif dépend de l'emplacement du module, par exemple
+`import { statistiques } from "./statistiques.mjs";`. Associer un compartiment
+R2 privé dédié à la liaison `VIDEO_STATS`. Ce compartiment conserve les reçus,
+les mesures et les marqueurs d'import sans durée d'expiration. Il doit rester
+distinct du compartiment utilisé pour servir les vidéos. Le module réutilise
+la clé du robot et les connexions sociales du profil CarburantRadar.
+
+Après validation et mise en service du Worker, la variable GitHub
+`CR_STATS_ACTIVES=true` autorise le workflow sur la branche principale.
+Toutes les six heures il récupère les reçus encore disponibles du workflow
+de publication, y compris en cas de publication partielle. Chaque import
+abouti est marqué. Chaque relevé est enregistré une seule fois, même lors de
+deux exécutions concurrentes. Les compteurs sont lus à nouveau après un
+échec tant que leur fenêtre de douze heures reste ouverte. Un fichier de
+reçus expiré avant son premier import devra être récupéré depuis une sauvegarde.
+
+Pour analyser les relevés depuis un environnement disposant déjà de
+`VIDEO_API_KEY`, exporter les mesures puis lancer le rapport :
+
+```sh
+python video/synchroniser_stats.py --export mesures.jsonl
+python video/performance.py mesures.jsonl > decisions.json
+```
