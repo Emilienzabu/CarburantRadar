@@ -2,7 +2,7 @@ name: Aperçu vitrine mobile
 
 on:
   push:
-    branches: [codex/vitrine-captures-mobiles]
+    branches: [codex/vitrine-captures-mobiles, codex/animations-vitrine-beige]
     paths: [video/**, .github/workflows/apercu-vitrine.yml]
   workflow_dispatch:
 
@@ -41,6 +41,11 @@ jobs:
           grep -q '^Voix : fr-FR-RemyMultilingualNeural$' video/sortie/generation.log
           python video/diagnostic_vitrine.py video/sortie/apercu-vitrine.mp4 \
             --captures-mobiles video/sortie/captures | tee video/sortie/diagnostic.txt
+
+      - name: Générer les deux pilotes beige
+        run: |
+          python video/pilotes_beige.py detour --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-detour.mp4
+          python video/pilotes_beige.py rayon --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-rayon.mp4
 
       - name: Garder l’aperçu et les captures
         if: always()
