@@ -4,6 +4,7 @@ Aucun accès réseau, aucune publication réelle : le Worker est simulé. Les MP
 contrôle réel (controle_publication) s'exécute, et non un contrôle simulé.
 """
 import io
+import json
 import os
 import shutil
 import sys
@@ -79,7 +80,7 @@ def rendu_factice(*, conforme=True):
 
 @unittest.skipUnless(FFMPEG, "ffmpeg/ffprobe absents")
 class FluxDePublication(unittest.TestCase):
-    def lancer(self, argv=("--publier",), *, post, conforme=True, env=None):
+    def lancer(self, argv=("--publier",), *, post, conforme=True, env=None, recus=None):
         appels = []
 
         def faux_post(url, **kw):
@@ -105,6 +106,9 @@ class FluxDePublication(unittest.TestCase):
                     code = exc.code
             contenu = Path(resume).read_text(encoding="utf-8") if os.path.exists(resume) else ""
             manifeste = list(Path(tmp).glob("*.manifeste.json"))
+            if recus is not None:
+                for fichier in Path(tmp).glob("*.publications.json"):
+                    recus.extend(json.loads(fichier.read_text(encoding="utf-8")))
         return code, appels, sortie.getvalue(), contenu, manifeste
 
     ok = staticmethod(lambda u, **k: Reponse({"youtube": {"success": True, "url": "https://youtu.be/x"},
@@ -123,6 +127,22 @@ class FluxDePublication(unittest.TestCase):
         self.assertIn("Vidéo non conforme", str(code))
         self.assertEqual(appels, [], "le Worker ne doit JAMAIS être appelé si le contrôle refuse")
         self.assertIn("resolution_incorrecte", log)
+
+    def test_recu_hashtags_par_plateforme_et_duree_mp4(self):
+        rep = Reponse({"youtube": {"success": True, "videoId": "abcdefghijk"},
+                       "instagram": {"success": True, "mediaId": "17890000123"}})
+        recus = []
+        code, appels, log, _, _ = self.lancer(post=lambda u, **k: rep, recus=recus)
+        self.assertEqual(code, 0, log)
+        self.assertEqual(len(appels), 1)
+        yt, ig = recus
+        self.assertEqual((yt["plateforme"], ig["plateforme"]), ("youtube", "instagram"))
+        self.assertEqual((yt["video_id"], ig["video_id"]), ("abcdefghijk", "17890000123"))
+        self.assertIn("#shorts", yt["hashtags"])
+        self.assertNotIn("#shorts", ig["hashtags"])
+        self.assertAlmostEqual(yt["duree_s"], 13, delta=.15)
+        self.assertEqual(yt["duree_s"], ig["duree_s"])
+        self.assertEqual(yt["sha256"], ig["sha256"])
 
     def test_generation_sans_publication_est_aussi_controlee(self):
         code, appels, log, _, _ = self.lancer(("--demo", "--format", "ville"), post=self.ok, conforme=False)

@@ -17,6 +17,7 @@ import datetime as dt
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import unicodedata
@@ -32,6 +33,7 @@ import controle_publication  # noqa: E402
 import donnees  # noqa: E402
 import garde  # noqa: E402
 from garde import appliquer_garde_astuce, garde_astuce_active  # noqa: E402,F401
+from metadonnees_video import ecrire_recu, mesures_rendu, references_confirmees  # noqa: E402
 import rendu  # noqa: E402
 import vitrine  # noqa: E402
 
@@ -147,7 +149,8 @@ def publier(chemin, info, cle):
         log(res["error"])
     yt_ok, ig_ok = bool(yt.get("success")), bool(ig.get("success"))
     etat = "complet" if (yt_ok and ig_ok) else "partiel" if (yt_ok or ig_ok) else "echec"
-    return {"etat": etat, "youtube": yt_ok, "instagram": ig_ok, "youtube_url": yt.get("url")}
+    return {"etat": etat, "youtube": yt_ok, "instagram": ig_ok, "youtube_url": yt.get("url"),
+            "references": references_confirmees(titre, description, legende, yt, ig)}
 
 
 def ecrire_resume(slot_id, info, resultat):
@@ -298,6 +301,16 @@ def main():
         if not cle:
             raise SystemExit("VIDEO_API_KEY manquante : impossible de publier.")
         resultat = publier(args.sortie, info, cle)
+        if resultat.get("references"):
+            try:
+                fiche = {**mesures_rendu(args.sortie), "id_video": slot_id, "categorie": info["format"],
+                         "carburant": info.get("carburant"), "ville": info.get("ville"),
+                         "identite_visuelle": "quotidien-v1", "musique": k}
+                manquantes = ecrire_recu(args.sortie, fiche, resultat["references"], dt.datetime.now(dt.timezone.utc))
+                if manquantes:
+                    log("::warning::Identifiant publié manquant pour " + ", ".join(manquantes))
+            except (OSError, KeyError, ValueError, subprocess.SubprocessError) as e:
+                log(f"::warning::Reçu de statistiques indisponible ({type(e).__name__}).")
         ecrire_resume(slot_id, info, resultat)
         if resultat["etat"] == "complet":
             return

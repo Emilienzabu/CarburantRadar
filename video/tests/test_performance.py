@@ -7,7 +7,7 @@ from unittest.mock import Mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from collecte_stats import collecter, compteurs
-from performance import analyser, choisir_musique, experience_musique
+from performance import PLATEFORMES, analyser, choisir_musique, experience_musique
 from planning_editorial import Sujet, choisir
 
 
@@ -18,7 +18,7 @@ class TestPerformance(unittest.TestCase):
                 for ordre in (1, 2):
                     essai = experience_musique("detour", 3, 8, str(i), ordre)
                     yield dict(plateforme=plateforme, video_id=f"{i}-{ordre}",
-                               publie_le="2026-10-01T10:00:00+00:00", mesure_le="2026-10-08T10:00:00+00:00",
+                               publie_le="2026-10-01T10:00:00+00:00", mesure_le="2026-10-31T10:00:00+00:00",
                                organique=True, vues=180 if essai["bras"] == "variante" else 100,
                                experience=essai)
 
@@ -28,7 +28,9 @@ class TestPerformance(unittest.TestCase):
         self.assertTrue(all(d["retenu"] for d in decisions))
         valeurs = {choisir_musique([8], 3, decisions, str(i), "detour") for i in range(100)}
         self.assertEqual(valeurs, {3, 8})
-        self.assertEqual(choisir_musique([8], 3, decisions[:2], "1", "detour"), 3)
+        ci = [d for d in decisions if d["plateforme"] != "tiktok"]
+        self.assertEqual(choisir_musique([8], 3, ci, "1", "detour"), 8)
+        self.assertEqual(choisir_musique([8], 3, ci, "1", "detour", plateformes=PLATEFORMES), 3)
         self.assertEqual(choisir_musique([8], 3, decisions, "1", "rayon"), 3)
 
     def test_trop_peu_donnees_ou_mauvais_age(self):
@@ -47,7 +49,8 @@ class TestPerformance(unittest.TestCase):
         publications = [dict(plateforme="tiktok", video_id="123",
                              publie_le=(maintenant - timedelta(days=7)).isoformat())]
         for _ in range(2):
-            self.assertEqual(collecter(publications, mesures, {"tiktok": "test"}, maintenant, lire=lire), [])
+            self.assertEqual(collecter(publications, mesures, {"tiktok": "test"}, maintenant, lire=lire,
+                                        plateformes={"tiktok"}), [])
         lire.assert_called_once()
         self.assertEqual(mesures[0]["vues"], 160)
 

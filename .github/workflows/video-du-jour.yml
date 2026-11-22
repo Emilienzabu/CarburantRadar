@@ -76,3 +76,12 @@ jobs:
           path: video/sortie/video-du-jour.mp4
           retention-days: 7
           if-no-files-found: ignore
+
+      - name: Conserver les références des publications pour les statistiques
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: references-publication
+          path: video/sortie/*.publications.json
+          retention-days: 60
+          if-no-files-found: ignore

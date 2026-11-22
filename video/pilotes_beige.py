@@ -8,8 +8,8 @@ from PIL import Image, ImageDraw
 
 import animations as an
 import audio
-from controle_publication import sha256_fichier
-from performance import choisir_musique, experience_musique
+from metadonnees_video import ecrire_fiche
+from performance import PLATEFORMES, choisir_musique, experience_musique
 from rendu import Fonts, H, Renderer, W
 from vitrine import attacher_mots
 
@@ -153,12 +153,16 @@ def main():
     parser.add_argument("--sortie", type=Path, required=True)
     parser.add_argument("--voix-locale", action="store_true", help="Voix de test eSpeak NG")
     parser.add_argument("--decisions", type=Path, help="Rapport calculé par performance.py")
+    parser.add_argument("--plateformes-apprentissage", nargs="+", choices=sorted(PLATEFORMES),
+                        help="Destinations à prendre en compte, YouTube et Instagram par défaut")
     parser.add_argument("--id-video", help="Identifiant stable de la vidéo pour l'attribution")
     parser.add_argument("--paire-musique", help="Identifiant d'une paire prévue avant publication")
     parser.add_argument("--ordre", type=int, choices=(1, 2))
     args = parser.parse_args()
     if bool(args.paire_musique) != bool(args.ordre) or (args.decisions and args.paire_musique):
         parser.error("Une expérience exige une paire et un ordre et s'utilise seule.")
+    if args.plateformes_apprentissage and not args.decisions:
+        parser.error("--plateformes-apprentissage exige --decisions")
     if args.decisions and not args.id_video:
         parser.error("--decisions exige --id-video")
     temoin, variante = MUSIQUES[args.scenario]
@@ -168,7 +172,8 @@ def main():
         musique = variante if experience["bras"] == "variante" else temoin
     if args.decisions:
         resultats = json.loads(args.decisions.read_text(encoding="utf-8"))["experiences"]
-        musique = choisir_musique((variante,), temoin, resultats, args.id_video, args.scenario)
+        plateformes = {"plateformes": args.plateformes_apprentissage} if args.plateformes_apprentissage else {}
+        musique = choisir_musique((variante,), temoin, resultats, args.id_video, args.scenario, **plateformes)
     defs = [{"id": nom, "min": duree, "texte": texte} for nom, duree, texte in SCENARIOS[args.scenario]]
     args.sortie.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory() as tmp:
@@ -182,12 +187,10 @@ def main():
         audio.ecrire_wav(wav, audio.mixer(scenes, clips, seed=musique))
         rendu = Pilote(args.scenario, scenes, captures, Path(__file__).parent / "fonts")
         rendu.encode(wav, str(args.sortie))
-        fiche = dict(id_video=args.id_video, scenario=args.scenario,
+        ecrire_fiche(args.sortie, id_video=args.id_video, scenario=args.scenario,
                      categorie="avantage" if args.scenario == "detour" else "fonctionnement",
-                     identite_visuelle="beige-v1", musique=musique, duree_s=rendu.total,
-                     voix="espeak-ng" if args.voix_locale else audio.VOIX_DEFAUT,
-                     experience=experience, sha256=sha256_fichier(args.sortie))
-        args.sortie.with_suffix(".creation.json").write_text(json.dumps(fiche, indent=2), encoding="utf-8")
+                     identite_visuelle="beige-v1", musique=musique,
+                     voix="espeak-ng" if args.voix_locale else audio.VOIX_DEFAUT, experience=experience)
 
 
 if __name__ == "__main__":

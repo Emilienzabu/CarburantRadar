@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 import animations as an
 import audio
 from comparaisons import comparer
-from controle_publication import sha256_fichier
+from metadonnees_video import ecrire_fiche
 from pilotes_beige import GRIS, ORANGE_TEXTE, RenduBeige
 from vitrine import attacher_mots
 
@@ -91,10 +91,8 @@ def main():
         audio.ecrire_wav(wav, audio.mixer(scenes, clips, seed=3))
         rendu = Comparatif(donnees, scenes, Path(__file__).parent / "fonts")
         rendu.encode(wav, str(args.sortie))
-        donnees.update(identite_visuelle="beige-v1", musique=3, duree_s=rendu.total,
-                       voix="espeak-ng" if args.voix_locale else audio.VOIX_DEFAUT,
-                       sha256=sha256_fichier(args.sortie))
-        args.sortie.with_suffix(".creation.json").write_text(json.dumps(donnees, indent=2), encoding="utf-8")
+        ecrire_fiche(args.sortie, **donnees, identite_visuelle="beige-v1", musique=3,
+                      voix="espeak-ng" if args.voix_locale else audio.VOIX_DEFAUT)
 
 
 if __name__ == "__main__":
