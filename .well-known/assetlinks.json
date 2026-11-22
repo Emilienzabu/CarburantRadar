@@ -1,11 +1,12 @@
+
 [
   {
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "io.github.emilienzabu.twa",
+      "package_name": "fr.carburantradar.twa",
       "sha256_cert_fingerprints": [
-        "25:AC:70:0F:AB:88:58:98:F3:15:5B:A1:D5:3E:74:AE:73:5B:EB:61:4A:B2:E9:BF:39:6A:D0:23:57:9E:0B:58"
+        "8B:AA:26:66:E6:9B:CD:8B:DB:E7:DB:72:71:F2:8F:F9:4F:DC:5F:29:0F:E9:2E:B6:63:6D:B7:4A:13:ED:AD:16"
       ]
     }
   }
