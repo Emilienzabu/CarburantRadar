@@ -33,14 +33,11 @@ SCENARIOS = {
 MUSIQUES = {"detour": (3, 8), "rayon": (8, 3)}
 
 
-class Pilote(Renderer):
-    def __init__(self, nom, scenes, captures, fonts):
-        self.nom = nom
+class RenduBeige(Renderer):
+    def __init__(self, scenes, fonts):
         self.scenes = scenes
         self.total = scenes[-1]["start"] + scenes[-1]["dur"]
         self.fonts = Fonts(fonts)
-        self.radar = self.extrait(captures / "ecran_radar.png", (.035, .269, .965, .425), 890)
-        self.trajet = self.extrait(captures / "ecran_trajet.png", (.055, .42, .945, .89), 856)
 
     @staticmethod
     def extrait(path, boite, largeur):
@@ -84,6 +81,14 @@ class Pilote(Renderer):
                 self.texte(d, 90, 1650, " ".join(mot for mot, _, _ in groupe), 47)
                 break
         return img
+
+
+class Pilote(RenduBeige):
+    def __init__(self, nom, scenes, captures, fonts):
+        super().__init__(scenes, fonts)
+        self.nom = nom
+        self.radar = self.extrait(captures / "ecran_radar.png", (.035, .269, .965, .425), 890)
+        self.trajet = self.extrait(captures / "ecran_trajet.png", (.055, .42, .945, .89), 856)
 
     def question(self, img, d, a, t):
         if self.nom == "detour":

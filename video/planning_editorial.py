@@ -5,7 +5,7 @@ from datetime import date
 
 LOCALES = {"ville_du_jour": 1, "ville_avant_maintenant": 1, "ville_contre_ville": 2}
 CATEGORIES = LOCALES.keys() | {"astuce", "fonctionnement", "avantage"}
-CARBURANTS = ("gazole", "e10", "sp98", "e85", "gpl", "sp95")
+CARBURANTS = ("gazole", "e10", "sp98", "e85", "gplc", "sp95")
 
 
 @dataclass(frozen=True)

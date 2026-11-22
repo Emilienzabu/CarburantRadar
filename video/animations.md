@@ -23,3 +23,14 @@ python video/pilotes_beige.py rayon --captures-mobiles video/sortie/captures --s
 La commande utilise Remy par défaut. L'option `--voix-locale` sert aux essais avec eSpeak NG. Le pilote Radar illustre le tap sur une capture d'écran et la portée du rayon dans un schéma. Les tracés du pilote Détour sont illustratifs. Le dernier plan montre un résultat capturé dans l'application.
 
 Un workflow GitHub Actions peut appeler ces mêmes commandes après sa propre étape de capture. Le rendu crée uniquement un fichier MP4 local.
+
+Pour un aperçu « avant / maintenant » avec l'historique conservé dans ce
+dépôt, par exemple :
+
+```sh
+python video/comparatifs_beige.py --gauche abbeville 2026-11-20 --droite abbeville 2026-11-21 --carburant e10 --sortie video/sortie/abbeville.mp4
+```
+
+Pour « ville contre ville », fournir deux villes au même jour. Les deux
+formats exigent des relevés communaux comparables. Les dates disponibles
+évoluent avec la rétention de l'historique.
