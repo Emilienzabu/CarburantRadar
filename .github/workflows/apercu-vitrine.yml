@@ -1,0 +1,52 @@
+name: Aperçu vitrine mobile
+
+on:
+  push:
+    branches: [codex/vitrine-captures-mobiles]
+    paths: [video/**, .github/workflows/apercu-vitrine.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apercu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer FFmpeg et Chromium mobile
+        run: |
+          command -v ffmpeg >/dev/null || (sudo apt-get update -y && sudo apt-get install -y ffmpeg)
+          pip install -r video/requirements.txt playwright==1.65.2 edge-tts==7.3.1
+          python -m playwright install --with-deps chromium
+
+      - name: Tester le générateur
+        run: python -m unittest discover -s video/tests
+
+      - name: Capturer le site réel
+        run: python video/capture_vitrine.py --sortie video/sortie/captures
+
+      - name: Générer et contrôler l’aperçu
+        shell: bash
+        run: |
+          python video/generate_video.py --format vitrine --captures-mobiles video/sortie/captures \
+            --sortie video/sortie/apercu-vitrine.mp4 | tee video/sortie/generation.log
+          grep -q '^Voix : fr-FR-RemyMultilingualNeural$' video/sortie/generation.log
+          python video/diagnostic_vitrine.py video/sortie/apercu-vitrine.mp4 \
+            --captures-mobiles video/sortie/captures | tee video/sortie/diagnostic.txt
+
+      - name: Garder l’aperçu et les captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apercu-vitrine-mobile
+          path: video/sortie/
+          retention-days: 14
+          if-no-files-found: warn

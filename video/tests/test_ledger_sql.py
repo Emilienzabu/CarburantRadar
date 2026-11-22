@@ -3,6 +3,7 @@
 SQLite n'est pas D1 : ces tests prouvent la logique du schéma, pas son comportement sur Cloudflare.
 """
 import sqlite3
+from contextlib import closing
 import tempfile
 import threading
 import unittest
@@ -103,9 +104,9 @@ class Concurrence(unittest.TestCase):
             [f.start() for f in fils]
             [f.join() for f in fils]
             self.assertEqual(sum(gagnants), 1, f"exactement une prise attendue, obtenu {sum(gagnants)}")
-            c = sqlite3.connect(chemin)
-            self.assertEqual(c.execute("SELECT COUNT(*) FROM video_slot_reservations").fetchone()[0], 1)
-            self.assertEqual(c.execute("SELECT status FROM video_slot_reservations").fetchone()[0], "upload_started")
+            with closing(sqlite3.connect(chemin)) as c:
+                self.assertEqual(c.execute("SELECT COUNT(*) FROM video_slot_reservations").fetchone()[0], 1)
+                self.assertEqual(c.execute("SELECT status FROM video_slot_reservations").fetchone()[0], "upload_started")
 
 
 class Plateformes(unittest.TestCase):

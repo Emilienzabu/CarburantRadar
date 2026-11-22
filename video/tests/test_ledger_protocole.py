@@ -61,6 +61,7 @@ class Contrat(Base):
     def test_limite_connue_le_schema_accepte_une_date_impossible(self):
         """Le GLOB du schéma 0001 ne contrôle pas le calendrier : la validation (slot_valide) doit rester côté Worker."""
         c = ouvrir(self.db)
+        self.addCleanup(c.close)
         n = c.execute("INSERT INTO video_slot_reservations(slot_key,mp4_sha256,status,created_at,updated_at) "
                       "VALUES ('2026-13-45:matin',?,'reserved','t','t')", (SHA,)).rowcount
         self.assertEqual(n, 1)
@@ -109,8 +110,10 @@ class ReponsesAmbigues(Base):
         for _ in range(3):
             self.assertEqual(w.traiter(SLOT, VIDEO, SHA)[0], 409)
         self.assertEqual(self.appels(), (1, 1), "aucune nouvelle publication après un envoi incertain")
+        c = ouvrir(self.db)
+        self.addCleanup(c.close)
         with self.assertRaises(sqlite3.DatabaseError):      # le schéma interdit aussi de le déclarer complet
-            ouvrir(self.db).execute("UPDATE video_slot_reservations SET status='reported_complete', revision=revision+1")
+            c.execute("UPDATE video_slot_reservations SET status='reported_complete', revision=revision+1")
 
     def test_youtube_timeout_instagram_jamais_appele(self):
         w = self.worker(yt="timeout")
@@ -137,6 +140,7 @@ class ReponsesAmbigues(Base):
         """Limite : sortir de needs_reconciliation exige une extension (0002, preuves ajoutées en lecture seule)."""
         self.worker(ig="timeout").traiter(SLOT, VIDEO, SHA)
         c = ouvrir(self.db)
+        self.addCleanup(c.close)
         with self.assertRaisesRegex(sqlite3.DatabaseError, "terminal observation immutable"):
             c.execute("UPDATE video_platform_results SET status='reported_success', remote_id='ig1', expected_revision=?, "
                       "updated_at='t' WHERE platform='instagram'", (self.etat()[0][1],))
