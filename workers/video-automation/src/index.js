@@ -7,6 +7,8 @@
 // - "carburant" = les 2 nouveaux comptes (YouTube + Instagram) de CarburantRadar
 // - POST /api/upload : envoi automatique (robot), protégé par la clé API_KEY
 // - /run, /oauth/start et /instagram/init-token demandent maintenant ?key=TON_UPLOAD_PASSWORD
+import { statistiques } from "../../../video/cloudflare/statistiques.mjs";
+
 const PROFILES = {
 default: {
  title: ".",
@@ -209,6 +211,9 @@ return `<!DOCTYPE html>
 export default {
 async fetch(request, env) {
  const url = new URL(request.url);
+ if (url.pathname.startsWith("/api/stats/")) {
+  return statistiques(request, env);
+ }
  if (url.pathname === "/oauth/start") {
  return handleOAuthStart(url, env);
  }

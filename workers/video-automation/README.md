@@ -1,15 +1,14 @@
 # Worker `video-automation` : journal anti-doublon (CANDIDAT, NON DÉPLOYÉ)
 
-Le candidat a été vérifié dans l’aperçu d’un Worker de test avec D1 et R2 réels et des réponses YouTube et Instagram simulées. Les migrations `0001` et `0002` ont été appliquées à la base isolée `carburantradar-ledger-test`. La mise en service requiert une comparaison avec la version de production.
+Le candidat a été vérifié dans l’aperçu d’un Worker de test avec D1 et R2 réels et des réponses YouTube et Instagram simulées. Les migrations `0001` et `0002` ont été appliquées à la base isolée `carburantradar-ledger-test`. Les 21 fonctions du Worker Cloudflare `65f2f9c2` correspondent à la copie de référence après normalisation des espaces et des retours à la ligne.
 
 Sur D1, la mise à jour d’une observation déclenche aussi une écriture dans la réservation. Le Worker utilise la ligne retournée par `UPDATE … RETURNING` pour confirmer l’observation. La copie R2 utilise une écriture conditionnelle pour réutiliser les mêmes octets lors d’envois concurrents.
 
 ## Ce que c'est, et ce que ce n'est pas
 
-- `baseline/index.pdf-2026-11-08.js` : le code du Worker **reconstruit depuis `WORKER.pdf`** (fourni par le propriétaire). Ce n'est pas une
-  lecture du Worker déployé : **compare-le au code réellement en ligne avant toute décision.**
-- `src/index.js` : la même base + le protocole `slot_id` + `sha256` avec journal D1. Le diff exact :
-  `diff -u baseline/index.pdf-2026-11-08.js src/index.js`. Fichier unique, sans import : il se colle tel quel dans l'éditeur Cloudflare.
+- `baseline/index.pdf-2026-11-08.js` : copie de référence reconstruite depuis `WORKER.pdf` (fourni par le propriétaire).
+- `src/index.js` : la même base avec le protocole `slot_id` + `sha256` et le journal D1. Le module importe aussi
+  les routes de collecte depuis `video/cloudflare/statistiques.mjs`. Wrangler doit empaqueter les deux modules ensemble.
 - `test/` : tests Node (`npm test`, Node ≥ 22.5, aucune dépendance, aucun réseau). D1 est **simulé** par SQLite (`node:sqlite`).
 
 ## Les six constats de ChatGPT, vérifiés par exécution sur le code du PDF (`test/constats_baseline.test.mjs`)
@@ -66,7 +65,8 @@ complet (copie supprimée) ; sinon → `needs_reconciliation`. Un créneau `rese
 ## Variables et bindings (aucun secret dans ce dossier)
 
 Existants, inchangés : `CONFIG_KV`, `VIDEO_BUCKET`, `API_KEY`, `UPLOAD_PASSWORD`, `YOUTUBE_*`, `INSTAGRAM_ACCOUNT_ID*`.
-**Nouveau** : binding D1 **`DB_VIDEO`** (sans lui, `/api/upload` carburant répond 503 et ne publie rien). Optionnels : `ALLOW_LEGACY_CLIENT=1`
+**Nouveaux** : binding D1 **`DB_VIDEO`** pour le journal et binding R2 **`VIDEO_STATS`** pour les statistiques. Associer
+`VIDEO_STATS` à un compartiment privé dédié, distinct de `VIDEO_BUCKET` qui sert les fichiers à Instagram. Optionnels : `ALLOW_LEGACY_CLIENT=1`
 (transition : accepte l'ancien générateur sans `slot_id`/`sha256`, créneau déduit à l'heure de Paris) ; `LEDGER_MODE=off` (retour arrière :
 chemin historique, **sans protection anti-doublon**).
 

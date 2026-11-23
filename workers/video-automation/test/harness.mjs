@@ -71,15 +71,20 @@ export class R2Fake {
     const bytes = await versOctets(valeur);
     if (opts.onlyIf?.get("If-None-Match") === "*" && this.objects.has(key)) return null;
     this.objects.set(key, { bytes, customMetadata: { ...(opts.customMetadata || {}) } });
+    return { key };
   }
   async head(key) { return this.objects.get(key) || null; }
   async get(key) {
     const o = this.objects.get(key);
     if (!o) return null;
     return { body: new Blob([o.bytes]).stream(), customMetadata: o.customMetadata,
+             json: async () => JSON.parse(new TextDecoder().decode(o.bytes)),
              arrayBuffer: async () => o.bytes.buffer.slice(o.bytes.byteOffset, o.bytes.byteOffset + o.bytes.byteLength) };
   }
-  async list() { return { objects: [...this.objects.keys()].sort().map((key) => ({ key })), truncated: false }; }
+  async list({ prefix = "" } = {}) {
+    const objects = this.cles().filter(key => key.startsWith(prefix)).map(key => ({ key }));
+    return { objects, truncated: false };
+  }
   async delete(key) { this.objects.delete(key); }
   cles() { return [...this.objects.keys()].sort(); }
 }
@@ -144,7 +149,7 @@ export class Net {
     const fin = txt.lastIndexOf("\r\n--video_automation_boundary--");
     const sha = sha256(corps.slice(debut, fin));
     const meta = JSON.parse(txt.slice(txt.indexOf("{"), txt.indexOf("\r\n--video_automation_boundary", 5)));
-    const id = "yt-" + sha.slice(0, 8);
+    const id = y.id || "yt-" + sha.slice(0, 8);
     this.publie.youtube.push({ sha, id, titre: meta.snippet.title });
     if (y.mode === "suspendre_apres_publication") await jamais();
     if (y.mode === "perdu_apres_publication") throw new Error("réponse YouTube perdue");
@@ -172,7 +177,7 @@ export class Net {
       const b = JSON.parse(init.body);
       const c = this.conteneurs.get(b.creation_id);
       if (g.mode === "publish_http_error") return json({ error: { message: "erreur serveur" } }, 500);
-      const id = "ig-" + (c.sha || "inconnu").slice(0, 8);
+      const id = g.id || "ig-" + (c.sha || "inconnu").slice(0, 8);
       this.publie.instagram.push({ sha: c.sha, id, conteneur: b.creation_id });
       if (g.mode === "suspendre_apres_publication") await jamais();
       if (g.mode === "perdu_apres_publication") throw new Error("réponse Instagram perdue");

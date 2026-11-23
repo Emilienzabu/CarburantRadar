@@ -87,18 +87,8 @@ au planning quotidien, l'archivage des reçus, les accès statistiques réels et
 l'exécution planifiée de la collecte restent à valider avant activation.
 ## Collecte programmée avec les connexions Cloudflare existantes
 
-La branche fournit le module `video/cloudflare/statistiques.mjs`. Lors de
-l'intégration autorisée dans la version courante de `video-automation`, importer
-`statistiques` dans le module principal et placer ces lignes au début de
-`async fetch(request, env)`, avant le routage de publication :
-
-```js
-const resultatStats = await statistiques(request, env);
-if (resultatStats) return resultatStats;
-```
-
-L'import relatif dépend de l'emplacement du module, par exemple
-`import { statistiques } from "./statistiques.mjs";`. Associer un compartiment
+Le Worker de la branche importe `video/cloudflare/statistiques.mjs` et lui
+confie les routes `/api/stats/`. Associer un compartiment
 R2 privé dédié à la liaison `VIDEO_STATS`. Ce compartiment conserve les reçus,
 les mesures et les marqueurs d'import sans durée d'expiration. Il doit rester
 distinct du compartiment utilisé pour servir les vidéos. Le module réutilise
