@@ -105,6 +105,15 @@ def decrire_durees(lignes):
     return _descriptif(lignes, "tranche_duree", _duree)
 
 
+def decrire_musiques(lignes):
+    return _descriptif(lignes, "musique", lambda l: (str(l["musique"]),)
+                       if l.get("musique") is not None else ())
+
+
+def decrire_carburants(lignes):
+    return _descriptif(lignes, "carburant", lambda l: (l["carburant"],) if l.get("carburant") else ())
+
+
 def analyser(lignes):
     """Un groupe A/B est propre à une plateforme et à un horizon."""
     paires = defaultdict(dict)
@@ -172,7 +181,8 @@ def main():
     args = parser.parse_args()
     lignes = [json.loads(ligne) for ligne in args.mesures.read_text(encoding="utf-8").splitlines() if ligne.strip()]
     print(json.dumps({"categories": decrire(lignes), "hashtags": decrire_hashtags(lignes),
-                      "durees": decrire_durees(lignes), "experiences": analyser(lignes)},
+                      "durees": decrire_durees(lignes), "musiques": decrire_musiques(lignes),
+                      "carburants": decrire_carburants(lignes), "experiences": analyser(lignes)},
                      ensure_ascii=False, indent=2))
 
 
