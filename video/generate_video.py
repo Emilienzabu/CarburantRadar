@@ -112,25 +112,20 @@ def construire(plan, k, args):
     raise SystemExit("Aucune ville exploitable : rien n'est publié.")
 
 
-def publier(chemin, info, cle):
-    """Envoie la vidéo au Worker. Ne réessaie JAMAIS (un envoi dont l'issue est inconnue a pu être publié).
-
-    Renvoie un dict : {"etat": "complet" | "partiel" | "echec" | "incertain", ...}
-      complet   YouTube ET Instagram confirment (champ `success` de la réponse du Worker)
-      partiel   une seule plateforme confirme : à signaler, JAMAIS à relancer tel quel (doublon sur l'autre)
-      echec     le Worker répond clairement que rien n'a été publié
-      incertain délai dépassé, erreur réseau ou réponse illisible : la vidéo a peut-être été publiée
-    """
+def publier(chemin, info, cle, slot_id):
+    """Envoie une seule requête avec le créneau et l'empreinte attendus par le journal du Worker."""
     titre, description, legende = donnees.textes_publication(info)
+    sha256 = controle_publication.sha256_fichier(chemin)
     log(f"Envoi au Worker : « {titre} »")
     try:
         with open(chemin, "rb") as f:
             r = requests.post(
                 WORKER_URL,
                 headers={"Authorization": f"Bearer {cle}"},
-                data={"profile": "carburant", "title": titre, "description": description, "caption": legende},
+                data={"profile": "carburant", "title": titre, "description": description, "caption": legende,
+                      "slot_id": slot_id, "sha256": sha256},
                 files={"video": ("video-du-jour.mp4", f, "video/mp4")},
-                timeout=900,
+                timeout=900, allow_redirects=False,
             )
     except requests.exceptions.RequestException as e:
         return {"etat": "incertain", "detail": f"{type(e).__name__} pendant l'envoi"}
@@ -143,14 +138,34 @@ def publier(chemin, info, cle):
         return {"etat": "incertain", "detail": f"réponse illisible (HTTP {r.status_code})"}
     yt = res.get("youtube", {}) or {}
     ig = res.get("instagram", {}) or {}
+    if not isinstance(yt, dict) or not isinstance(ig, dict):
+        return {"etat": "incertain", "detail": "résultats des plateformes illisibles"}
+    if res.get("slot_id", slot_id) != slot_id or res.get("sha256", sha256) != sha256:
+        return {"etat": "incertain", "detail": "créneau ou empreinte différent dans la réponse"}
     log("YouTube : " + (yt.get("url") or json.dumps(yt, ensure_ascii=False)[:400]))
     log("Instagram : " + ("publié" if ig.get("success") else json.dumps(ig, ensure_ascii=False)[:400]))
     if not res.get("youtube") and res.get("error"):
         log(res["error"])
     yt_ok, ig_ok = bool(yt.get("success")), bool(ig.get("success"))
-    etat = "complet" if (yt_ok and ig_ok) else "partiel" if (yt_ok or ig_ok) else "echec"
+    etat_worker = res.get("etat")
+    detail = res.get("code")
+    if etat_worker in ("refuse", "bloque") and not (yt_ok or ig_ok):
+        return {"etat": etat_worker, "detail": detail}
+    rejoue = res.get("rejoue") is True
+    if etat_worker == "complet" and yt_ok and ig_ok:
+        etat = "complet"
+    elif etat_worker == "reconciliation_requise":
+        etat = "partiel" if yt_ok != ig_ok else "incertain"
+    elif etat_worker is None and not rejoue:
+        # Le Worker historique n'expose que les résultats des plateformes.
+        etat = "complet" if (yt_ok and ig_ok) else "partiel" if (yt_ok or ig_ok) else "echec"
+    else:
+        etat = "incertain"
+    # Un rejeu renvoie les identifiants historiques, sans nouvelle date de publication.
+    references = (references_confirmees(titre, description, legende, yt, ig)
+                  if not rejoue and (yt_ok or ig_ok) else {})
     return {"etat": etat, "youtube": yt_ok, "instagram": ig_ok, "youtube_url": yt.get("url"),
-            "references": references_confirmees(titre, description, legende, yt, ig)}
+            "references": references, "rejoue": rejoue, "detail": detail}
 
 
 def ecrire_resume(slot_id, info, resultat):
@@ -161,7 +176,9 @@ def ecrire_resume(slot_id, info, resultat):
     lignes = [f"### Publication {slot_id} : **{resultat['etat']}**",
               f"- format : {info.get('format')}", f"- YouTube : {resultat.get('youtube_url') or resultat.get('youtube')}",
               f"- Instagram : {resultat.get('instagram')}"]
-    if resultat["etat"] in ("partiel", "incertain", "echec"):
+    if resultat.get("rejoue"):
+        lignes.append("- Créneau déjà publié. Le Worker a renvoyé les références existantes.")
+    if resultat["etat"] in ("partiel", "incertain", "echec", "bloque"):
         lignes.append("- **Ne relance pas ce créneau sans avoir vérifié sur YouTube et Instagram : "
                       "une nouvelle publication créerait un doublon.**")
     try:
@@ -300,7 +317,7 @@ def main():
         cle = os.environ.get("VIDEO_API_KEY")
         if not cle:
             raise SystemExit("VIDEO_API_KEY manquante : impossible de publier.")
-        resultat = publier(args.sortie, info, cle)
+        resultat = publier(args.sortie, info, cle, slot_id)
         if resultat.get("references"):
             try:
                 fiche = {**mesures_rendu(args.sortie), "id_video": slot_id, "categorie": info["format"],
@@ -313,7 +330,13 @@ def main():
                 log(f"::warning::Reçu de statistiques indisponible ({type(e).__name__}).")
         ecrire_resume(slot_id, info, resultat)
         if resultat["etat"] == "complet":
+            if resultat.get("rejoue"):
+                log("Créneau déjà publié. Le Worker a renvoyé les références existantes.")
             return
+        if resultat["etat"] == "bloque":
+            raise SystemExit(f"Créneau {slot_id} bloqué par le journal ({resultat.get('detail')}).")
+        if resultat["etat"] == "refuse":
+            raise SystemExit(f"Envoi refusé par le Worker ({resultat.get('detail')}).")
         if resultat["etat"] == "partiel":
             log(f"::warning::Publication PARTIELLE (YouTube={resultat['youtube']}, Instagram={resultat['instagram']}). "
                 "Ne relance pas ce créneau : l'autre plateforme a déjà la vidéo, un nouvel envoi créerait un doublon.")

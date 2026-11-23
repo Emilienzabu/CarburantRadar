@@ -136,6 +136,8 @@ class FluxDePublication(unittest.TestCase):
         self.assertEqual(code, 0, log)
         self.assertEqual(len(appels), 1)
         yt, ig = recus
+        self.assertEqual(appels[0]["slot_id"], yt["id_video"])
+        self.assertEqual(appels[0]["sha256"], yt["sha256"])
         self.assertEqual((yt["plateforme"], ig["plateforme"]), ("youtube", "instagram"))
         self.assertEqual((yt["video_id"], ig["video_id"]), ("abcdefghijk", "17890000123"))
         self.assertIn("#shorts", yt["hashtags"])
@@ -143,6 +145,26 @@ class FluxDePublication(unittest.TestCase):
         self.assertAlmostEqual(yt["duree_s"], 13, delta=.15)
         self.assertEqual(yt["duree_s"], ig["duree_s"])
         self.assertEqual(yt["sha256"], ig["sha256"])
+
+    def test_rejeu_du_journal_conserve_la_date_du_recu_initial(self):
+        rep = Reponse({"etat": "complet", "rejoue": True,
+                       "youtube": {"success": True, "videoId": "abcdefghijk"},
+                       "instagram": {"success": True, "mediaId": "17890000123"}})
+        recus = []
+        code, appels, _, resume, _ = self.lancer(post=lambda u, **k: rep, recus=recus)
+        self.assertEqual(code, 0)
+        self.assertEqual(len(appels), 1)
+        self.assertIn("références existantes", resume)
+        self.assertEqual(recus, [])
+
+    def test_creneau_bloque_et_reconciliation_inconnue(self):
+        for etat, statut, attendu in (("bloque", 409, "bloqué"),
+                                     ("reconciliation_requise", 502, "INCERTAIN")):
+            with self.subTest(etat=etat):
+                rep = Reponse({"etat": etat, "code": "reconciliation_requise"}, statut)
+                code, appels, _, _, _ = self.lancer(post=lambda u, **k: rep)
+                self.assertIn(attendu, str(code))
+                self.assertEqual(len(appels), 1)
 
     def test_generation_sans_publication_est_aussi_controlee(self):
         code, appels, log, _, _ = self.lancer(("--demo", "--format", "ville"), post=self.ok, conforme=False)
