@@ -3,7 +3,7 @@ name: Aperçu vitrine mobile
 on:
   push:
     branches: [codex/vitrine-captures-mobiles, codex/animations-vitrine-beige]
-    paths: [video/**, .github/workflows/apercu-vitrine.yml]
+    paths: [video/**, workers/video-automation/**, .github/workflows/apercu-vitrine.yml]
   workflow_dispatch:
 
 permissions:
@@ -20,6 +20,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
 
       - name: Installer FFmpeg et Chromium mobile
         run: |
@@ -32,6 +35,9 @@ jobs:
 
       - name: Tester le registre Cloudflare et les relevés concurrents
         run: node --test video/cloudflare/statistiques.test.mjs
+
+      - name: Tester le Worker anti-doublon avec des plateformes simulées
+        run: node --test workers/video-automation/test/*.test.mjs
 
       - name: Capturer le site réel
         run: python video/capture_vitrine.py --sortie video/sortie/captures
