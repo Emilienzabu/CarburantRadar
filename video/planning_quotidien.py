@@ -37,7 +37,8 @@ def fiches_communes(villes, stations, maintenant):
             if not same_commune(commune, nom):
                 continue
             for s in membres:
-                if haversine(ville["lat"], ville["lon"], s["lat"], s["lon"]) > RAYON_HOMONYMES_KM:
+                distance = haversine(ville["lat"], ville["lon"], s["lat"], s["lon"])
+                if not distance <= RAYON_HOMONYMES_KM:
                     continue
                 adresse = f"{s['adr']}, {s['cp']} {s['ville']}".strip()
                 for carburant in s["dispo"]:

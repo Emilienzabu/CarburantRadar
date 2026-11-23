@@ -27,7 +27,7 @@ class PlanQuotidien(unittest.TestCase):
         releves = [station("1", 1.65), station("2", 1.69), station("1", 1.3, age=2),
                    station("3", 1.1, ville="Villeurbanne"), station("4", 1.2, age=6),
                    station("5", 1.3, disponible=False), station("6", 1.4, lat=48.2),
-                   station("7", 1.5, age=-1)]
+                   station("7", 1.5, age=-1), station("8", 1.3, lat=float("nan"))]
         [(sujet, fiche)] = list(fiches_communes([LYON], releves, INSTANT))
         self.assertEqual((sujet.villes, sujet.carburant), (("lyon",), "e10"))
         self.assertEqual((fiche["prix_litre"], fiche["stations"]), (1.65, 2))
