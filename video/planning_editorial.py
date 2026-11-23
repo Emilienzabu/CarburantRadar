@@ -24,6 +24,7 @@ def choisir(jour: date, candidats, historique):
     sujets = {(s.categorie, s.sujet) for _, s in historique if s.sujet}
     carburants = Counter((s.categorie, s.carburant) for _, s in historique if s.carburant)
     retenus = []
+    selection_du_jour = [s for d, s in historique if d == jour]
     candidats = list(candidats)
     for _ in range(max(0, 2 - sum(d == jour for d, _ in historique))):
         eligibles = [s for s in candidats if s.categorie in CATEGORIES
@@ -31,14 +32,16 @@ def choisir(jour: date, candidats, historique):
                      and len(set(s.villes)) == len(s.villes)
                      and all(v and v not in villes for v in s.villes)
                      and (s.carburant in CARBURANTS if s.villes else s.carburant in (*CARBURANTS, None))
-                     and (s.categorie in LOCALES or (mois[s.categorie] < 2 and s.sujet
-                          and (s.categorie, s.sujet) not in sujets))]
+                     and (s.categorie == "ville_du_jour" or mois[s.categorie] < 2)
+                     and (s.categorie in LOCALES or (s.sujet and (s.categorie, s.sujet) not in sujets))]
         if not eligibles:
             break
-        categorie = eligibles[0].categorie
+        derniere = selection_du_jour[-1].categorie if selection_du_jour else None
+        categorie = next((s.categorie for s in eligibles if s.categorie != derniere), eligibles[0].categorie)
         s = min((s for s in eligibles if s.categorie == categorie),
                 key=lambda s: carburants[s.categorie, s.carburant])
         retenus.append(s)
+        selection_du_jour.append(s)
         villes.update(s.villes)
         sujets.add((s.categorie, s.sujet))
         mois[s.categorie] += 1

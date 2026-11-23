@@ -33,6 +33,9 @@ jobs:
       - name: Tester le générateur
         run: python -m unittest discover -s video/tests
 
+      - name: Préparer deux sujets avec le flux officiel et l’historique
+        run: python video/planning_quotidien.py
+
       - name: Tester le registre Cloudflare et les relevés concurrents
         run: node --test video/cloudflare/statistiques.test.mjs
 
