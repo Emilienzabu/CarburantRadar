@@ -9,9 +9,21 @@ test("publie une fois, archive et relève les deux plateformes à J+30 avec le m
   const octets = video("fiche de test");
   c.net.yt.id = "abcdefghijk";
   c.net.ig.id = "18000000001";
+  await c.env.CONFIG_KV.put("instagram_token_carburant", JSON.stringify({
+    access_token: "presque-expire", expires_at: Date.now() + 3600000,
+  }));
+  let renouvellements = 0;
   const reponse = (data) => Response.json(data);
   const reseau = c.net._traiter.bind(c.net);
   c.net._traiter = async (url, init) => {
+    if (url.startsWith("https://graph.instagram.com/refresh_access_token?")) {
+      assert.equal(new URL(url).searchParams.get("access_token"), "presque-expire");
+      renouvellements++;
+      return reponse({ access_token: "token-renouvele", expires_in: 60 * 86400 });
+    }
+    if (url === "https://graph.instagram.com/v21.0/ig-c/media") {
+      assert.equal(JSON.parse(init.body).access_token, "token-renouvele");
+    }
     if (url.startsWith("https://www.googleapis.com/youtube/v3/videos?")) {
       return reponse({ items: [{ id: c.net.yt.id, statistics: { viewCount: "0" },
         snippet: { title: "Test", description: "#Shorts #carburant" } }] });
@@ -54,6 +66,7 @@ test("publie une fois, archive et relève les deux plateformes à J+30 avec le m
     ]);
     assert.equal((await soumettre()).corps.rejoue, true);
     assert.deepEqual([c.net.appels.youtube, c.net.appels.instagram_publish], [1, 1]);
+    assert.equal(renouvellements, 1);
   } finally {
     Date.now = horloge;
     c.fin();

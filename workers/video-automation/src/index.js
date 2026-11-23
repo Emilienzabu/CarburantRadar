@@ -450,6 +450,7 @@ try {
   tout = false;
   continue;
  }
+ if (nom === "instagram") await refreshInstagramTokensIfNeeded(env, [profile]);
  const sortie = nom === "youtube"
   ? await uploadVideoToYouTube(env, profile, post, bytes)
   : await uploadVideoToInstagram(env, profile, post, key, { onContainer: (id) => ledgerRef(db, slot, "instagram", "instagram_container", id) });
@@ -809,8 +810,8 @@ if (!raw) {
 }
 return JSON.parse(raw);
 }
-async function refreshInstagramTokensIfNeeded(env) {
-const kvKeys = [...new Set(Object.values(PROFILES).map((p) => p.igKvKey))];
+async function refreshInstagramTokensIfNeeded(env, profiles = Object.values(PROFILES)) {
+const kvKeys = [...new Set(profiles.map((p) => p.igKvKey))];
 for (const kvKey of kvKeys) {
  try {
  const raw = await env.CONFIG_KV.get(kvKey);
