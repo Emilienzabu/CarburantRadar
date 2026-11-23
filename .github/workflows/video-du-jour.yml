@@ -54,6 +54,7 @@ jobs:
         env:
           VIDEO_API_KEY: ${{ secrets.VIDEO_API_KEY }}
           EVENEMENT: ${{ github.event_name }}
+          HORAIRE_PREVU: ${{ github.event.schedule }}
           PUBLIER: ${{ inputs.publier }}
           FORMAT: ${{ inputs.format }}
           CRENEAU: ${{ inputs.creneau }}
@@ -61,6 +62,13 @@ jobs:
           CARBURANT: ${{ inputs.carburant }}
         run: |
           ARGS=()
+          if [ "$EVENEMENT" = "schedule" ]; then
+            case "$HORAIRE_PREVU" in
+              "40 6 * * *") CRENEAU=matin ;;
+              "40 16 * * *") CRENEAU=soir ;;
+              *) echo "::error::Horaire programmé inconnu"; exit 1 ;;
+            esac
+          fi
           if [ "$EVENEMENT" = "schedule" ] || [ "$PUBLIER" = "true" ]; then ARGS+=(--publier); fi
           if [ -n "$FORMAT" ] && [ "$FORMAT" != "planning" ]; then ARGS+=(--format "$FORMAT"); fi
           if [ -n "$CRENEAU" ]; then ARGS+=(--creneau "$CRENEAU"); fi

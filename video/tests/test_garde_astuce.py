@@ -39,14 +39,14 @@ def workflow_script():
     return "\n".join(out)
 
 
-def args_du_workflow(evenement, publier, fmt, creneau="", ville="", carburant=""):
+def args_du_workflow(evenement, publier, fmt, creneau="", ville="", carburant="", horaire="40 6 * * *"):
     """Arguments réellement construits par le workflow (la dernière ligne python est remplacée par un affichage)."""
     script = workflow_script()
     aiguille = 'python video/generate_video.py "${ARGS[@]}"'
     assert script.count(aiguille) == 1
     script = script.replace(aiguille, 'if [ ${#ARGS[@]} -gt 0 ]; then printf "<%s>\\n" "${ARGS[@]}"; fi')
     env = {**os.environ, "EVENEMENT": evenement, "PUBLIER": publier, "FORMAT": fmt,
-           "CRENEAU": creneau, "VILLE": ville, "CARBURANT": carburant}
+           "CRENEAU": creneau, "VILLE": ville, "CARBURANT": carburant, "HORAIRE_PREVU": horaire}
     r = subprocess.run(["bash", "-e", "-c", script], env=env, text=True, capture_output=True)
     assert r.returncode == 0, r.stderr
     return [x[1:-1] for x in r.stdout.splitlines() if x.startswith("<") and x.endswith(">")]
@@ -131,6 +131,17 @@ class GardeAvecLeWorkflowReel(unittest.TestCase):
                 a = self.resultat(*params)
                 self.assertTrue(a.publier)
                 self.assertEqual((a.format, a.ville, a.carburant), ("astuce", None, None))
+
+    def test_deux_declenchements_retardes_gardent_deux_sujets(self):
+        from datetime import date
+        titres = []
+        for horaire, prevu in [("40 6 * * *", "matin"), ("40 16 * * *", "soir")]:
+            args = args_du_workflow("schedule", "", "", horaire=horaire)
+            creneau = gv.construire_parser().parse_args(args).creneau
+            self.assertEqual(creneau, prevu)
+            numero = date(2026, 11, 22).toordinal() * 2 + (creneau == "soir")
+            titres.append(garde.plan_astuce(numero, donnees.ASTUCES)["astuce"]["titre"])
+        self.assertNotEqual(*titres)
 
     def test_generation_sans_publication_inchangee(self):
         for params, attendu in [(("workflow_dispatch", "false", "ville", "", "paris", "e10"), ("ville", "paris", "e10")),
