@@ -75,9 +75,9 @@ def specifier(sujet, captures):
     if categorie == "ville_du_jour":
         _, voix = CARBURANTS[sujet["carburant"]]
         prix = f"{fiche['prix_litre']:.3f}".rstrip("0").replace(".", ",").rstrip(",")
-        defs = [{"id": "prix_ville", "min": 4.0,
+        defs = [{"id": "prix_ville", "min": 5.2,
                  "texte": f"À {fiche['commune']}, {voix} à {prix} euros le litre. Voici où."},
-                {"id": "adresse", "min": 5.0,
+                {"id": "adresse", "min": 7.3,
                  "texte": f"Voici l’adresse. {fiche['adresse'].split(',')[0]}."}]
         return defs, partial(SujetBeige, fiche, sujet["carburant"]), (3, 8)
     if categorie == "astuce":
@@ -92,7 +92,9 @@ def specifier(sujet, captures):
         defs = [{"id": nom, "min": duree, "texte": texte} for nom, duree, texte in SCENARIOS[scenario]]
         return defs, lambda scenes: Pilote(scenario, scenes, captures, POLICES), MUSIQUES[scenario]
     if categorie in ("ville_avant_maintenant", "ville_contre_ville"):
-        return scenes_comparaison(fiche), lambda scenes: Comparatif(fiche, scenes, POLICES), (3, 8)
+        defs = scenes_comparaison(fiche)
+        defs[-1]["min"] = controle.DUREE_MIN + .5
+        return defs, lambda scenes: Comparatif(fiche, scenes, POLICES), (3, 8)
     raise ValueError(f"Catégorie inconnue : {categorie}")
 
 
