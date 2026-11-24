@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   apercu:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,7 @@ jobs:
           node-version: "24"
 
       - name: Installer FFmpeg et Chromium mobile
+        timeout-minutes: 8
         run: |
           command -v ffmpeg >/dev/null || (sudo apt-get update -y && sudo apt-get install -y ffmpeg)
           pip install -r video/requirements.txt playwright==1.65.2 edge-tts==7.3.1

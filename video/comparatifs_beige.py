@@ -17,10 +17,13 @@ CARBURANTS = {
     "sp98": ("SP98", "sans plomb quatre-vingt-dix-huit"), "sp95": ("SP95", "sans plomb quatre-vingt-quinze"),
     "e85": ("E85", "éthanol E quatre-vingt-cinq"), "gplc": ("GPLc", "G P L"),
 }
+CATALOGUE = Path(__file__).resolve().parents[1] / "generator" / "villes.json"
+NOMS = {v["slug"]: v["nom"] for v in json.loads(CATALOGUE.read_text(encoding="utf-8"))["villes"]
+        if v["pays"] == "france"}
 
 
 def nom(slug):
-    return slug.replace("-", " ").capitalize()
+    return NOMS.get(slug, slug.replace("-", " ").capitalize())
 
 
 def affichage_date(iso):
