@@ -25,9 +25,13 @@ jobs:
           node-version: "24"
 
       - name: Installer FFmpeg et Chromium mobile
-        timeout-minutes: 8
+        timeout-minutes: 18
         run: |
-          command -v ffmpeg >/dev/null || (sudo apt-get update -y && sudo apt-get install -y ffmpeg)
+          sudo sed -i -E 's#https?://[^/ ]+[.]archive[.]ubuntu[.]com/ubuntu/?#https://archive.ubuntu.com/ubuntu#g' /etc/apt/sources.list.d/ubuntu.sources
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            sudo apt-get update -y
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
           pip install -r video/requirements.txt playwright==1.65.2 edge-tts==7.3.1
           python -m playwright install --with-deps chromium
 
