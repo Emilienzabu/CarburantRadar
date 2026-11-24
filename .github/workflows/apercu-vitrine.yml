@@ -34,7 +34,10 @@ jobs:
         run: python -m unittest discover -s video/tests
 
       - name: Préparer deux sujets avec le flux officiel et l’historique
-        run: python video/planning_quotidien.py
+        shell: bash
+        run: |
+          mkdir -p video/sortie
+          python video/planning_quotidien.py | tee video/sortie/planning.json
 
       - name: Tester le registre Cloudflare et les relevés concurrents
         run: node --test video/cloudflare/statistiques.test.mjs
@@ -58,6 +61,10 @@ jobs:
         run: |
           python video/pilotes_beige.py detour --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-detour.mp4
           python video/pilotes_beige.py rayon --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-rayon.mp4
+
+      - name: Rendre les deux sujets sélectionnés par le planning
+        run: |
+          python video/rendre_planning.py video/sortie/planning.json --captures-mobiles video/sortie/captures +            --sortie video/sortie/quotidien
 
       - name: Garder l’aperçu et les captures
         if: always()

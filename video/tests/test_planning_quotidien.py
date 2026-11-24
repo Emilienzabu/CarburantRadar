@@ -8,7 +8,7 @@ VIDEO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(VIDEO))
 
 from planning_editorial import Sujet, choisir
-from planning_quotidien import fiches_communes, fiches_comparaisons, planifier
+from planning_quotidien import fiches_communes, fiches_comparaisons, historique_editorial, planifier
 
 
 JOUR = date(2026, 11, 24)
@@ -55,3 +55,12 @@ class PlanQuotidien(unittest.TestCase):
         comparaison = Sujet("ville_contre_ville", ("d", "e"), "sp98")
         etape = Sujet("ville_du_jour", ("lyon",), "e85")
         self.assertEqual(choisir(JOUR, [comparaison, etape], passe), [etape])
+
+    def test_reconstruit_le_creneau_depuis_deux_recus(self):
+        commun = dict(id_video=f"{JOUR}:matin", categorie="ville", ville="Saint-Étienne", carburant="e85")
+        lignes = [{**commun, "plateforme": p} for p in ("youtube", "instagram")]
+        historique, occupes = historique_editorial(lignes, JOUR)
+        self.assertEqual(historique, [(JOUR, Sujet("ville_du_jour", ("saint-etienne",), "e85"))])
+        self.assertEqual(occupes, {"matin"})
+        with self.assertRaises(ValueError):
+            historique_editorial([lignes[0], {**lignes[1], "carburant": "e10"}], JOUR)

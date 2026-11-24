@@ -94,11 +94,16 @@ def synchroniser(session, repo, branche):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--export", type=Path, help="Exporter les observations privées au format JSONL")
+    export = parser.add_mutually_exclusive_group()
+    export.add_argument("--export", type=Path, help="Exporter les observations privées au format JSONL")
+    export.add_argument("--export-publications", type=Path, help="Exporter les reçus privés du planificateur au format JSON")
     args = parser.parse_args()
     with requests.Session() as session:
         session.headers["Authorization"] = "Bearer " + os.environ["VIDEO_API_KEY"]
-        if args.export:
+        if args.export_publications:
+            lignes = list(pages(session, "publications"))
+            args.export_publications.write_text(json.dumps(lignes, ensure_ascii=False) + "\n", encoding="utf-8")
+        elif args.export:
             with args.export.open("w", encoding="utf-8") as f:
                 for mesure in pages(session, "mesures"):
                     f.write(json.dumps(mesure, ensure_ascii=False) + "\n")

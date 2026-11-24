@@ -291,7 +291,7 @@ ASTUCES = [
      "points": ["Repère une station avant de partir",
                 "Fais le plein avant l'autoroute",
                 "Utilise le mode Trajet de CarburantRadar"]},
-    {"titre": "Utiliser CarburantRadar au quotidien",
+    {"titre": "Utiliser CarburantRadar au quotidien", "app_uniquement": True,
      "points": ["Active les alertes de prix pour ta zone",
                 "Enregistre tes lieux favoris : maison, travail",
                 "Compare avant chaque plein, ça prend quelques secondes"]},

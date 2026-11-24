@@ -12,7 +12,7 @@ RACINE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RACINE))
 
 from generator import data_fr
-from generator.geo import haversine, norm_name, same_commune
+from generator.geo import haversine, norm_name, same_commune, slugify
 
 from comparaisons import comparer
 from donnees import ASTUCES, MAX_AGE_JOURS
@@ -20,6 +20,7 @@ from planning_editorial import CARBURANTS, Sujet, choisir
 
 RAYON_HOMONYMES_KM = 15
 PROJETS_APP = (Sujet("fonctionnement", sujet="rayon"), Sujet("avantage", sujet="detour"))
+CRENEAUX = ("matin", "soir")
 
 
 def fiches_communes(villes, stations, maintenant):
@@ -90,11 +91,44 @@ def planifier(jour, villes, stations, historique_prix, publications, maintenant)
     villes_utilisees = {v for _, sujet in publications for v in sujet.villes}
     communes = fiches_communes((v for v in villes if v["slug"] not in villes_utilisees), stations, maintenant)
     sujets = dict(communes)
-    sujets.update((Sujet("astuce", sujet=a["titre"]), a) for a in ASTUCES)
+    sujets.update((Sujet("astuce", sujet=a["titre"]), a) for a in ASTUCES if not a.get("app_uniquement"))
     sujets.update((s, {"scenario": s.sujet}) for s in PROJETS_APP)
     sujets.update(fiches_comparaisons(historique_prix, jour, villes_utilisees))
     choix = choisir(jour, sujets, publications)
     return [{**asdict(s), "donnees": sujets[s]} for s in choix]
+
+
+def historique_editorial(lignes, jour):
+    """Un même créneau peut arriver des deux plateformes."""
+    historiques, vus, occupes = [], {}, set()
+    for ligne in lignes:
+        cle = ligne.get("id_video", "")
+        date_slot, _, creneau = cle.partition(":") if isinstance(cle, str) else ("", "", "")
+        if creneau not in CRENEAUX:
+            date_slot, creneau = ligne.get("jour"), ligne.get("creneau")
+        date_publication = date.fromisoformat(date_slot)
+        if date_publication > jour:
+            continue
+        categorie = ligne["categorie"]
+        villes = tuple(ligne.get("villes") or ())
+        if categorie == "ville":
+            categorie = "ville_du_jour"
+            if not villes and ligne.get("ville"):
+                villes = (slugify(ligne["ville"]),)
+        sujet = Sujet(categorie, villes, ligne.get("carburant"), ligne.get("sujet"))
+        if creneau in CRENEAUX:
+            identite = (date_publication, creneau)
+            if identite in vus:
+                if vus[identite] != sujet:
+                    raise ValueError(f"Sujets contradictoires pour {date_publication} {creneau}")
+                continue
+            vus[identite] = sujet
+            if date_publication == jour:
+                occupes.add(creneau)
+        elif date_publication == jour:
+            raise ValueError("Le créneau d’une publication du jour est requis")
+        historiques.append((date_publication, sujet))
+    return historiques, occupes
 
 
 def main():
@@ -102,21 +136,21 @@ def main():
     parser.add_argument("--jour", type=date.fromisoformat)
     parser.add_argument("--historique-prix", type=Path, default=RACINE / "france/prix-carburant/history.json")
     parser.add_argument("--historique-publications", type=Path,
-                        help="Tableau JSON de sujets déjà publiés, avec jour, catégorie, villes, carburant et sujet")
+                        help="Reçus du registre Cloudflare ou sujets déjà publiés avec jour et créneau")
     parser.add_argument("--stations", type=Path, help="Export officiel JSON local pour préparer un aperçu")
     args = parser.parse_args()
     maintenant = datetime.now(timezone.utc)
     jour = args.jour or maintenant.astimezone(ZoneInfo("Europe/Paris")).date()
     villes = json.loads((RACINE / "generator/villes.json").read_text(encoding="utf-8"))["villes"]
     villes = (v for v in villes if v["pays"] == "france")
-    publications = []
-    if args.historique_publications:
-        for pub in json.loads(args.historique_publications.read_text(encoding="utf-8")):
-            publications.append((date.fromisoformat(pub["jour"]), Sujet(
-                pub["categorie"], tuple(pub.get("villes", [])), pub.get("carburant"), pub.get("sujet"))))
+    lignes = (json.loads(args.historique_publications.read_text(encoding="utf-8"))
+              if args.historique_publications else [])
+    publications, occupes = historique_editorial(lignes, jour)
     historique_prix = json.loads(args.historique_prix.read_text(encoding="utf-8"))
     stations, _ = data_fr.load(args.stations)
     plan = planifier(jour, villes, stations, historique_prix, publications, maintenant)
+    for creneau, sujet in zip((c for c in CRENEAUX if c not in occupes), plan):
+        sujet["creneau"] = creneau
     print(json.dumps({"jour": jour.isoformat(), "sujets": plan}, ensure_ascii=False, indent=2))
 
 

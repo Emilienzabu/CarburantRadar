@@ -72,7 +72,7 @@ class RenduBeige(Renderer):
         d.rounded_rectangle((88, 170, 143, 184), radius=7, fill=an.ORANGE)
         self.texte(d, 164, 157, "CarburantRadar", 39)
         calque = an.nouveau_calque(img)
-        getattr(self, scene["id"])(img, d, calque, u)
+        self.afficher_scene(scene, img, d, calque, u)
         img.paste(calque, mask=calque.getchannel("A"))
         mots = scene.get("mots", [])
         for i in range(0, len(mots), 4):
@@ -81,6 +81,9 @@ class RenduBeige(Renderer):
                 self.texte(d, 90, 1650, " ".join(mot for mot, _, _ in groupe), 47)
                 break
         return img
+
+    def afficher_scene(self, scene, img, d, calque, t):
+        getattr(self, scene["id"])(img, d, calque, t)
 
 
 class Pilote(RenduBeige):

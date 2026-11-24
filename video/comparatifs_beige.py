@@ -59,6 +59,15 @@ class Comparatif(RenduBeige):
         self.texte(d, 92, 1508, "Relevés communaux • CarburantRadar", 39, GRIS)
 
 
+def scenes_comparaison(donnees):
+    a, b = donnees["valeurs"]
+    libelle = CARBURANTS[donnees["carburant"]][1]
+    comparaison = f"à {nom(a['ville'])}, à deux dates" if a["ville"] == b["ville"] else (
+        f"à {nom(a['ville'])} et à {nom(b['ville'])}, le même jour")
+    return [dict(id="prix", min=9.0,
+                 texte=f"Voici le prix {donnees['indicateur']} du {libelle} {comparaison}. Regarde la différence au litre.")]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--historique", type=Path, default=Path("france/prix-carburant/history.json"))
@@ -74,12 +83,7 @@ def main():
         donnees = comparer(historique, args.carburant, args.gauche, args.droite, args.indicateur)
     except ValueError as e:
         parser.error(str(e))
-    a, b = donnees["valeurs"]
-    libelle = CARBURANTS[args.carburant][1]
-    comparaison = f"à {nom(a['ville'])}, à deux dates" if a["ville"] == b["ville"] else (
-        f"à {nom(a['ville'])} et à {nom(b['ville'])}, le même jour")
-    defs = [dict(id="prix", min=9.0,
-                 texte=f"Voici le prix {args.indicateur} du {libelle} {comparaison}. Regarde la différence au litre.")]
+    defs = scenes_comparaison(donnees)
     args.sortie.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory() as tmp:
         clips, mots = audio.synth_clips_mots(defs, tmp, moteur="espeak" if args.voix_locale else "edge")
