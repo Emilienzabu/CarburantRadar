@@ -47,8 +47,13 @@ test("publie une fois, archive et relève les deux plateformes à J+30 avec le m
   const horloge = Date.now;
   try {
     assert.deepEqual((await stats("decisions")).corps.experiences, []);
-    assert.equal((await stats("decisions", {experiences:[{contexte:"ville_du_jour"}]})).corps.archive, true);
-    assert.deepEqual((await stats("decisions")).corps.experiences, [{contexte:"ville_du_jour"}]);
+    const rapport = {experiences:[{contexte:"ville_du_jour"}], indicateurs:{
+      categories:[], hashtags:[{plateforme:"instagram", horizon_jours:30, hashtag:"#prixcarburant"}],
+      durees:[], musiques:[], carburants:[],
+    }};
+    assert.equal((await stats("decisions", {...rapport, indicateurs: {hashtags:[]}})).statut, 400);
+    assert.equal((await stats("decisions", rapport)).corps.archive, true);
+    assert.deepEqual((await stats("decisions")).corps, rapport);
     assert.equal((await stats("decisions", undefined, "incorrecte")).statut, 401);
     assert.equal((await soumettre()).corps.code, "sujet_non_reserve");
     const sujet = {id_video: slot, categorie: "ville_du_jour", villes: ["lyon"], carburant: "e10",

@@ -101,9 +101,10 @@ def specifier(sujet, captures):
 def rendre(sujet, slot, destination, captures=None, voix_locale=False, decisions=(), experience=None):
     defs, creer_rendu, (temoin, variante) = specifier(sujet, captures)
     categorie = sujet["categorie"]
-    musique = choisir_musique((variante,), temoin, decisions, slot, categorie)
     if experience:
-        musique = variante if experience["bras"] == "variante" else temoin
+        musique = variante if experience["facteur"] == "musique" and experience["bras"] == "variante" else temoin
+    else:
+        musique = choisir_musique((variante,), temoin, decisions, slot, categorie)
     moteur = "espeak" if voix_locale else "edge"
     destination.parent.mkdir(parents=True, exist_ok=True)
     voix_utilisee = audio.VOIX_DEFAUT

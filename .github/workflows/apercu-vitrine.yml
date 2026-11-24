@@ -76,10 +76,12 @@ jobs:
           python video/diagnostic_vitrine.py video/sortie/apercu-vitrine.mp4 \
             --captures-mobiles video/sortie/captures | tee video/sortie/diagnostic.txt
 
-      - name: Générer les deux pilotes beige
+      - name: Générer les pilotes beige
         run: |
-          python video/pilotes_beige.py detour --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-detour.mp4
-          python video/pilotes_beige.py rayon --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-rayon.mp4
+          for scenario in detour rayon analyse carte; do
+            python video/pilotes_beige.py "$scenario" --captures-mobiles video/sortie/captures \
+              --sortie "video/sortie/pilote-$scenario.mp4"
+          done
 
       - name: Rendre les deux sujets sélectionnés par le planning
         run: >-

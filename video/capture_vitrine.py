@@ -71,7 +71,8 @@ def parcourir(page, dossier):
     page.wait_for_function(
         """() => {
             const tiles = [...document.querySelectorAll('#map .leaflet-tile')];
-            return tiles.length > 0 && tiles.every(t => t.complete && t.naturalWidth > 0);
+            return tiles.length > 0 && tiles.every(t => t.complete && t.naturalWidth > 0
+                && getComputedStyle(t).opacity === '1');
         }""",
         timeout=ATTENTE,
     )

@@ -121,9 +121,14 @@ def analyser(lignes):
         essai = ligne.get("experience")
         if not essai:
             continue
+        bras = essai["bras"]
+        if essai["facteur"] == "hashtag":
+            # Une légende modifiée peut invalider le bras initial.
+            tag = essai["variante"]
+            if not isinstance(ligne.get("hashtags"), list) or (tag in _hashtags(ligne)) != (bras == "variante"):
+                continue
         cle = (ligne["plateforme"], ligne["horizon_jours"], essai["facteur"], essai["contexte"],
                essai["temoin"], essai["variante"], essai["paire"])
-        bras = essai["bras"]
         if bras not in ("temoin", "variante") or bras in paires[cle] or cle[4] == cle[5]:
             raise ValueError("Attribution expérimentale incohérente")
         paires[cle][bras] = ligne["vues"]
@@ -148,12 +153,24 @@ def analyser(lignes):
     return resultats
 
 
-def experience_musique(contexte, temoin, variante, paire, ordre):
+def experience_appariee(facteur, contexte, temoin, variante, paire, ordre):
     """La paire et l'ordre sont attribués avant de connaître les résultats."""
     inversion = sha256(f"{contexte}/{paire}".encode()).digest()[0] % 2
     bras = "variante" if (ordre - 1) ^ inversion else "temoin"
-    return dict(facteur="musique", contexte=contexte, temoin=temoin,
+    return dict(facteur=facteur, contexte=contexte, temoin=temoin,
                 variante=variante, paire=paire, bras=bras)
+
+
+def experience_musique(contexte, temoin, variante, paire, ordre):
+    return experience_appariee("musique", contexte, temoin, variante, paire, ordre)
+
+
+def plateformes_confirmees(facteur, contexte, temoin, variante, resultats):
+    return {r["plateforme"] for r in resultats
+            if r.get("horizon_jours") == 30 and r["plateforme"] in PLATEFORMES
+            and r["facteur"] == facteur and r["contexte"] == contexte and r["temoin"] == temoin
+            and r["variante"] == variante and r["retenu"] and r["paires"] >= MIN_PAIRES
+            and r["gain"] >= MIN_GAIN and r["p"] <= .05}
 
 
 def musique_confirmee(catalogue, defaut, resultats, contexte, plateformes=PLATEFORMES_ACTIVES):
@@ -162,23 +179,28 @@ def musique_confirmee(catalogue, defaut, resultats, contexte, plateformes=PLATEF
     if not plateformes or not plateformes <= PLATEFORMES:
         raise ValueError("Plateformes d'apprentissage invalides")
     for piste in catalogue:
-        preuves = {r["plateforme"] for r in resultats
-                   if r.get("horizon_jours") == 30 and r["plateforme"] in plateformes
-                   and r["facteur"] == "musique" and r["contexte"] == contexte and r["temoin"] == defaut
-                   and r["variante"] == piste and r["retenu"] and r["paires"] >= MIN_PAIRES
-                   and r["gain"] >= MIN_GAIN and r["p"] <= .05}
-        if preuves == plateformes:
+        if plateformes <= plateformes_confirmees("musique", contexte, defaut, piste, resultats):
             return piste
     return None
+
+
+def garder_temoin(identifiant):
+    return int.from_bytes(sha256(identifiant.encode()).digest()[:8], "big") % 5 == 0
 
 
 def choisir_musique(catalogue, defaut, resultats, identifiant, contexte, *,
                     plateformes=PLATEFORMES_ACTIVES):
     """Applique une préférence commune, en réservant 20 % des choix au témoin."""
     piste = musique_confirmee(catalogue, defaut, resultats, contexte, plateformes)
-    if piste is not None and int.from_bytes(sha256(identifiant.encode()).digest()[:8], "big") % 5:
+    if piste is not None and not garder_temoin(identifiant):
         return piste
     return defaut
+
+
+def rapport(lignes):
+    return {"indicateurs": {"categories": decrire(lignes), "hashtags": decrire_hashtags(lignes),
+                            "durees": decrire_durees(lignes), "musiques": decrire_musiques(lignes),
+                            "carburants": decrire_carburants(lignes)}, "experiences": analyser(lignes)}
 
 
 def main():
@@ -186,9 +208,8 @@ def main():
     parser.add_argument("mesures", type=Path, help="Fichier JSONL des observations")
     args = parser.parse_args()
     lignes = [json.loads(ligne) for ligne in args.mesures.read_text(encoding="utf-8").splitlines() if ligne.strip()]
-    print(json.dumps({"categories": decrire(lignes), "hashtags": decrire_hashtags(lignes),
-                      "durees": decrire_durees(lignes), "musiques": decrire_musiques(lignes),
-                      "carburants": decrire_carburants(lignes), "experiences": analyser(lignes)},
+    synthese = rapport(lignes)
+    print(json.dumps({**synthese["indicateurs"], "experiences": synthese["experiences"]},
                      ensure_ascii=False, indent=2))
 
 

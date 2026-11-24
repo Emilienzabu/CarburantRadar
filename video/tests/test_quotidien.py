@@ -49,15 +49,33 @@ class CreneauEditorial(unittest.TestCase):
             publier.assert_called_once()
             preparer.assert_called_once()
 
-    def test_paires_musicales_et_passage_apres_preuve(self):
+    def test_paires_fermees_avant_changement_de_facteur(self):
         sujet = {"categorie": "ville_du_jour"}
         premier = q.experience_du_jour(sujet, [], [])
         second = q.experience_du_jour(sujet, [{"experience": premier}], [])
         self.assertEqual(premier["paire"], second["paire"])
         self.assertEqual({premier["bras"], second["bras"]}, {"temoin", "variante"})
+        self.assertEqual(premier["facteur"], "musique")
+        troisieme = q.experience_du_jour(sujet, [{"experience": premier}, {"experience": second}], [])
+        self.assertEqual(troisieme["facteur"], "hashtag")
         preuve = dict(horizon_jours=30, facteur="musique", contexte="ville_du_jour",
                       temoin=3, variante=8, retenu=True, paires=30, gain=.30, p=.01)
         yt = dict(preuve, plateforme="youtube")
         ig = dict(preuve, plateforme="instagram")
-        self.assertIsNotNone(q.experience_du_jour(sujet, [], [yt]))
-        self.assertIsNone(q.experience_du_jour(sujet, [], [yt, ig]))
+        self.assertEqual(q.experience_du_jour(sujet, [], [yt])["facteur"], "musique")
+        self.assertEqual(q.experience_du_jour(sujet, [], [yt, ig])["facteur"], "hashtag")
+
+    def test_hashtag_favorise_seulement_sur_la_plateforme_confirmee(self):
+        sujet = {"categorie": "ville_du_jour", "carburant": "e10", "donnees": dict(
+            commune="Lyon", prix_litre=1.62, adresse="10 rue Test", stations=4)}
+        preuve = dict(horizon_jours=30, facteur="hashtag", contexte="ville_du_jour",
+                      temoin="", variante=q.HASHTAG_VILLE, retenu=True, paires=30, gain=.30, p=.01,
+                      plateforme="instagram")
+        slot = next(str(i) for i in range(10) if not q.garder_temoin(f"{i}/hashtag"))
+        _, yt, ig = q.textes_publication(sujet, slot, [preuve])
+        self.assertNotIn(q.HASHTAG_VILLE, yt)
+        self.assertIn(q.HASHTAG_VILLE, ig)
+        _, yt, ig = q.textes_publication(sujet, slot, [preuve],
+                                       {"facteur": "musique", "bras": "variante"})
+        self.assertNotIn(q.HASHTAG_VILLE, yt)
+        self.assertNotIn(q.HASHTAG_VILLE, ig)

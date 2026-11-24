@@ -56,6 +56,16 @@ class PlanQuotidien(unittest.TestCase):
         etape = Sujet("ville_du_jour", ("lyon",), "e85")
         self.assertEqual(choisir(JOUR, [comparaison, etape], passe), [etape])
 
+    def test_change_de_fonctionnalite_et_respecte_le_plafond(self):
+        passe = [(JOUR - timedelta(days=i), Sujet("astuce", sujet=f"Astuce {i}")) for i in (1, 2)]
+        passe.append((JOUR - timedelta(days=1), Sujet("fonctionnement", sujet="rayon")))
+        plan = planifier(JOUR, [], [], {"days": {}}, passe, INSTANT)
+        self.assertIn(("fonctionnement", "analyse"), [(s["categorie"], s["sujet"]) for s in plan])
+        self.assertNotIn(("fonctionnement", "rayon"), [(s["categorie"], s["sujet"]) for s in plan])
+        passe.append((JOUR - timedelta(days=2), Sujet("fonctionnement", sujet="analyse")))
+        plan = planifier(JOUR, [], [], {"days": {}}, passe, INSTANT)
+        self.assertNotIn("fonctionnement", {s["categorie"] for s in plan})
+
     def test_reconstruit_le_creneau_depuis_deux_recus(self):
         commun = dict(id_video=f"{JOUR}:matin", categorie="ville", ville="Saint-Étienne", carburant="e85")
         lignes = [{**commun, "plateforme": p} for p in ("youtube", "instagram")]

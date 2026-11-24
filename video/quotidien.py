@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -13,16 +14,20 @@ import requests
 from comparatifs_beige import CARBURANTS, affichage_date, nom
 from generate_video import WORKER_URL, ecrire_resume, publier
 from metadonnees_video import ecrire_recu
-from performance import experience_musique, musique_confirmee
+from performance import (PLATEFORMES_ACTIVES, experience_appariee, garder_temoin,
+                         musique_confirmee, plateformes_confirmees)
+from planning_editorial import SCENARIOS_APP
 from planning_quotidien import CRENEAUX, historique_editorial, preparer
 from rendre_planning import rendre
 from synchroniser_stats import appel, pages
 
 PARIS = ZoneInfo("Europe/Paris")
 URL_EDITORIALE = WORKER_URL.removesuffix("/api/upload") + "/api/editorial/upload"
+HASHTAG_VILLE = "#prixcarburant"
+FACTEURS_VILLE = {"musique": (3, 8), "hashtag": ("", HASHTAG_VILLE)}
 
 
-def textes_publication(sujet):
+def textes_publication(sujet, identifiant="", decisions=(), experience=None):
     fiche, categorie = sujet["donnees"], sujet["categorie"]
     fuel = sujet["carburant"]
     carburant = CARBURANTS[fuel][0] if fuel else ""
@@ -33,12 +38,8 @@ def textes_publication(sujet):
     elif categorie == "astuce":
         titre = fiche["titre"]
         detail = " • ".join(fiche["points"])
-    elif categorie == "fonctionnement":
-        titre = "Comment élargir le rayon dans Radar"
-        detail = "Appuie sur 10 km sous le choix du carburant pour changer le rayon autour de toi."
-    elif categorie == "avantage":
-        titre = "Une station moins chère vaut-elle le détour ?"
-        detail = "Compare le coût estimé de ton trajet avec et sans détour à la station."
+    elif categorie in ("fonctionnement", "avantage"):
+        _, titre, detail = SCENARIOS_APP[fiche["scenario"]]
     else:
         a, b = fiche["valeurs"]
         gauche, droite = nom(a["ville"]), nom(b["ville"])
@@ -48,7 +49,16 @@ def textes_publication(sujet):
                             f"{v['prix']:.3f} €/L".replace(".", ",") for v in fiche["valeurs"])
     tags = f"#carburant #carburantradar{' #' + fuel if fuel else ''}"
     texte = f"{titre}\n{detail}\ncarburantradar.fr\n{tags}"
-    return titre[:100], f"{texte} #Shorts", texte
+    cibles = ()
+    if categorie == "ville_du_jour":
+        if experience:
+            if experience["facteur"] == "hashtag" and experience["bras"] == "variante":
+                cibles = PLATEFORMES_ACTIVES
+        elif not garder_temoin(identifiant + "/hashtag"):
+            cibles = plateformes_confirmees("hashtag", categorie, "", HASHTAG_VILLE, decisions)
+    youtube = f"{texte} #Shorts"
+    return (titre[:100], f"{youtube} {HASHTAG_VILLE}" if "youtube" in cibles else youtube,
+            f"{texte} {HASHTAG_VILLE}" if "instagram" in cibles else texte)
 
 
 def images_mobiles(dossier):
@@ -60,11 +70,27 @@ def images_mobiles(dossier):
 
 def experience_du_jour(sujet, reservations, decisions):
     categorie = sujet["categorie"]
-    if categorie != "ville_du_jour" or musique_confirmee((8,), 3, decisions, categorie) is not None:
+    if categorie != "ville_du_jour":
         return None
-    n = sum((r.get("experience") or {}).get("contexte") == categorie for r in reservations)
-    paire, ordre = divmod(n, 2)
-    return experience_musique(categorie, 3, 8, f"quotidien-{paire + 1}", ordre + 1)
+    essais = (r.get("experience") or {} for r in reservations)
+    comptes = Counter(e.get("facteur") for e in essais if e.get("contexte") == categorie)
+    a_terminer = [f for f in FACTEURS_VILLE if comptes[f] % 2]
+    if a_terminer:
+        facteur = a_terminer[0]
+    else:
+        ouverts = [f for f, (temoin, variante) in FACTEURS_VILLE.items()
+                   if not PLATEFORMES_ACTIVES <= plateformes_confirmees(f, categorie, temoin, variante, decisions)]
+        if not ouverts:
+            return None
+        # Après confirmation, un créneau hors essai sur deux applique les choix validés.
+        musique = musique_confirmee((8,), 3, decisions, categorie)
+        hashtag = plateformes_confirmees("hashtag", categorie, "", HASHTAG_VILLE, decisions)
+        if (musique is not None or hashtag & PLATEFORMES_ACTIVES) and len(reservations) % 2:
+            return None
+        facteur = min(ouverts, key=lambda f: comptes[f])
+    paire, ordre = divmod(comptes[facteur], 2)
+    return experience_appariee(facteur, categorie, *FACTEURS_VILLE[facteur],
+                               f"quotidien-{paire + 1}", ordre + 1)
 
 
 def executer(session, cle, jour, creneau, sortie, maintenant):
@@ -84,14 +110,15 @@ def executer(session, cle, jour, creneau, sortie, maintenant):
 
     captures = (images_mobiles(sortie.parent / "captures")
                 if sujet["categorie"] in ("fonctionnement", "avantage") else None)
-    textes = textes_publication(sujet)
     decisions, experience = (), None
     try:
         decisions = appel(session, "GET", "decisions")["experiences"]
         experience = experience_du_jour(sujet, reservations, decisions)
+        textes = textes_publication(sujet, identifiant, decisions, experience)
     except (OSError, RuntimeError, KeyError, TypeError, ValueError):
-        decisions = ()
-        print("::warning::Rapport d’apprentissage indisponible. Piste de référence utilisée.")
+        decisions, experience = (), None
+        textes = textes_publication(sujet)
+        print("::warning::Rapport d’apprentissage indisponible. Variantes de référence utilisées.")
     rendre(sujet, identifiant, sortie, captures, decisions=decisions, experience=experience)
     fiche = json.loads(sortie.with_suffix(".creation.json").read_text(encoding="utf-8"))
     reservation = {k: fiche[k] for k in ("id_video", "categorie", "villes", "carburant", "sujet", "sha256")}

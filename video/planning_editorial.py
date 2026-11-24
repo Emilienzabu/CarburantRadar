@@ -6,6 +6,16 @@ from datetime import date
 LOCALES = {"ville_du_jour": 1, "ville_avant_maintenant": 1, "ville_contre_ville": 2}
 CATEGORIES = LOCALES.keys() | {"astuce", "fonctionnement", "avantage"}
 CARBURANTS = ("gazole", "e10", "sp98", "e85", "gplc", "sp95")
+SCENARIOS_APP = {
+    "rayon": ("fonctionnement", "Comment élargir le rayon dans Radar",
+              "Change le rayon sous le choix du carburant pour chercher plus loin autour de toi."),
+    "analyse": ("fonctionnement", "Comment lire l’évolution des prix dans Analyse",
+                "Ouvre Analyse, déplie la moyenne de ta zone et choisis la période du graphique."),
+    "carte": ("fonctionnement", "Comment repérer les prix sur la carte",
+              "Ouvre Carte et repère les prix affichés au niveau des stations."),
+    "detour": ("avantage", "Une station moins chère vaut-elle le détour ?",
+               "Compare le coût estimé de ton trajet avec et sans détour à la station."),
+}
 
 
 @dataclass(frozen=True)

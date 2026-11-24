@@ -18,9 +18,11 @@ Avec les dépendances vidéo et FFmpeg installés, générer d'abord les capture
 ```sh
 python video/pilotes_beige.py detour --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-detour.mp4
 python video/pilotes_beige.py rayon --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-rayon.mp4
+python video/pilotes_beige.py analyse --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-analyse.mp4
+python video/pilotes_beige.py carte --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-carte.mp4
 ```
 
-La commande utilise Remy par défaut. L'option `--voix-locale` sert aux essais avec eSpeak NG. Le pilote Radar illustre le tap sur une capture d'écran et la portée du rayon dans un schéma. Les tracés du pilote Détour sont illustratifs. Le dernier plan montre un résultat capturé dans l'application.
+La commande utilise Remy par défaut. L'option `--voix-locale` sert aux essais avec eSpeak NG. Le pilote Radar illustre le changement de rayon. Le pilote Analyse isole le choix de la période et le graphique de prix. Le pilote Carte met en évidence l'onglet puis les prix des stations. Le tracé illustratif du détour précède un résultat capturé dans l'application.
 
 Un workflow GitHub Actions peut appeler ces mêmes commandes après sa propre étape de capture. Le rendu crée uniquement un fichier MP4 local.
 

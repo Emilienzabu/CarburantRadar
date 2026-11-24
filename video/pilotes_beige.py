@@ -1,4 +1,4 @@
-"""Génère deux pilotes éditoriaux à partir d'un lot de captures mobiles."""
+"""Génère les pilotes éditoriaux à partir des captures mobiles de CarburantRadar."""
 import argparse
 import json
 from pathlib import Path
@@ -10,6 +10,7 @@ import animations as an
 import audio
 from metadonnees_video import ecrire_fiche
 from performance import PLATEFORMES, choisir_musique, experience_musique
+from planning_editorial import SCENARIOS_APP
 from rendu import Fonts, H, Renderer, W
 from vitrine import attacher_mots
 
@@ -29,8 +30,18 @@ SCENARIOS = {
         ("geste", 5.0, "Dans le Radar, appuie sur dix kilomètres, juste au-dessous du choix du carburant."),
         ("zone", 5.0, "La recherche couvre alors une zone plus large autour de toi."),
     ),
+    "analyse": (
+        ("courbe", 3.9, "Le prix près de chez toi monte ou baisse ?"),
+        ("periode", 4.7, "Dans Analyse, ouvre la moyenne de ta zone et choisis une période."),
+        ("graphique", 5.1, "La courbe te montre comment le prix a évolué sur cette période."),
+    ),
+    "carte": (
+        ("prix_sur_carte", 3.9, "Où sont les stations autour de toi, et à quel prix ?"),
+        ("ouvrir_carte", 4.7, "Appuie sur Carte, en bas à gauche."),
+        ("stations_sur_carte", 5.1, "Les prix apparaissent directement à l’emplacement des stations."),
+    ),
 }
-MUSIQUES = {"detour": (3, 8), "rayon": (8, 3)}
+MUSIQUES = {"detour": (3, 8), "rayon": (8, 3), "analyse": (8, 3), "carte": (3, 8)}
 
 
 class RenduBeige(Renderer):
@@ -90,8 +101,19 @@ class Pilote(RenduBeige):
     def __init__(self, nom, scenes, captures, fonts):
         super().__init__(scenes, fonts)
         self.nom = nom
-        self.radar = self.extrait(captures / "ecran_radar.png", (.035, .269, .965, .425), 890)
-        self.trajet = self.extrait(captures / "ecran_trajet.png", (.055, .42, .945, .89), 856)
+        if nom == "rayon":
+            self.radar = self.extrait(captures / "ecran_radar.png", (.035, .269, .965, .425), 890)
+        elif nom == "detour":
+            self.trajet = self.extrait(captures / "ecran_trajet.png", (.055, .42, .945, .89), 856)
+        elif nom == "analyse":
+            analyse = captures / "ecran_analyse.png"
+            self.selecteur = self.extrait(analyse, (.085, .20, .915, .34), 884)
+            self.resultat = self.extrait(analyse, (.112, .48, .888, .89), 814)
+        elif nom == "carte":
+            carte = captures / "ecran_carte.png"
+            self.navigation = self.extrait(carte, (.026, .907, .974, .986), 884)
+            # La zone affichée conserve les crédits cartographiques en bas à droite.
+            self.stations = self.extrait(carte, (0, .282, 1, .872), 806)
 
     def question(self, img, d, a, t):
         if self.nom == "detour":
@@ -148,6 +170,52 @@ class Pilote(RenduBeige):
                    an.progression(t, 1.45, .45))
         self.texte(d, 95, 1525, "Zone de recherche illustrée", 42, GRIS)
 
+    def courbe(self, img, d, a, t):
+        self.titre(d, "Le prix", "monte ou baisse ?")
+        self.panneau(d, (88, 650, 992, 1330))
+        for y in (820, 975, 1130):
+            d.line((160, y, 920, y), fill="#e5dbca", width=4)
+        an.tracer(a, [(169, 1115), (293, 1010), (412, 1090), (518, 904),
+                      (638, 970), (751, 840), (913, 881)], an.progression(t, .2, 1.57), largeur=15)
+        self.texte(d, 156, 1205, "Exemple d’évolution", 48, GRIS)
+
+    def periode(self, img, d, a, t):
+        self.titre(d, "Dans Analyse", "choisis la période")
+        self.capture(img, self.selecteur, (98, 720))
+        cx, cy = 638, 908
+        an.surligner(a, (cx-96, cy-40, cx+96, cy+40), an.progression(t, .95, .4))
+        an.tap(a, (cx, cy), an.progression(t, .98, .62))
+        self.texte(d, 98, 1130, "Moyenne des prix de ta zone", 54, GRIS)
+
+    def graphique(self, img, d, a, t):
+        self.titre(d, "Lis la courbe", "des prix")
+        self.capture(img, self.resultat, (133, 565))
+        an.surligner(a, (150, 780, 930, 1435), an.progression(t, .7, .45))
+        self.texte(d, 133, 1490, "Capture de CarburantRadar", 39, GRIS)
+
+    def prix_sur_carte(self, img, d, a, t):
+        self.titre(d, "Les prix", "près de toi")
+        self.panneau(d, (88, 650, 992, 1330))
+        an.tracer(a, [(158, 1110), (333, 972), (599, 1090), (915, 886)],
+                  an.progression(t, .1, 1.3), "#d8ccba", 24)
+        an.tracer(a, [(215, 808), (455, 1063), (733, 933), (858, 1180)],
+                  an.progression(t, .25, 1.5), "#d8ccba", 24)
+        for i, position in enumerate(((321, 1011), (592, 1100), (821, 975))):
+            an.epingle(a, position, an.progression(t, .46 + .25*i, .4), 35)
+        self.texte(d, 152, 1218, "Une station, un prix", 51, GRIS)
+
+    def ouvrir_carte(self, img, d, a, t):
+        self.titre(d, "Appuie", "sur Carte")
+        self.capture(img, self.navigation, (98, 750))
+        an.surligner(a, (119, 768, 333, 883), an.progression(t, .75, .42))
+        an.tap(a, (229, 825), an.progression(t, .86, .65))
+        self.texte(d, 98, 1010, "En bas à gauche", 58, GRIS)
+
+    def stations_sur_carte(self, img, d, a, t):
+        self.texte(d, 88, 288, "Prix par station", 91)
+        self.capture(img, self.stations, (137, 465))
+        self.texte(d, 137, 1475, "Capture de CarburantRadar", 39, GRIS)
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -191,7 +259,7 @@ def main():
         rendu = Pilote(args.scenario, scenes, captures, Path(__file__).parent / "fonts")
         rendu.encode(wav, str(args.sortie))
         ecrire_fiche(args.sortie, id_video=args.id_video, scenario=args.scenario,
-                     categorie="avantage" if args.scenario == "detour" else "fonctionnement",
+                     categorie=SCENARIOS_APP[args.scenario][0],
                      identite_visuelle="beige-v1", musique=musique,
                      voix="espeak-ng" if args.voix_locale else audio.VOIX_DEFAUT, experience=experience)
 

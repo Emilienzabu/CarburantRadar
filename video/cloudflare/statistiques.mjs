@@ -91,9 +91,11 @@ export async function statistiques(request, env, lire = compteurs, horloge = Dat
     if (request.method !== 'POST') return json({}, 404);
     let rapport;
     try { rapport = await request.json(); } catch { return json({}, 400); }
-    const {experiences} = rapport || {};
+    const {experiences, indicateurs} = rapport || {};
     if (!Array.isArray(experiences) || experiences.length > 128) return json({}, 400);
-    await bucket.put(cle, JSON.stringify({experiences}));
+    if (indicateurs !== undefined && (!indicateurs || !['categories','hashtags','durees','musiques','carburants']
+        .every(k => Array.isArray(indicateurs[k])))) return json({}, 400);
+    await bucket.put(cle, JSON.stringify({experiences, indicateurs}));
     return json({archive: true});
   }
   if (route === 'editorial') {

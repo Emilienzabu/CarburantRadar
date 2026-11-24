@@ -6,7 +6,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from performance import (analyser, choisir_musique, decrire, decrire_durees,
-                         decrire_hashtags, experience_musique, horizon_mesure)
+                         decrire_hashtags, experience_appariee, experience_musique,
+                         horizon_mesure, plateformes_confirmees, rapport)
 
 
 PARUTION = datetime(2026, 10, 1, 10, tzinfo=timezone.utc)
@@ -95,3 +96,24 @@ class HorizonsTest(unittest.TestCase):
         self.assertEqual(choisir_musique([8], 3, j7, "1", "detour"), 3)
         self.assertEqual(choisir_musique([8], 3, decisions, "1", "detour",
                                        plateformes={"youtube", "instagram", "tiktok"}), 3)
+
+    def test_rapport_hashtag_par_plateforme_et_exclut_legende_modifiee(self):
+        lignes = []
+        tag = "#prixcarburant"
+        contexte = "ville_du_jour"
+        for plateforme in ("youtube", "instagram"):
+            for i in range(31):
+                for ordre in (1, 2):
+                    essai = experience_appariee("hashtag", contexte, "", tag, str(i), ordre)
+                    variante = essai["bras"] == "variante"
+                    # Une paire a reçu la légende de la variante dans les deux bras.
+                    tags = [tag] if variante or i == 30 else []
+                    vues = 180 if variante and plateforme == "instagram" else 100
+                    lignes.append(mesure(plateforme, f"{i}-{ordre}", vues=vues, hashtags=tags,
+                                         experience=essai, categorie=contexte, duree_s=14,
+                                         carburant="e10", musique=3))
+        resultat = rapport(lignes)
+        self.assertTrue(all(r["paires"] == 30 for r in resultat["experiences"]))
+        self.assertEqual(plateformes_confirmees("hashtag", contexte, "", tag, resultat["experiences"]),
+                         {"instagram"})
+        self.assertTrue(all(resultat["indicateurs"].values()))

@@ -16,10 +16,10 @@ from generator.geo import haversine, norm_name, same_commune, slugify
 
 from comparaisons import comparer
 from donnees import ASTUCES, MAX_AGE_JOURS
-from planning_editorial import CARBURANTS, Sujet, choisir
+from planning_editorial import CARBURANTS, SCENARIOS_APP, Sujet, choisir
 
 RAYON_HOMONYMES_KM = 15
-PROJETS_APP = (Sujet("fonctionnement", sujet="rayon"), Sujet("avantage", sujet="detour"))
+PROJETS_APP = tuple(Sujet(fiche[0], sujet=nom) for nom, fiche in SCENARIOS_APP.items())
 CRENEAUX = ("matin", "soir")
 
 

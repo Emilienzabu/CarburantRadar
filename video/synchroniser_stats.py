@@ -9,7 +9,7 @@ import subprocess
 from zipfile import BadZipFile, ZipFile
 
 import requests
-from performance import analyser, horizon_mesure
+from performance import horizon_mesure, rapport
 
 BASE = "https://video-automation.emilienzabukovec09.workers.dev/api/stats"
 
@@ -109,8 +109,8 @@ def main():
                     f.write(json.dumps(mesure, ensure_ascii=False) + "\n")
         else:
             synchroniser(session, os.environ["GITHUB_REPOSITORY"], os.environ["BRANCHE_PUBLICATION"])
-            mesures_j30 = (m for m in pages(session, "mesures") if m.get("horizon_jours") == 30)
-            appel(session, "POST", "decisions", json={"experiences": analyser(mesures_j30)})
+            mesures_j30 = [m for m in pages(session, "mesures") if m.get("horizon_jours") == 30]
+            appel(session, "POST", "decisions", json=rapport(mesures_j30))
 
 
 if __name__ == "__main__":

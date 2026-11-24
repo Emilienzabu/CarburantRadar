@@ -17,8 +17,8 @@ l'horodatage de confirmation du Worker. Une réponse partielle conserve
 uniquement les références confirmées. Un identifiant manquant est signalé sans
 relancer la publication.
 
-Le registre d'entrée du collecteur est un tableau JSON de ces lignes. Il faut
-archiver les reçus dans un stockage persistant et les réunir dans ce registre.
+Le collecteur autonome accepte un tableau JSON de ces reçus. En mode programmé,
+le compartiment privé Cloudflare fait office de registre persistant.
 Pour un rendu publié autrement, associer la fiche de création à la
 `plateforme`, au `video_id` de la plateforme, à `publie_le` avec fuseau et
 aux `hashtags` de cette publication. Le même rendu peut avoir une ligne
@@ -50,7 +50,7 @@ J+30 peuvent différer de ceux exposés au lancement si la légende a changé.
 ## Rapport et expériences
 
 Le rapport affiche les vues médianes et le nombre de vidéos par catégorie,
-hashtag et tranche de durée, séparément par plateforme et par horizon. Une
+hashtag, tranche de durée, carburant et musique, séparément par plateforme et par horizon. Une
 même vidéo peut contribuer à plusieurs hashtags. Les écarts sont
 observationnels. Le créneau, le lieu, le carburant, les autres hashtags et
 la taille de l'audience peuvent influencer le résultat.
@@ -75,16 +75,15 @@ de piste. Le résultat doit être favorable sur YouTube et Instagram par
 défaut. Lorsque TikTok fait partie de la diffusion, le périmètre peut passer
 à trois avec `--plateformes-apprentissage youtube instagram tiktok`.
 Environ 20 % des identifiants gardent la piste témoin. Retirer le rapport remet
-les pilotes sur leur musique par défaut. Les statistiques de hashtags et de
-durée sont exploitées dans le rapport. Seul le choix de musique peut
-actuellement modifier le rendu.
+les pilotes sur leur musique par défaut.
 
 ## État de l'intégration
 
-Le workflow d'aperçu prépare les deux pilotes et leurs fiches. Le planificateur
-éditorial sélectionne les sujets à partir d'un historique fourni. Le raccord
-au planning quotidien, l'archivage des reçus, les accès statistiques réels et
-l'exécution planifiée de la collecte restent à valider avant activation.
+Le workflow d'aperçu rend les pilotes à partir de captures mobiles réelles et
+contrôle deux sujets du planning. Le parcours de publication et de collecte
+est soumis aux tests du Worker. Son activation en production est indépendante
+du workflow d'aperçu.
+
 ## Collecte programmée avec les connexions Cloudflare existantes
 
 Le Worker de la branche importe `video/cloudflare/statistiques.mjs` et lui
@@ -119,9 +118,13 @@ carburant avant l’appel de publication. Elle reste consultable après une coup
 Les reçus confirmés sont archivés après l’envoi ou récupérés par la collecte
 programmée depuis l’artefact GitHub si l’archivage immédiat échoue.
 
-Après la collecte, la tâche enregistre un rapport privé des expériences à
-J+30. Le format « ville du jour » répartit les publications en paires entre
-la piste de référence et une variante. Après 30 paires exploitables par
-plateforme, une variante ne peut être retenue que si les critères de gain et
-de confiance sont atteints sur YouTube et Instagram. La piste de référence
-reste utilisée environ une fois sur cinq quand une variante est retenue.
+Après la collecte, la tâche enregistre un rapport privé des expériences et
+des indicateurs à J+30. Le format « ville du jour » alterne entre des paires
+qui testent une piste et des paires qui testent l'ajout de `#prixcarburant`.
+Une paire change une seule variable. Si la légende observée ne correspond
+plus à l'attribution du hashtag, la paire est écartée pour cette plateforme.
+La piste peut être favorisée quand les deux plateformes actives atteignent
+les seuils. Le hashtag peut être favorisé indépendamment sur chaque
+plateforme qui atteint les seuils. Hors expérience, environ un épisode sur
+cinq conserve la référence. Les catégories, durées et carburants figurent
+dans les indicateurs descriptifs.
