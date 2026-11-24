@@ -46,6 +46,10 @@ test("publie une fois, archive et relève les deux plateformes à J+30 avec le m
   const date = "2026-11-07T07:00:00Z";
   const horloge = Date.now;
   try {
+    assert.deepEqual((await stats("decisions")).corps.experiences, []);
+    assert.equal((await stats("decisions", {experiences:[{contexte:"ville_du_jour"}]})).corps.archive, true);
+    assert.deepEqual((await stats("decisions")).corps.experiences, [{contexte:"ville_du_jour"}]);
+    assert.equal((await stats("decisions", undefined, "incorrecte")).statut, 401);
     assert.equal((await soumettre()).corps.code, "sujet_non_reserve");
     const sujet = {id_video: slot, categorie: "ville_du_jour", villes: ["lyon"], carburant: "e10",
       sha256: sha256(octets), sujet: null};

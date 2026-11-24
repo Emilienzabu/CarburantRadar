@@ -118,3 +118,10 @@ choisir un sujet. Une réservation identifie la catégorie, les communes et le
 carburant avant l’appel de publication. Elle reste consultable après une coupure.
 Les reçus confirmés sont archivés après l’envoi ou récupérés par la collecte
 programmée depuis l’artefact GitHub si l’archivage immédiat échoue.
+
+Après la collecte, la tâche enregistre un rapport privé des expériences à
+J+30. Le format « ville du jour » répartit les publications en paires entre
+la piste de référence et une variante. Après 30 paires exploitables par
+plateforme, une variante ne peut être retenue que si les critères de gain et
+de confiance sont atteints sur YouTube et Instagram. La piste de référence
+reste utilisée environ une fois sur cinq quand une variante est retenue.

@@ -82,6 +82,20 @@ export async function statistiques(request, env, lire = compteurs, horloge = Dat
   const bucket = env.VIDEO_STATS;
   if (!bucket) return json({erreur: 'Stockage privé indisponible'}, 503);
   const route = url.pathname.slice('/api/stats/'.length);
+  if (route === 'decisions') {
+    const cle = 'rapport/experiences.json';
+    if (request.method === 'GET') {
+      const objet = await bucket.get(cle);
+      return json(objet ? await objet.json() : {experiences: []});
+    }
+    if (request.method !== 'POST') return json({}, 404);
+    let rapport;
+    try { rapport = await request.json(); } catch { return json({}, 400); }
+    const {experiences} = rapport || {};
+    if (!Array.isArray(experiences) || experiences.length > 128) return json({}, 400);
+    await bucket.put(cle, JSON.stringify({experiences}));
+    return json({archive: true});
+  }
   if (route === 'editorial') {
     if (!env.DB_VIDEO || !env.VIDEO_BUCKET || env.LEDGER_MODE === 'off') return json({erreur: 'Journal indisponible'}, 503);
     try {
@@ -101,9 +115,9 @@ export async function statistiques(request, env, lire = compteurs, horloge = Dat
   try { pub = await request.json(); } catch { return json({}, 400); }
   if (route === 'editorial') {
     if (!sujetValide(pub)) return json({}, 400);
-    const {id_video, categorie, villes, sujet, carburant, sha256} = pub;
+    const {id_video, categorie, villes, sujet, carburant, sha256, experience} = pub;
     const objet = await bucket.put('editorial/' + id_video,
-      JSON.stringify({id_video, categorie, villes, sujet, carburant, sha256}), premiereEcriture);
+      JSON.stringify({id_video, categorie, villes, sujet, carburant, sha256, experience}), premiereEcriture);
     return json({reserve: Boolean(objet)});
   }
   if (route === 'importe') {

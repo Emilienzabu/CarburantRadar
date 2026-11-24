@@ -98,10 +98,12 @@ def specifier(sujet, captures):
     raise ValueError(f"Catégorie inconnue : {categorie}")
 
 
-def rendre(sujet, slot, destination, captures=None, voix_locale=False, decisions=()):
+def rendre(sujet, slot, destination, captures=None, voix_locale=False, decisions=(), experience=None):
     defs, creer_rendu, (temoin, variante) = specifier(sujet, captures)
     categorie = sujet["categorie"]
     musique = choisir_musique((variante,), temoin, decisions, slot, categorie)
+    if experience:
+        musique = variante if experience["bras"] == "variante" else temoin
     moteur = "espeak" if voix_locale else "edge"
     destination.parent.mkdir(parents=True, exist_ok=True)
     voix_utilisee = audio.VOIX_DEFAUT
@@ -131,7 +133,8 @@ def rendre(sujet, slot, destination, captures=None, voix_locale=False, decisions
         raise RuntimeError(f"{slot} : " + ", ".join(resultat.erreurs))
     ecrire_fiche(destination, id_video=slot, categorie=categorie, villes=sujet["villes"],
                   sujet=sujet["sujet"], carburant=sujet["carburant"], musique=musique,
-                  voix="espeak-ng" if voix_locale else voix_utilisee, identite_visuelle="beige-v1")
+                  voix="espeak-ng" if voix_locale else voix_utilisee, identite_visuelle="beige-v1",
+                  experience=experience)
 
 
 def main():

@@ -156,14 +156,11 @@ def experience_musique(contexte, temoin, variante, paire, ordre):
                 variante=variante, paire=paire, bras=bras)
 
 
-def choisir_musique(catalogue, defaut, resultats, identifiant, contexte, *,
-                    plateformes=PLATEFORMES_ACTIVES):
-    """Applique une préférence commune, en réservant 20 % des choix au témoin."""
+def musique_confirmee(catalogue, defaut, resultats, contexte, plateformes=PLATEFORMES_ACTIVES):
+    """Cherche une variante confirmée à J+30 sur toutes les plateformes actives."""
     plateformes = frozenset(plateformes)
     if not plateformes or not plateformes <= PLATEFORMES:
         raise ValueError("Plateformes d'apprentissage invalides")
-    if int.from_bytes(sha256(identifiant.encode()).digest()[:8], "big") % 5 == 0:
-        return defaut
     for piste in catalogue:
         preuves = {r["plateforme"] for r in resultats
                    if r.get("horizon_jours") == 30 and r["plateforme"] in plateformes
@@ -172,6 +169,15 @@ def choisir_musique(catalogue, defaut, resultats, identifiant, contexte, *,
                    and r["gain"] >= MIN_GAIN and r["p"] <= .05}
         if preuves == plateformes:
             return piste
+    return None
+
+
+def choisir_musique(catalogue, defaut, resultats, identifiant, contexte, *,
+                    plateformes=PLATEFORMES_ACTIVES):
+    """Applique une préférence commune, en réservant 20 % des choix au témoin."""
+    piste = musique_confirmee(catalogue, defaut, resultats, contexte, plateformes)
+    if piste is not None and int.from_bytes(sha256(identifiant.encode()).digest()[:8], "big") % 5:
+        return piste
     return defaut
 
 

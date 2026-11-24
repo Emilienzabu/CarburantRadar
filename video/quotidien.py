@@ -13,6 +13,7 @@ import requests
 from comparatifs_beige import CARBURANTS, affichage_date, nom
 from generate_video import WORKER_URL, ecrire_resume, publier
 from metadonnees_video import ecrire_recu
+from performance import experience_musique, musique_confirmee
 from planning_quotidien import CRENEAUX, historique_editorial, preparer
 from rendre_planning import rendre
 from synchroniser_stats import appel, pages
@@ -57,11 +58,21 @@ def images_mobiles(dossier):
     return dossier
 
 
+def experience_du_jour(sujet, reservations, decisions):
+    categorie = sujet["categorie"]
+    if categorie != "ville_du_jour" or musique_confirmee((8,), 3, decisions, categorie) is not None:
+        return None
+    n = sum((r.get("experience") or {}).get("contexte") == categorie for r in reservations)
+    paire, ordre = divmod(n, 2)
+    return experience_musique(categorie, 3, 8, f"quotidien-{paire + 1}", ordre + 1)
+
+
 def executer(session, cle, jour, creneau, sortie, maintenant):
     """Un créneau déjà connu conserve son sujet, même si le premier envoi est incertain."""
     identifiant = f"{jour}:{creneau}"
     # La route éditoriale vérifie aussi la disponibilité du journal anti-doublon.
-    lignes = list(pages(session, "editorial")) + list(pages(session, "publications"))
+    reservations = list(pages(session, "editorial"))
+    lignes = reservations + list(pages(session, "publications"))
     _, occupes = historique_editorial(lignes, jour)
     if creneau in occupes:
         print(f"Créneau {identifiant} déjà enregistré.")
@@ -74,9 +85,18 @@ def executer(session, cle, jour, creneau, sortie, maintenant):
     captures = (images_mobiles(sortie.parent / "captures")
                 if sujet["categorie"] in ("fonctionnement", "avantage") else None)
     textes = textes_publication(sujet)
-    rendre(sujet, identifiant, sortie, captures)
+    decisions, experience = (), None
+    try:
+        decisions = appel(session, "GET", "decisions")["experiences"]
+        experience = experience_du_jour(sujet, reservations, decisions)
+    except (OSError, RuntimeError, KeyError, TypeError, ValueError):
+        decisions = ()
+        print("::warning::Rapport d’apprentissage indisponible. Piste de référence utilisée.")
+    rendre(sujet, identifiant, sortie, captures, decisions=decisions, experience=experience)
     fiche = json.loads(sortie.with_suffix(".creation.json").read_text(encoding="utf-8"))
     reservation = {k: fiche[k] for k in ("id_video", "categorie", "villes", "carburant", "sujet", "sha256")}
+    if experience:
+        reservation["experience"] = experience
     if not appel(session, "POST", "editorial", json=reservation)["reserve"]:
         print(f"Créneau {identifiant} réservé par une autre exécution.")
         return
