@@ -131,6 +131,20 @@ def historique_editorial(lignes, jour):
     return historiques, occupes
 
 
+def preparer(jour, lignes, maintenant, historique_prix=RACINE / "france/prix-carburant/history.json", stations=None):
+    publications, occupes = historique_editorial(lignes, jour)
+    if len(occupes) == len(CRENEAUX):
+        return []
+    villes = json.loads((RACINE / "generator/villes.json").read_text(encoding="utf-8"))["villes"]
+    villes = (v for v in villes if v["pays"] == "france")
+    historique = json.loads(historique_prix.read_text(encoding="utf-8"))
+    releves, _ = data_fr.load(stations)
+    plan = planifier(jour, villes, releves, historique, publications, maintenant)
+    for creneau, sujet in zip((c for c in CRENEAUX if c not in occupes), plan):
+        sujet["creneau"] = creneau
+    return plan
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--jour", type=date.fromisoformat)
@@ -141,16 +155,9 @@ def main():
     args = parser.parse_args()
     maintenant = datetime.now(timezone.utc)
     jour = args.jour or maintenant.astimezone(ZoneInfo("Europe/Paris")).date()
-    villes = json.loads((RACINE / "generator/villes.json").read_text(encoding="utf-8"))["villes"]
-    villes = (v for v in villes if v["pays"] == "france")
     lignes = (json.loads(args.historique_publications.read_text(encoding="utf-8"))
               if args.historique_publications else [])
-    publications, occupes = historique_editorial(lignes, jour)
-    historique_prix = json.loads(args.historique_prix.read_text(encoding="utf-8"))
-    stations, _ = data_fr.load(args.stations)
-    plan = planifier(jour, villes, stations, historique_prix, publications, maintenant)
-    for creneau, sujet in zip((c for c in CRENEAUX if c not in occupes), plan):
-        sujet["creneau"] = creneau
+    plan = preparer(jour, lignes, maintenant, args.historique_prix, args.stations)
     print(json.dumps({"jour": jour.isoformat(), "sujets": plan}, ensure_ascii=False, indent=2))
 
 

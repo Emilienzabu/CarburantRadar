@@ -78,18 +78,14 @@ def parcourir(page, dossier):
     capture(page, dossier, "carte")
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sortie", type=Path, required=True)
-    parser.add_argument("--canal", choices=["msedge", "chrome"])
-    args = parser.parse_args()
-    if args.sortie.exists():
-        parser.error("--sortie doit désigner un nouveau dossier")
-    args.sortie.parent.mkdir(parents=True, exist_ok=True)
-    with TemporaryDirectory(dir=args.sortie.parent) as tmp, sync_playwright() as pw:
+def capturer(sortie, canal=None):
+    if sortie.exists():
+        raise ValueError("Le dossier de sortie doit être nouveau.")
+    sortie.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=sortie.parent) as tmp, sync_playwright() as pw:
         dossier = Path(tmp) / "captures"
         dossier.mkdir()
-        browser = pw.chromium.launch(channel=args.canal)
+        browser = pw.chromium.launch(channel=canal)
         try:
             context = browser.new_context(
                 **pw.devices["Pixel 7"], locale="fr-FR", timezone_id="Europe/Paris",
@@ -106,7 +102,18 @@ def main():
             }, ensure_ascii=False, indent=2), encoding="utf-8")
         finally:
             browser.close()
-        dossier.rename(args.sortie)
+        dossier.rename(sortie)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--sortie", type=Path, required=True)
+    parser.add_argument("--canal", choices=["msedge", "chrome"])
+    args = parser.parse_args()
+    try:
+        capturer(args.sortie, args.canal)
+    except ValueError as exc:
+        parser.error(str(exc))
 
 
 if __name__ == "__main__":

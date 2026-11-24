@@ -3,7 +3,7 @@ name: Aperçu vitrine mobile
 on:
   push:
     branches: [codex/vitrine-captures-mobiles, codex/animations-vitrine-beige]
-    paths: [video/**, workers/video-automation/**, .github/workflows/apercu-vitrine.yml]
+    paths: [video/**, workers/video-automation/**, .github/workflows/apercu-vitrine.yml, .github/workflows/video-du-jour.yml]
   workflow_dispatch:
 
 permissions:

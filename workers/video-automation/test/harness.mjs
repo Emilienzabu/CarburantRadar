@@ -197,7 +197,8 @@ export class Net {
 }
 
 // ---------------------------------------------------------------- requêtes
-export function requeteApi({ octets, slot, sha, profil = "carburant", titre, cle = "cle-api-test", extra = {} }) {
+export function requeteApi({ octets, slot, sha, profil = "carburant", titre, cle = "cle-api-test", extra = {},
+  chemin = "/api/upload" }) {
   const fd = new FormData();
   fd.set("profile", profil);
   fd.set("video", new File([octets], "video-du-jour.mp4", { type: "video/mp4" }));
@@ -205,7 +206,7 @@ export function requeteApi({ octets, slot, sha, profil = "carburant", titre, cle
   if (slot !== undefined && slot !== null) fd.set("slot_id", slot);
   if (sha !== undefined && sha !== null) fd.set("sha256", sha);
   for (const [k, v] of Object.entries(extra)) fd.set(k, v);
-  return new Request("https://video-automation.test/api/upload", { method: "POST", headers: { authorization: `Bearer ${cle}` }, body: fd });
+  return new Request("https://video-automation.test" + chemin, { method: "POST", headers: { authorization: `Bearer ${cle}` }, body: fd });
 }
 export async function envoyer(worker, env, req) {
   const r = await worker.fetch(req, env);

@@ -241,6 +241,9 @@ async fetch(request, env) {
  if (url.pathname === "/api/upload" && request.method === "POST") {
  return handleApiUpload(request, env);
  }
+ if (url.pathname === "/api/editorial/upload" && request.method === "POST") {
+ return handleApiUpload(request, env, true);
+ }
  if (url.pathname.startsWith("/ledger/")) {
  return handleLedgerAdmin(request, url, env);
  }
@@ -725,7 +728,7 @@ return new Response(
 // curl -X POST https://video-automation.emilienzabukovec09.workers.dev/api/upload \
 // -H "Authorization: Bearer $API_KEY" \
 // -F profile=carburant -F video=@video.mp4 -F title="..." -F description="..." -F caption="..."
-async function handleApiUpload(request, env) {
+async function handleApiUpload(request, env, editorial = false) {
 const auth = request.headers.get("authorization") || "";
 if (!env.API_KEY || auth !== `Bearer ${env.API_KEY}`) {
  return jsonResponse({ error: "Non autorisé." }, 401);
@@ -743,6 +746,24 @@ if (!profile) {
 const file = formData.get("video");
 if (!file || typeof file === "string") {
  return jsonResponse({ error: "Aucun fichier reçu (champ 'video')." }, 400);
+}
+if (editorial) {
+ const slot = formData.get("slot_id");
+ const empreinte = formData.get("sha256");
+ if (profile !== PROFILES[LEDGER_PROFILE] || !slotValide(slot)
+     || typeof empreinte !== "string" || !SHA_RE.test(empreinte)) {
+  return ledgerRefused("sujet_invalide", "Créneau et empreinte éditoriaux requis.", 400);
+ }
+ if (!env.DB_VIDEO || !env.VIDEO_STATS || env.LEDGER_MODE === "off") {
+  return ledgerRefused("ledger_non_configure", "Journal éditorial indisponible.", 503);
+ }
+ const reserve = await env.VIDEO_STATS.get("editorial/" + slot);
+ if (!reserve) {
+  return ledgerRefused("sujet_non_reserve", "Sujet éditorial absent.", 409, { slot_id: slot });
+ }
+ if ((await reserve.json()).sha256 !== empreinte) {
+  return ledgerRefused("sujet_different", "Empreinte différente du sujet réservé.", 409, { slot_id: slot });
+ }
 }
 // Titre / description / légende propres à cette vidéo (sinon ceux du profil)
 const custom = {};

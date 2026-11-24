@@ -57,6 +57,22 @@ async function compteurs(p, env) {
 }
 
 const premiereEcriture = {onlyIf: new Headers({'If-None-Match': '*'})};
+const locales = {ville_du_jour: 1, ville_avant_maintenant: 1, ville_contre_ville: 2};
+const categories = new Set([...Object.keys(locales), 'astuce', 'fonctionnement', 'avantage']);
+const carburants = new Set(['gazole', 'sp95', 'sp98', 'e10', 'e85', 'gplc']);
+
+function sujetValide(p) {
+  const slot = typeof p?.id_video === 'string' && p.id_video.match(/^(\d{4}-\d{2}-\d{2}):(matin|soir)$/);
+  if (!slot || !categories.has(p.categorie) || !Array.isArray(p.villes)
+      || typeof p.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(p.sha256)) return false;
+  const date = new Date(slot[1] + 'T00:00:00Z');
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== slot[1]) return false;
+  const nb = locales[p.categorie] || 0;
+  return p.villes.length === nb && new Set(p.villes).size === nb
+    && p.villes.every(v => typeof v === 'string' && /^[a-z0-9-]{1,100}$/.test(v))
+    && (nb ? carburants.has(p.carburant) : p.carburant === null && typeof p.sujet === 'string'
+        && p.sujet.length > 0 && p.sujet.length <= 200);
+}
 
 // Retourne null pour que le Worker continue de traiter ses routes habituelles.
 export async function statistiques(request, env, lire = compteurs, horloge = Date.now) {
@@ -66,15 +82,30 @@ export async function statistiques(request, env, lire = compteurs, horloge = Dat
   const bucket = env.VIDEO_STATS;
   if (!bucket) return json({erreur: 'Stockage privé indisponible'}, 503);
   const route = url.pathname.slice('/api/stats/'.length);
-  if (request.method === 'GET' && ['publications','mesures','artefacts'].includes(route)) {
+  if (route === 'editorial') {
+    if (!env.DB_VIDEO || !env.VIDEO_BUCKET || env.LEDGER_MODE === 'off') return json({erreur: 'Journal indisponible'}, 503);
+    try {
+      await env.DB_VIDEO.prepare('SELECT slot_key FROM video_slot_reservations LIMIT 1').first();
+    } catch {
+      return json({erreur: 'Journal indisponible'}, 503);
+    }
+  }
+  if (request.method === 'GET' && ['publications','mesures','artefacts','editorial'].includes(route)) {
     const page = await bucket.list({prefix: route + '/', cursor: url.searchParams.get('cursor') || undefined, limit: 25});
     const lignes = route === 'artefacts' ? page.objects.map(o => o.key.slice('artefacts/'.length))
       : await Promise.all(page.objects.map(async o => (await bucket.get(o.key)).json()));
     return json({lignes, curseur: page.truncated ? page.cursor : null});
   }
-  if (request.method !== 'POST' || !['recu','relever','importe'].includes(route)) return json({}, 404);
+  if (request.method !== 'POST' || !['recu','relever','importe','editorial'].includes(route)) return json({}, 404);
   let pub;
   try { pub = await request.json(); } catch { return json({}, 400); }
+  if (route === 'editorial') {
+    if (!sujetValide(pub)) return json({}, 400);
+    const {id_video, categorie, villes, sujet, carburant, sha256} = pub;
+    const objet = await bucket.put('editorial/' + id_video,
+      JSON.stringify({id_video, categorie, villes, sujet, carburant, sha256}), premiereEcriture);
+    return json({reserve: Boolean(objet)});
+  }
   if (route === 'importe') {
     if (typeof pub?.id !== 'string' || !/^\d{1,24}$/.test(pub.id)) return json({}, 400);
     await bucket.put('artefacts/' + pub.id, '', premiereEcriture);

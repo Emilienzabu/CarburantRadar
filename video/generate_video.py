@@ -112,15 +112,15 @@ def construire(plan, k, args):
     raise SystemExit("Aucune ville exploitable : rien n'est publié.")
 
 
-def publier(chemin, info, cle, slot_id):
+def publier(chemin, info, cle, slot_id, *, textes=None, url=WORKER_URL):
     """Envoie une seule requête avec le créneau et l'empreinte attendus par le journal du Worker."""
-    titre, description, legende = donnees.textes_publication(info)
+    titre, description, legende = textes if textes is not None else donnees.textes_publication(info)
     sha256 = controle_publication.sha256_fichier(chemin)
     log(f"Envoi au Worker : « {titre} »")
     try:
         with open(chemin, "rb") as f:
             r = requests.post(
-                WORKER_URL,
+                url,
                 headers={"Authorization": f"Bearer {cle}"},
                 data={"profile": "carburant", "title": titre, "description": description, "caption": legende,
                       "slot_id": slot_id, "sha256": sha256},

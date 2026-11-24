@@ -40,10 +40,20 @@ test("publie une fois, archive et relève les deux plateformes à J+30 avec le m
       headers: { Authorization: `Bearer ${cle}` },
       body: body && JSON.stringify(body),
     }));
-  const soumettre = () => envoyer(worker, c.env, requeteApi({ octets, slot, sha: sha256(octets) }));
+  const soumettre = (fichier = octets) => envoyer(worker, c.env, requeteApi({
+    octets: fichier, slot, sha: sha256(fichier), chemin: "/api/editorial/upload",
+  }));
   const date = "2026-11-07T07:00:00Z";
   const horloge = Date.now;
   try {
+    assert.equal((await soumettre()).corps.code, "sujet_non_reserve");
+    const sujet = {id_video: slot, categorie: "ville_du_jour", villes: ["lyon"], carburant: "e10",
+      sha256: sha256(octets), sujet: null};
+    assert.equal((await stats("editorial", sujet)).corps.reserve, true);
+    assert.equal((await stats("editorial", {...sujet, villes: ["paris"]})).corps.reserve, false);
+    assert.deepEqual((await stats("editorial")).corps.lignes, [sujet]);
+    assert.equal((await soumettre(video("autre"))).corps.code, "sujet_different");
+    assert.equal(c.net.appels.youtube, 0);
     const premier = await soumettre();
     assert.equal(premier.corps.etat, "complet");
     const recus = ["youtube", "instagram"].map(plateforme => ({

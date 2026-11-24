@@ -110,3 +110,11 @@ Pour analyser les relevés depuis un environnement disposant déjà de
 python video/synchroniser_stats.py --export mesures.jsonl
 python video/performance.py mesures.jsonl > decisions.json
 ```
+
+Le planning quotidien dispose de son propre interrupteur `CR_PLANNING_ACTIF`
+dans GitHub Actions. L’activer après le déploiement du Worker intégré et la
+validation de ses liaisons privées. Chaque créneau lit le registre avant de
+choisir un sujet. Une réservation identifie la catégorie, les communes et le
+carburant avant l’appel de publication. Elle reste consultable après une coupure.
+Les reçus confirmés sont archivés après l’envoi ou récupérés par la collecte
+programmée depuis l’artefact GitHub si l’archivage immédiat échoue.

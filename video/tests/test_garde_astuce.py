@@ -39,14 +39,22 @@ def workflow_script():
     return "\n".join(out)
 
 
-def args_du_workflow(evenement, publier, fmt, creneau="", ville="", carburant="", horaire="40 6 * * *"):
+def args_du_workflow(evenement, publier, fmt, creneau="", ville="", carburant="", horaire="40 6 * * *",
+                     planning=False):
     """Arguments réellement construits par le workflow (la dernière ligne python est remplacée par un affichage)."""
     script = workflow_script()
     aiguille = 'python video/generate_video.py "${ARGS[@]}"'
     assert script.count(aiguille) == 1
     script = script.replace(aiguille, 'if [ ${#ARGS[@]} -gt 0 ]; then printf "<%s>\\n" "${ARGS[@]}"; fi')
+    commande = "exec python video/quotidien.py"
+    assert script.count(commande) == 1
+    simulation = ('gh() { printf "%s\\n" "2026-11-24T11:00:00Z"; }\n'
+                  'quotidien() { printf "<%s>\\n" "$@"; exit 0; }\n')
+    script = simulation + script.replace("python -m pip install playwright==1.65.2", ":")
+    script = script.replace(commande, "quotidien video/quotidien.py")
     env = {**os.environ, "EVENEMENT": evenement, "PUBLIER": publier, "FORMAT": fmt,
-           "CRENEAU": creneau, "VILLE": ville, "CARBURANT": carburant, "HORAIRE_PREVU": horaire}
+           "CRENEAU": creneau, "VILLE": ville, "CARBURANT": carburant, "HORAIRE_PREVU": horaire,
+           "PLANNING_ACTIF": "true" if planning else "false"}
     r = subprocess.run(["bash", "-e", "-c", script], env=env, text=True, capture_output=True)
     assert r.returncode == 0, r.stderr
     return [x[1:-1] for x in r.stdout.splitlines() if x.startswith("<") and x.endswith(">")]
@@ -142,6 +150,11 @@ class GardeAvecLeWorkflowReel(unittest.TestCase):
             numero = date(2026, 11, 22).toordinal() * 2 + (creneau == "soir")
             titres.append(garde.plan_astuce(numero, donnees.ASTUCES)["astuce"]["titre"])
         self.assertNotEqual(*titres)
+
+    def test_planning_active_respecte_le_creneau_programme(self):
+        argv = args_du_workflow("schedule", "", "", horaire="40 16 * * *", planning=True)
+        self.assertEqual(argv, ["video/quotidien.py", "--creneau", "soir", "--declenche-le",
+                                "2026-11-24T11:00:00Z", "--sortie", "video/sortie/video-du-jour.mp4"])
 
     def test_generation_sans_publication_inchangee(self):
         for params, attendu in [(("workflow_dispatch", "false", "ville", "", "paris", "e10"), ("ville", "paris", "e10")),
