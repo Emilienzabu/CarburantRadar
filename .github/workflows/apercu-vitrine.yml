@@ -63,8 +63,9 @@ jobs:
           python video/pilotes_beige.py rayon --captures-mobiles video/sortie/captures --sortie video/sortie/pilote-rayon.mp4
 
       - name: Rendre les deux sujets sélectionnés par le planning
-        run: |
-          python video/rendre_planning.py video/sortie/planning.json --captures-mobiles video/sortie/captures +            --sortie video/sortie/quotidien
+        run: >-
+          python video/rendre_planning.py video/sortie/planning.json
+          --captures-mobiles video/sortie/captures --sortie video/sortie/quotidien
 
       - name: Garder l’aperçu et les captures
         if: always()
