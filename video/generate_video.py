@@ -17,6 +17,7 @@ import datetime as dt
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import unicodedata
@@ -32,7 +33,9 @@ import controle_publication  # noqa: E402
 import donnees  # noqa: E402
 import garde  # noqa: E402
 from garde import appliquer_garde_astuce, garde_astuce_active  # noqa: E402,F401
+from metadonnees_video import ecrire_recu, mesures_rendu, references_confirmees  # noqa: E402
 import rendu  # noqa: E402
+import vitrine  # noqa: E402
 
 WORKER_URL = "https://video-automation.emilienzabukovec09.workers.dev/api/upload"
 POLICES = ["Poppins-Bold.ttf", "Poppins-SemiBold.ttf", "Poppins-Medium.ttf"]
@@ -78,6 +81,8 @@ def assurer_polices(dossier):
 
 def construire(plan, k, args):
     """Récupère les données du jour et renvoie l'info à mettre en vidéo."""
+    if plan["format"] == "vitrine":   # démonstration à partir de captures : aucune donnée du flux officiel
+        return vitrine.info_vitrine()
     if args.demo:
         return donnees.info_demo(plan["format"])
     if plan["format"] == "astuce":
@@ -107,25 +112,20 @@ def construire(plan, k, args):
     raise SystemExit("Aucune ville exploitable : rien n'est publié.")
 
 
-def publier(chemin, info, cle):
-    """Envoie la vidéo au Worker. Ne réessaie JAMAIS (un envoi dont l'issue est inconnue a pu être publié).
-
-    Renvoie un dict : {"etat": "complet" | "partiel" | "echec" | "incertain", ...}
-      complet   YouTube ET Instagram confirment (champ `success` de la réponse du Worker)
-      partiel   une seule plateforme confirme : à signaler, JAMAIS à relancer tel quel (doublon sur l'autre)
-      echec     le Worker répond clairement que rien n'a été publié
-      incertain délai dépassé, erreur réseau ou réponse illisible : la vidéo a peut-être été publiée
-    """
-    titre, description, legende = donnees.textes_publication(info)
+def publier(chemin, info, cle, slot_id, *, textes=None, url=WORKER_URL):
+    """Envoie une seule requête avec le créneau et l'empreinte attendus par le journal du Worker."""
+    titre, description, legende = textes if textes is not None else donnees.textes_publication(info)
+    sha256 = controle_publication.sha256_fichier(chemin)
     log(f"Envoi au Worker : « {titre} »")
     try:
         with open(chemin, "rb") as f:
             r = requests.post(
-                WORKER_URL,
+                url,
                 headers={"Authorization": f"Bearer {cle}"},
-                data={"profile": "carburant", "title": titre, "description": description, "caption": legende},
+                data={"profile": "carburant", "title": titre, "description": description, "caption": legende,
+                      "slot_id": slot_id, "sha256": sha256},
                 files={"video": ("video-du-jour.mp4", f, "video/mp4")},
-                timeout=900,
+                timeout=900, allow_redirects=False,
             )
     except requests.exceptions.RequestException as e:
         return {"etat": "incertain", "detail": f"{type(e).__name__} pendant l'envoi"}
@@ -138,13 +138,34 @@ def publier(chemin, info, cle):
         return {"etat": "incertain", "detail": f"réponse illisible (HTTP {r.status_code})"}
     yt = res.get("youtube", {}) or {}
     ig = res.get("instagram", {}) or {}
+    if not isinstance(yt, dict) or not isinstance(ig, dict):
+        return {"etat": "incertain", "detail": "résultats des plateformes illisibles"}
+    if res.get("slot_id", slot_id) != slot_id or res.get("sha256", sha256) != sha256:
+        return {"etat": "incertain", "detail": "créneau ou empreinte différent dans la réponse"}
     log("YouTube : " + (yt.get("url") or json.dumps(yt, ensure_ascii=False)[:400]))
     log("Instagram : " + ("publié" if ig.get("success") else json.dumps(ig, ensure_ascii=False)[:400]))
     if not res.get("youtube") and res.get("error"):
         log(res["error"])
     yt_ok, ig_ok = bool(yt.get("success")), bool(ig.get("success"))
-    etat = "complet" if (yt_ok and ig_ok) else "partiel" if (yt_ok or ig_ok) else "echec"
-    return {"etat": etat, "youtube": yt_ok, "instagram": ig_ok, "youtube_url": yt.get("url")}
+    etat_worker = res.get("etat")
+    detail = res.get("code")
+    if etat_worker in ("refuse", "bloque") and not (yt_ok or ig_ok):
+        return {"etat": etat_worker, "detail": detail}
+    rejoue = res.get("rejoue") is True
+    if etat_worker == "complet" and yt_ok and ig_ok:
+        etat = "complet"
+    elif etat_worker == "reconciliation_requise":
+        etat = "partiel" if yt_ok != ig_ok else "incertain"
+    elif etat_worker is None and not rejoue:
+        # Le Worker historique n'expose que les résultats des plateformes.
+        etat = "complet" if (yt_ok and ig_ok) else "partiel" if (yt_ok or ig_ok) else "echec"
+    else:
+        etat = "incertain"
+    # Un rejeu renvoie les identifiants historiques, sans nouvelle date de publication.
+    references = (references_confirmees(titre, description, legende, yt, ig)
+                  if not rejoue and (yt_ok or ig_ok) else {})
+    return {"etat": etat, "youtube": yt_ok, "instagram": ig_ok, "youtube_url": yt.get("url"),
+            "references": references, "rejoue": rejoue, "detail": detail}
 
 
 def ecrire_resume(slot_id, info, resultat):
@@ -155,7 +176,9 @@ def ecrire_resume(slot_id, info, resultat):
     lignes = [f"### Publication {slot_id} : **{resultat['etat']}**",
               f"- format : {info.get('format')}", f"- YouTube : {resultat.get('youtube_url') or resultat.get('youtube')}",
               f"- Instagram : {resultat.get('instagram')}"]
-    if resultat["etat"] in ("partiel", "incertain", "echec"):
+    if resultat.get("rejoue"):
+        lignes.append("- Créneau déjà publié. Le Worker a renvoyé les références existantes.")
+    if resultat["etat"] in ("partiel", "incertain", "echec", "bloque"):
         lignes.append("- **Ne relance pas ce créneau sans avoir vérifié sur YouTube et Instagram : "
                       "une nouvelle publication créerait un doublon.**")
     try:
@@ -165,13 +188,18 @@ def ecrire_resume(slot_id, info, resultat):
         pass
 
 
+def textes_manifeste(info):
+    """Titre/description/légende : le format vitrine (jamais publié) a ses propres métadonnées."""
+    return vitrine.textes_publication(info) if info.get("format") == "vitrine" else donnees.textes_publication(info)
+
+
 def controler_video(chemin, rend, info, slot_id):
     """Écrit le manifeste de rendu (à partir de la commande ffmpeg RÉELLEMENT exécutée) puis lance le contrôle technique."""
     manifeste = os.path.splitext(chemin)[0] + ".manifeste.json"
     try:
         m = controle_publication.construire_manifeste(
             chemin, getattr(rend, "derniere_commande", None), slot_id=slot_id, format_video=info.get("format"),
-            titre=donnees.textes_publication(info)[0])
+            titre=textes_manifeste(info)[0])
         controle_publication.ecrire_manifeste(manifeste, m)
         return controle_publication.valider_avant_publication(chemin, manifeste, exiger_slot=True)
     except Exception as e:  # noqa: BLE001 - fail closed
@@ -181,13 +209,17 @@ def controler_video(chemin, rend, info, slot_id):
 def construire_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--demo", action="store_true", help="données factices (aucun accès réseau pour les prix)")
-    p.add_argument("--format", choices=["ville", "classement", "astuce"], help="vide = selon le planning")
+    p.add_argument("--format", choices=["ville", "classement", "astuce", "vitrine"],
+                   help="vide = selon le planning. « vitrine » = démonstration de l'app (captures), jamais publiée")
     p.add_argument("--creneau", choices=["auto", "matin", "soir"], default="auto")
     p.add_argument("--ville", type=normaliser_ville)
     p.add_argument("--carburant", type=normaliser_carburant)
     p.add_argument("--publier", action="store_true")
     p.add_argument("--sortie", default=os.path.join(HERE, "sortie", "video-du-jour.mp4"))
     p.add_argument("--voix", default=audio.VOIX_DEFAUT)
+    p.add_argument("--captures-mobiles", help="dossier produit par video/capture_vitrine.py (format vitrine)")
+    p.add_argument("--voix-locale", action="store_true",
+                   help="voix de TEST hors ligne (espeak-ng) : interdite avec --publier, qualité non représentative")
     p.add_argument("--png", help="temps en secondes séparés par des virgules : enregistre des images de contrôle")
     return p
 
@@ -196,6 +228,13 @@ def main():
     args = construire_parser().parse_args()
     if args.demo and args.publier:
         raise SystemExit("--demo (données factices) ne peut pas être publié : rien n'est publié.")
+    if args.publier and args.format == "vitrine":
+        raise SystemExit("Format vitrine : démonstration à partir de captures (valeurs non actuelles), jamais publiée "
+                         "automatiquement : rien n'est publié.")
+    if args.publier and args.voix_locale:
+        raise SystemExit("--voix-locale (voix de test) ne peut pas être publiée : rien n'est publié.")
+    if args.captures_mobiles and args.format != "vitrine":
+        raise SystemExit("--captures-mobiles exige --format vitrine.")
     appliquer_garde_astuce(args, log)
 
     maintenant = dt.datetime.now(ZoneInfo("Europe/Paris"))
@@ -208,7 +247,10 @@ def main():
     if not os.path.isfile(icone):
         icone = os.path.join(HERE, "icon-512.png")
 
-    plan = donnees.plan_du_jour(k, args.format, args.ville, args.carburant)
+    if args.format == "vitrine":
+        plan = {"format": "vitrine"}
+    else:
+        plan = donnees.plan_du_jour(k, args.format, args.ville, args.carburant)
     if plan["format"] == "astuce":   # rotation sans conseil identique deux fois de suite
         plan = garde.plan_astuce(k, donnees.ASTUCES)
     log(f"Créneau {creneau}, publication n°{k}, format {plan['format']}")
@@ -216,21 +258,38 @@ def main():
     if args.publier and garde_astuce_active() and info.get("format") != "astuce":
         raise SystemExit(f"Garde astuce : format {info.get('format')!r} refusé à la publication (rien n'est publié).")
 
-    scenes_def = donnees.scenes_texte(info)
+    est_vitrine = info.get("format") == "vitrine"
+    scenes_def = vitrine.scenes_texte(info) if est_vitrine else donnees.scenes_texte(info)
     with tempfile.TemporaryDirectory() as tmp:
-        clips = audio.synth_clips(scenes_def, tmp, args.voix, log)
-        if args.publier and any(c is None for c in clips):
-            raise SystemExit("Voix indisponible : rien n'est publié (une vidéo sans voix ne serait pas au niveau). "
-                             "Relance le workflow un peu plus tard.")
-        scenes = audio.planifier(scenes_def, clips)
+        if est_vitrine:
+            clips, mots = audio.synth_clips_mots(scenes_def, tmp, args.voix, log, moteur="espeak" if args.voix_locale else "edge")
+            if args.captures_mobiles and any(clip is None for clip in clips):
+                raise SystemExit("Voix indisponible : aperçu mobile interrompu.")
+            scenes = audio.planifier(scenes_def, clips, vitrine.DEBUT_SCENE, vitrine.FIN_SCENE)
+            vitrine.attacher_mots(scenes, scenes_def, mots)
+        else:
+            clips = audio.synth_clips(scenes_def, tmp, args.voix, log)
+            if args.publier and any(c is None for c in clips):
+                raise SystemExit("Voix indisponible : rien n'est publié (une vidéo sans voix ne serait pas au niveau). "
+                                 "Relance le workflow un peu plus tard.")
+            scenes = audio.planifier(scenes_def, clips)
         total = scenes[-1]["start"] + scenes[-1]["dur"]
         detail = ", ".join("%s %.1fs" % (s["id"], s["dur"]) for s in scenes)
         log(f"Durée : {total:.1f} s ({detail})")
 
         wav = os.path.join(tmp, "audio.wav")
-        audio.ecrire_wav(wav, audio.mixer(scenes, clips, seed=k))
+        audio.ecrire_wav(wav, audio.mixer(scenes, clips, seed=vitrine.SEED_MUSIQUE if est_vitrine else k))
 
-        rend = rendu.Renderer(info, scenes, polices, icone)
+        if est_vitrine:
+            try:
+                rend = vitrine.RendererVitrine(
+                    info, scenes, polices, icone, assets_dir=args.captures_mobiles,
+                    captures_mobiles=args.captures_mobiles is not None,
+                )
+            except (FileNotFoundError, ValueError) as e:
+                raise SystemExit(f"Format vitrine impossible : {e}")
+        else:
+            rend = rendu.Renderer(info, scenes, polices, icone)
         os.makedirs(os.path.dirname(args.sortie), exist_ok=True)
         if args.png:
             for t in args.png.split(","):
@@ -238,6 +297,11 @@ def main():
                 rend.save_png(float(t), out)
                 log(f"Image : {out}")
             return
+        if est_vitrine:   # timings à côté du MP4 : sert au diagnostic objectif de synchronisation (diagnostic_vitrine.py)
+            with open(os.path.splitext(args.sortie)[0] + ".mots.json", "w", encoding="utf-8") as f:
+                json.dump([{"id": s["id"], "start": s["start"], "dur": s["dur"], "voix_debut": s["voix_debut"], "mots": s["mots"],
+                            "plages": [[s["voix_debut"] + a, s["voix_debut"] + b] for a, b in audio._plages_parole(c)]
+                            if c is not None and len(c) else []} for s, c in zip(scenes, clips)], f, ensure_ascii=False)
         rend.encode(wav, args.sortie, log)
 
     log(f"Vidéo prête : {args.sortie} ({os.path.getsize(args.sortie) / 1e6:.1f} Mo)")
@@ -253,10 +317,26 @@ def main():
         cle = os.environ.get("VIDEO_API_KEY")
         if not cle:
             raise SystemExit("VIDEO_API_KEY manquante : impossible de publier.")
-        resultat = publier(args.sortie, info, cle)
+        resultat = publier(args.sortie, info, cle, slot_id)
+        if resultat.get("references"):
+            try:
+                fiche = {**mesures_rendu(args.sortie), "id_video": slot_id, "categorie": info["format"],
+                         "carburant": info.get("carburant"), "ville": info.get("ville"),
+                         "identite_visuelle": "quotidien-v1", "musique": k}
+                manquantes = ecrire_recu(args.sortie, fiche, resultat["references"], dt.datetime.now(dt.timezone.utc))
+                if manquantes:
+                    log("::warning::Identifiant publié manquant pour " + ", ".join(manquantes))
+            except (OSError, KeyError, ValueError, subprocess.SubprocessError) as e:
+                log(f"::warning::Reçu de statistiques indisponible ({type(e).__name__}).")
         ecrire_resume(slot_id, info, resultat)
         if resultat["etat"] == "complet":
+            if resultat.get("rejoue"):
+                log("Créneau déjà publié. Le Worker a renvoyé les références existantes.")
             return
+        if resultat["etat"] == "bloque":
+            raise SystemExit(f"Créneau {slot_id} bloqué par le journal ({resultat.get('detail')}).")
+        if resultat["etat"] == "refuse":
+            raise SystemExit(f"Envoi refusé par le Worker ({resultat.get('detail')}).")
         if resultat["etat"] == "partiel":
             log(f"::warning::Publication PARTIELLE (YouTube={resultat['youtube']}, Instagram={resultat['instagram']}). "
                 "Ne relance pas ce créneau : l'autre plateforme a déjà la vidéo, un nouvel envoi créerait un doublon.")

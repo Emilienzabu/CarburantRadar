@@ -34,6 +34,10 @@ concurrency:
   group: video-du-jour
   cancel-in-progress: false
 
+permissions:
+  actions: read
+  contents: read
+
 jobs:
   video:
     runs-on: ubuntu-latest
@@ -53,7 +57,10 @@ jobs:
       - name: Générer la vidéo (et la publier si demandé)
         env:
           VIDEO_API_KEY: ${{ secrets.VIDEO_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          PLANNING_ACTIF: ${{ vars.CR_PLANNING_ACTIF }}
           EVENEMENT: ${{ github.event_name }}
+          HORAIRE_PREVU: ${{ github.event.schedule }}
           PUBLIER: ${{ inputs.publier }}
           FORMAT: ${{ inputs.format }}
           CRENEAU: ${{ inputs.creneau }}
@@ -61,6 +68,19 @@ jobs:
           CARBURANT: ${{ inputs.carburant }}
         run: |
           ARGS=()
+          if [ "$EVENEMENT" = "schedule" ]; then
+            case "$HORAIRE_PREVU" in
+              "40 6 * * *") CRENEAU=matin ;;
+              "40 16 * * *") CRENEAU=soir ;;
+              *) echo "::error::Horaire programmé inconnu"; exit 1 ;;
+            esac
+            if [ "${PLANNING_ACTIF:-}" = "true" ]; then
+              DECLENCHE_LE=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)
+              python -m pip install playwright==1.65.2
+              exec python video/quotidien.py --creneau "$CRENEAU" --declenche-le "$DECLENCHE_LE" \
+                --sortie video/sortie/video-du-jour.mp4
+            fi
+          fi
           if [ "$EVENEMENT" = "schedule" ] || [ "$PUBLIER" = "true" ]; then ARGS+=(--publier); fi
           if [ -n "$FORMAT" ] && [ "$FORMAT" != "planning" ]; then ARGS+=(--format "$FORMAT"); fi
           if [ -n "$CRENEAU" ]; then ARGS+=(--creneau "$CRENEAU"); fi
@@ -75,4 +95,14 @@ jobs:
           name: video-du-jour
           path: video/sortie/video-du-jour.mp4
           retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Conserver les références des publications pour les statistiques
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: references-publication
+          path: video/sortie/*.publications.json
+          retention-days: 60
           if-no-files-found: ignore

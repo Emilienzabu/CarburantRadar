@@ -1,0 +1,98 @@
+name: Aperçu vitrine mobile
+
+on:
+  push:
+    branches: [codex/vitrine-captures-mobiles, codex/animations-vitrine-beige]
+    paths: [video/**, workers/video-automation/**, .github/workflows/apercu-vitrine.yml, .github/workflows/video-du-jour.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apercu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Installer FFmpeg et Chromium mobile
+        timeout-minutes: 12
+        run: |
+          set -e
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            dossier="$RUNNER_TEMP/ffmpeg"
+            mkdir -p "$dossier"
+            version=ffmpeg-n9.0.2-62-gac1c6e003f-linux64-gpl-9.0
+            url="https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-23-12-43/$version.tar.xz"
+            archive="$dossier/ffmpeg.tar.xz"
+            if curl --fail --location --silent --show-error --retry 2 --max-time 180 "$url" -o "$archive"; then
+              printf '%s  %s\n' 17cf42701de208afbf8de9ae4cd016122c875d95beedc6c4b37894d35a523063 "$archive" | sha256sum --check
+              tar -xJf "$archive" -C "$dossier" --strip-components=2 "$version/bin/ffmpeg" "$version/bin/ffprobe"
+              printf '%s\n' "$dossier" >> "$GITHUB_PATH"
+            else
+              sudo apt-get update -y
+              sudo apt-get install -y --no-install-recommends ffmpeg
+            fi
+          fi
+          pip install -r video/requirements.txt playwright==1.65.2 edge-tts==7.3.1
+          python -m playwright install chromium
+          if ! python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.chromium.launch(); b.close(); p.stop()'; then
+            python -m playwright install --with-deps chromium
+          fi
+
+      - name: Tester le générateur
+        run: python -m unittest discover -s video/tests
+
+      - name: Préparer deux sujets avec le flux officiel et l’historique
+        shell: bash
+        run: |
+          mkdir -p video/sortie
+          python video/planning_quotidien.py | tee video/sortie/planning.json
+
+      - name: Tester le registre Cloudflare et les relevés concurrents
+        run: node --test video/cloudflare/statistiques.test.mjs
+
+      - name: Tester le Worker anti-doublon avec des plateformes simulées
+        run: node --test workers/video-automation/test/*.test.mjs
+
+      - name: Capturer le site réel
+        run: python video/capture_vitrine.py --sortie video/sortie/captures
+
+      - name: Générer et contrôler l’aperçu
+        shell: bash
+        run: |
+          python video/generate_video.py --format vitrine --captures-mobiles video/sortie/captures \
+            --sortie video/sortie/apercu-vitrine.mp4 | tee video/sortie/generation.log
+          grep -q '^Voix : fr-FR-RemyMultilingualNeural$' video/sortie/generation.log
+          python video/diagnostic_vitrine.py video/sortie/apercu-vitrine.mp4 \
+            --captures-mobiles video/sortie/captures | tee video/sortie/diagnostic.txt
+
+      - name: Générer les pilotes beige
+        run: |
+          for scenario in detour rayon analyse carte; do
+            python video/pilotes_beige.py "$scenario" --captures-mobiles video/sortie/captures \
+              --sortie "video/sortie/pilote-$scenario.mp4"
+          done
+
+      - name: Rendre les deux sujets sélectionnés par le planning
+        run: >-
+          python video/rendre_planning.py video/sortie/planning.json
+          --captures-mobiles video/sortie/captures --sortie video/sortie/quotidien
+
+      - name: Garder l’aperçu et les captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apercu-vitrine-mobile
+          path: video/sortie/
+          retention-days: 14
+          if-no-files-found: warn
