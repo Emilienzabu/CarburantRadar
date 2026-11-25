@@ -96,9 +96,6 @@ class ApkCoherence(unittest.TestCase):
         declared = [s["target"]["package_name"] for s in self._statements()]
         self.assertIn(pkg, declared)
 
-    # ATTENDU EN ECHEC tant que l'APK n'est pas reconstruit pour carburantradar.fr.
-    # Retirer le décorateur une fois le nouvel APK publié.
-    @unittest.expectedFailure
     def test_apk_cible_le_domaine_personnalise(self):
         _, v = self._apk_resources()
         d = domain()
