@@ -1197,7 +1197,7 @@ function fermerOnboarding(sansTuto){
 }
 function onboardingOuvrirCompte(mode){
   fermerOnboarding(true);
-  openMenu();
+  openMenu('compte');
   document.getElementById('compteAcc').classList.add('open');
   document.getElementById('compteAccArrow').classList.add('open');
   basculerModeCompte(mode);
@@ -1767,7 +1767,10 @@ function activateAlert(){
   crAlertBusy(false);
   document.getElementById('alertModal').classList.add('on');
 }
-function closeAlertModal(){document.getElementById('alertModal').classList.remove('on');document.getElementById('alertToggle').checked=false;}
+function closeAlertModal(){
+  document.getElementById('alertModal').classList.remove('on');
+  updateAlertUI();
+}
 function crAlertFeedback(message, isError){
   var el=document.getElementById('crAlertFeedback');
   if(!el){el=document.createElement('div');el.id='crAlertFeedback';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='font-size:13px;line-height:1.45;margin:10px 0;padding:10px;border-radius:9px;';var row=document.querySelector('#alertModal .modal-row');if(row)row.parentNode.insertBefore(el,row);}
@@ -3197,7 +3200,7 @@ function ouvrirInfoDepuisMenu(name){closeMenu();showPage(name);retourVersMenu=tr
 function retourInfo(){
   var versMenu=retourVersMenu;retourVersMenu=false;
   showPage(pageAvantInfo||'radar');
-  if(versMenu){openMenu();switchMenuTab('infos');}
+  if(versMenu)openMenu('infos');
 }
 /* Bouton de téléchargement de l'app (fenêtre d'accueil) : visible tant que l'app n'est pas installée */
 if(!estEnModeStandalone()){var bo=document.getElementById('btnOnboardingInstall');if(bo)bo.style.display='block';}
@@ -3578,16 +3581,26 @@ function init(){
  var current='',sub='';function setHead(t,back){document.getElementById('crV07Title').textContent=t;document.getElementById('crV07Back').style.display=back?'':'none'}
  function home(){current='';sub='';side.classList.remove('cr-v07-detail');setHead('Menu',false)}
  function section(key){current=key;sub='';clearDetail();setHead(items.find(function(x){return x[0]===key})[1],true);side.classList.add('cr-v07-detail');detail.scrollTop=0;
-  if(key==='alertes'){var holder=document.createElement('div');holder.className='cr-v07-section';(groups.compte||[]).filter(function(g){return !!g.querySelector('#alertAcc')}).forEach(function(g){holder.append(g)});detail.append(holder);var btn=row('Configurer les alertes','⚙',function(){if(typeof openAlertModal==='function')openAlertModal();else {var m=document.getElementById('alertModal');if(m)m.classList.add('on')}});detail.append(btn);return}
+  if(key==='alertes'){
+    var holder=document.createElement('div');
+    holder.className='cr-v07-section';
+    (groups.compte||[]).filter(function(g){return !!g.querySelector('#alertAcc')}).forEach(function(g){holder.append(g)});
+    detail.append(holder,row('Configurer les alertes','⚙',activateAlert));
+    return;
+  }
   var gs=(groups[key]||[]).filter(function(g){return !g.querySelector('#alertAcc')});if(key==='compte'){gs.forEach(function(g){var h=document.createElement('div');h.className='cr-v07-section';h.append(g);detail.append(h)});return}
   if(key==='perso'){gs.forEach(function(g){var h=document.createElement('div');h.className='cr-v07-section';h.append(g);detail.append(h)});return}
   gs.forEach(function(g){var accs=Array.from(g.querySelectorAll(':scope > .acc-header'));if(accs.length){accs.forEach(function(a){var body=a.nextElementSibling;detail.append(row(a.querySelector('.acc-title')?.textContent.trim()||'Rubrique','•',function(){sub=a.querySelector('.acc-title')?.textContent.trim()||'Rubrique';clearDetail();openedSub={a:a,body:body};var h=document.createElement('div');h.className='cr-v07-section';h.append(body);detail.append(h);setHead(sub,true)}))})}else{var h=document.createElement('div');h.className='cr-v07-section';h.append(g);detail.append(h)}})
  }
  items.forEach(function(x){main.append(row(x[1],x[2],function(){section(x[0])}))});var install=row('Télécharger l’application','↓',function(){if(typeof installerApp==='function')installerApp()});install.id='crV07Install';install.style.marginTop='0';main.append(install);
  document.getElementById('crV07Back').onclick=function(){if(sub){section(current)}else home()};document.getElementById('crV07Close').onclick=function(){closeMenu()};
- var oldOpen=window.openMenu;window.openMenu=function(){if(oldOpen)oldOpen();home();install.style.display=typeof estEnModeStandalone==='function'&&estEnModeStandalone()?'none':''};
+ var oldOpen=window.openMenu;window.openMenu=function(key){
+   if(oldOpen)oldOpen();
+   if(key)section(key);else home();
+   install.style.display=typeof estEnModeStandalone==='function'&&estEnModeStandalone()?'none':'';
+ };
  var oldClose=window.closeMenu;window.closeMenu=function(){if(oldClose)oldClose();home()};
- window.crOpenAlertSettings=function(){window.openMenu();section('alertes')};
+ window.crOpenAlertSettings=function(){window.openMenu('alertes')};
  document.querySelectorAll('.nav-bar .nav-btn').forEach(function(b){b.addEventListener('click',function(){if(side.classList.contains('on'))window.closeMenu()},true)});
  function mapHeight(){var nav=document.querySelector('.nav-bar'),head=document.querySelector('header');if(!nav||!head)return;var h=Math.max(150,Math.round(window.innerHeight-head.getBoundingClientRect().bottom));document.documentElement.style.setProperty('--cr-v07-map-height',h+'px');if(window.map&&typeof map.invalidateSize==='function')setTimeout(function(){map.invalidateSize()},80)}
  window.addEventListener('resize',mapHeight);if(window.ResizeObserver){new ResizeObserver(mapHeight).observe(document.querySelector('.nav-bar'))}setTimeout(mapHeight,80);
