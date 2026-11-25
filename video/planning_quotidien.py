@@ -12,11 +12,12 @@ RACINE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RACINE))
 
 from generator import data_fr
+from generator.communes_auto import discover, previous_slugs
 from generator.geo import haversine, norm_name, same_commune, slugify
 
 from comparaisons import comparer
 from donnees import ASTUCES, MAX_AGE_JOURS
-from planning_editorial import CARBURANTS, SCENARIOS_APP, Sujet, choisir
+from planning_editorial import CARBURANTS, SCENARIOS_APP, Sujet, choisir, identite_commune
 
 RAYON_HOMONYMES_KM = 15
 PROJETS_APP = tuple(Sujet(fiche[0], sujet=nom) for nom, fiche in SCENARIOS_APP.items())
@@ -33,24 +34,24 @@ def fiches_communes(villes, stations, maintenant):
     fin = maintenant + timedelta(hours=1)
     for ville in villes:
         nom = norm_name(ville["nom"])
+        membres = ville.get("_members")
+        if membres is None:
+            membres = (s for commune, groupe in groupes.items() if same_commune(commune, nom) for s in groupe)
         prix = defaultdict(dict)
-        for commune, membres in groupes.items():
-            if not same_commune(commune, nom):
+        for s in membres:
+            distance = haversine(ville["lat"], ville["lon"], s["lat"], s["lon"])
+            if not s["adr"] or not distance <= RAYON_HOMONYMES_KM:
                 continue
-            for s in membres:
-                distance = haversine(ville["lat"], ville["lon"], s["lat"], s["lon"])
-                if not distance <= RAYON_HOMONYMES_KM:
+            adresse = f"{s['adr']}, {s['cp']} {s['ville']}".strip()
+            for carburant in s["dispo"]:
+                valeur = s["p"].get(carburant)
+                maj = data_fr.parse_ts(s["m"].get(carburant))
+                if valeur is None or maj is None or not debut <= maj <= fin:
                     continue
-                adresse = f"{s['adr']}, {s['cp']} {s['ville']}".strip()
-                for carburant in s["dispo"]:
-                    valeur = s["p"].get(carburant)
-                    maj = data_fr.parse_ts(s["m"].get(carburant))
-                    if valeur is None or maj is None or not debut <= maj <= fin:
-                        continue
-                    cle = s["id"] or adresse.casefold()
-                    precedent = prix[carburant].get(cle)
-                    if precedent is None or maj > precedent[0]:
-                        prix[carburant][cle] = (maj, valeur, adresse)
+                cle = s["id"] or adresse.casefold()
+                precedent = prix[carburant].get(cle)
+                if precedent is None or maj > precedent[0]:
+                    prix[carburant][cle] = (maj, valeur, adresse)
         for carburant in CARBURANTS:
             stations_valides = prix[carburant].values()
             if len(stations_valides) >= 2:
@@ -71,7 +72,7 @@ def fiches_comparaisons(historique, jour, villes_utilisees):
     jours = historique["days"]
     for carburant in CARBURANTS:
         villes = sorted(v for v, donnees in jours[derniere].items()
-                        if v not in villes_utilisees and carburant in donnees
+                        if identite_commune(v) not in villes_utilisees and carburant in donnees
                         and donnees[carburant][0] == "c" and donnees[carburant][1] >= 2)
         paires = [((a, derniere), (b, derniere)) for a, b in zip(villes, villes[1:])]
         if precedente:
@@ -88,8 +89,9 @@ def fiches_comparaisons(historique, jour, villes_utilisees):
 def planifier(jour, villes, stations, historique_prix, publications, maintenant):
     """Renvoie uniquement les sujets encore disponibles pour ce jour."""
     publications = list(publications)
-    villes_utilisees = {v for _, sujet in publications for v in sujet.villes}
-    communes = fiches_communes((v for v in villes if v["slug"] not in villes_utilisees), stations, maintenant)
+    villes_utilisees = {identite_commune(v) for _, sujet in publications for v in sujet.villes}
+    communes = fiches_communes((v for v in villes if identite_commune(v["slug"]) not in villes_utilisees),
+                               stations, maintenant)
     sujets = dict(communes)
     sujets.update((Sujet("astuce", sujet=a["titre"]), a) for a in ASTUCES if not a.get("app_uniquement"))
     sujets.update((s, {"scenario": s.sujet}) for s in PROJETS_APP)
@@ -135,10 +137,12 @@ def preparer(jour, lignes, maintenant, historique_prix=RACINE / "france/prix-car
     publications, occupes = historique_editorial(lignes, jour)
     if len(occupes) == len(CRENEAUX):
         return []
-    villes = json.loads((RACINE / "generator/villes.json").read_text(encoding="utf-8"))["villes"]
-    villes = (v for v in villes if v["pays"] == "france")
+    catalogue = json.loads((RACINE / "generator/villes.json").read_text(encoding="utf-8"))["villes"]
+    villes = [v for v in catalogue if v["pays"] == "france"]
+    pages = json.loads((RACINE / "generator/generated_pages.json").read_text(encoding="utf-8"))
     historique = json.loads(historique_prix.read_text(encoding="utf-8"))
     releves, _ = data_fr.load(stations)
+    villes += discover(releves, villes, previous_slugs(pages))
     plan = planifier(jour, villes, releves, historique, publications, maintenant)
     for creneau, sujet in zip((c for c in CRENEAUX if c not in occupes), plan):
         sujet["creneau"] = creneau

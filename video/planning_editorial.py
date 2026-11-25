@@ -1,4 +1,5 @@
 """Planification éditoriale indépendante du workflow de publication."""
+import re
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date
@@ -26,11 +27,16 @@ class Sujet:
     sujet: str | None = None
 
 
+def identite_commune(slug):
+    """Un suffixe départemental peut apparaître quand le flux découvre un homonyme."""
+    return re.sub(r"-(?:\d{2,3}|2[ab])$", "", slug)
+
+
 def choisir(jour: date, candidats, historique):
     """Renvoie jusqu'à deux sujets supplémentaires. L'ordre des candidats tranche les égalités."""
     historique = list(historique)
     mois = Counter(s.categorie for d, s in historique if (d.year, d.month) == (jour.year, jour.month))
-    villes = {ville for _, s in historique for ville in s.villes}
+    villes = {identite_commune(ville) for _, s in historique for ville in s.villes}
     sujets = {(s.categorie, s.sujet) for _, s in historique if s.sujet}
     carburants = Counter((s.categorie, s.carburant) for _, s in historique if s.carburant)
     retenus = []
@@ -39,8 +45,8 @@ def choisir(jour: date, candidats, historique):
     for _ in range(max(0, 2 - sum(d == jour for d, _ in historique))):
         eligibles = [s for s in candidats if s.categorie in CATEGORIES
                      and len(s.villes) == LOCALES.get(s.categorie, 0)
-                     and len(set(s.villes)) == len(s.villes)
-                     and all(v and v not in villes for v in s.villes)
+                     and len({identite_commune(v) for v in s.villes}) == len(s.villes)
+                     and all(v and identite_commune(v) not in villes for v in s.villes)
                      and (s.carburant in CARBURANTS if s.villes else s.carburant in (*CARBURANTS, None))
                      and (s.categorie == "ville_du_jour" or mois[s.categorie] < 2)
                      and (s.categorie in LOCALES or (s.sujet and (s.categorie, s.sujet) not in sujets))]
@@ -52,7 +58,7 @@ def choisir(jour: date, candidats, historique):
                 key=lambda s: carburants[s.categorie, s.carburant])
         retenus.append(s)
         selection_du_jour.append(s)
-        villes.update(s.villes)
+        villes.update(map(identite_commune, s.villes))
         sujets.add((s.categorie, s.sujet))
         mois[s.categorie] += 1
         carburants[s.categorie, s.carburant] += 1

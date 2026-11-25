@@ -3,8 +3,12 @@ import math
 import re
 from collections import Counter, defaultdict
 
-from geo import haversine, norm_name, same_commune, slugify
-from data_fr import FUELS
+if __package__:
+    from .data_fr import FUELS
+    from .geo import haversine, norm_name, same_commune, slugify
+else:
+    from data_fr import FUELS
+    from geo import haversine, norm_name, same_commune, slugify
 
 RADIUS_KM = 12          # même rayon que le bloc « en direct » de la page (dist=12 côté Worker)
 COMMUNE_KM = 15         # garde-fou contre les homonymes lointains

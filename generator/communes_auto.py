@@ -13,8 +13,12 @@ Règles de stabilité des URLs :
 import re
 from collections import Counter, defaultdict
 
-import stats_fr as S
-from geo import haversine, norm_name, slugify
+if __package__:
+    from . import stats_fr as S
+    from .geo import haversine, norm_name, slugify
+else:
+    import stats_fr as S
+    from geo import haversine, norm_name, slugify
 
 AUTO_MIN_STATIONS = 6    # stations avec au moins un prix dans la commune pour créer une nouvelle page
 AUTO_KEEP_STATIONS = 4   # seuil pour conserver une page déjà publiée

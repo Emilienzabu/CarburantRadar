@@ -3,12 +3,13 @@ import sys
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 VIDEO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(VIDEO))
 
 from planning_editorial import Sujet, choisir
-from planning_quotidien import fiches_communes, fiches_comparaisons, historique_editorial, planifier
+from planning_quotidien import fiches_communes, fiches_comparaisons, historique_editorial, planifier, preparer
 
 
 JOUR = date(2026, 11, 24)
@@ -47,6 +48,23 @@ class PlanQuotidien(unittest.TestCase):
         fiches = list(fiches_comparaisons(archive, jour, set()))
         self.assertEqual({s.categorie for s, _ in fiches}, {"ville_contre_ville", "ville_avant_maintenant"})
         self.assertGreater(len({s.carburant for s, _ in fiches}), 1)
+
+    def test_commune_decouverte_avec_des_stations_du_meme_departement(self):
+        releves = []
+        for dep, tailles in (("69", 6), ("38", 1)):
+            for i in range(tailles):
+                s = station(f"{dep}{i}", 1.65 if dep == "69" else 1.2, ville="VILLE ESSAI")
+                s["dep_code"] = dep
+                s["p"]["sp98"] = 1.8
+                releves.append(s)
+        with patch("planning_quotidien.data_fr.load", return_value=(releves, INSTANT)):
+            plan = preparer(JOUR, [], INSTANT)
+            ville = next(s for s in plan if s["categorie"] == "ville_du_jour")
+            self.assertEqual(ville["villes"], ("ville-essai-69",))
+            self.assertEqual(ville["donnees"]["prix_litre"], 1.65)
+            deja = {"id_video": "2026-10-24:matin", "categorie": "ville_du_jour",
+                    "villes": ["ville-essai"], "carburant": "e10"}
+            self.assertNotIn("ville_du_jour", {s["categorie"] for s in preparer(JOUR, [deja], INSTANT)})
 
     def test_plafond_comparaison_sauf_ville_du_jour(self):
         passe = [(date(2026, 11, i), Sujet("ville_contre_ville", (f"a{i}", f"b{i}"), "sp98"))
