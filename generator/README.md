@@ -12,7 +12,7 @@ Un seul point d'entrée : `python3 generate.py` (à la racine du dépôt). Il pr
 | Hubs | `/france/prix-carburant/`, `/espagne/precio-carburante/`, `/italie/prezzo-carburante/` | listes de villes (maillage depuis l'accueil) |
 | Espagne / Italie (206 villes) | inchangées | ancien template (`template.html`), octet pour octet |
 
-Sortie annexe : `sitemap_2.xml` (uniquement les pages indexables), `sitemap_1.xml` (copie de compatibilité),
+Sortie annexe : `sitemap_2.xml` (uniquement les pages indexables),
 `robots.txt` (annonce `sitemap_2.xml`), `SEO_REPORT.md`,
 `generator/generated_pages.json` (liste des pages écrites, sert à supprimer celles qui ne sont plus générées).
 
