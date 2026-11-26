@@ -7,8 +7,11 @@ import sys
 from collections import Counter, defaultdict
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
+from xml.etree import ElementTree as ET
 
 SITE_URL = "https://carburantradar.fr"
+SITEMAP_FILES = ("sitemap_1.xml", "sitemap_2.xml")
+SITEMAP_NS = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 LEGACY = {"/", "/france/", "/espagne/", "/italie/", "/guide/"}
 SKIP_DIRS = {".git", ".github", "admin", "icons", "node_modules", "generator"}
 MIN_WORDS = 250
@@ -168,6 +171,23 @@ def target_exists(root, path):
     return False
 
 
+def sitemap_entries(root, name, errors):
+    try:
+        tree = ET.parse(os.path.join(root, name)).getroot()
+    except (OSError, ET.ParseError) as exc:
+        errors.append(f"{name} : lecture impossible ({exc})")
+        return []
+    if tree.tag != f"{SITEMAP_NS}urlset":
+        errors.append(f"{name} : racine XML inattendue ({tree.tag})")
+        return []
+    entries = [(node.findtext(f"{SITEMAP_NS}loc", "").strip(),
+                node.findtext(f"{SITEMAP_NS}lastmod", "").strip())
+               for node in tree.findall(f"{SITEMAP_NS}url")]
+    if not entries or any(not url for url, _ in entries):
+        errors.append(f"{name} : URL manquante")
+    return entries
+
+
 def audit(root, generated_check=True):
     errors, warns = [], []
     pages = {}
@@ -276,18 +296,17 @@ def audit(root, generated_check=True):
                    "jsonld_types": sorted({(json.loads(j).get("@type") if j.strip().startswith("{") else "?") for j in pg.jsonld if _ok(j)})}
 
     # sitemap
-    sm_urls = []
-    smp = os.path.join(root, "sitemap_1.xml")
-    if not os.path.isfile(smp):
-        errors.append("sitemap_1.xml introuvable")
-    else:
-        sm_urls = re.findall(r"<loc>([^<]+)</loc>", open(smp, encoding="utf-8").read())
+    first, second = [sitemap_entries(root, name, errors) for name in SITEMAP_FILES]
+    if Counter(first) != Counter(second):
+        errors.append("sitemap_1.xml et sitemap_2.xml : URL ou dates différentes")
+    sm_urls = [url for url, _ in second]
+    if sm_urls:
         dup = [u for u, n in Counter(sm_urls).items() if n > 1]
         for u in dup:
             errors.append(f"sitemap : URL en double {u}")
         sm_paths = set()
         for u in sm_urls:
-            if not u.startswith(SITE_URL):
+            if not u.startswith(SITE_URL + "/"):
                 errors.append(f"sitemap : URL hors site {u}")
                 continue
             path = u[len(SITE_URL):] or "/"
@@ -304,11 +323,16 @@ def audit(root, generated_check=True):
 
     # robots.txt
     rp = os.path.join(root, "robots.txt")
+    sitemap_url = f"{SITE_URL}/{SITEMAP_FILES[-1]}"
     if os.path.isfile(rp):
         m = re.findall(r"(?im)^sitemap:\s*(\S+)", open(rp, encoding="utf-8").read())
+        if sitemap_url not in m:
+            errors.append(f"robots.txt : {sitemap_url} absent")
         for u in m:
-            if not u.startswith(SITE_URL) or not target_exists(root, u[len(SITE_URL):]):
+            if not u.startswith(SITE_URL + "/") or not target_exists(root, u[len(SITE_URL):]):
                 errors.append(f"robots.txt : Sitemap inexistant {u}")
+    else:
+        errors.append("robots.txt introuvable")
 
     # unicité
     for key, sev in (("title", errors), ("canonical", errors), ("desc", warns), ("h1", warns)):
