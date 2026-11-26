@@ -1,6 +1,6 @@
 # SEO_REPORT — pages générées
 
-Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 26/11/2026 16:39 UTC. Rapport déterministe (aucun horodatage de génération).
+Données : jeu officiel « Prix des carburants en France — flux instantané v2 », dernière mise à jour de prix enregistrée : 26/11/2026 17:08 UTC. Rapport déterministe (aucun horodatage de génération).
 
 ## Volumétrie
 
@@ -26,7 +26,8 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 ## Espagne (pages enrichies)
 
-- **Source indisponible : 104 pages indexables de la veille réutilisées** : RuntimeError: RuntimeError: Téléchargement impossible (<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1011)>) ; provinces en échec : ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52'] ; cache indisponible (https://carburantradar.fr/donnees/espagne-precios.json.gz : HTTP Error 404: Not Found)
+- **Source indisponible, pages historiques conservées** : RuntimeError: RuntimeError: Téléchargement impossible (<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1011)>) ; provinces en échec : ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52'] ; cache indisponible (https://carburantradar.fr/donnees/espagne-precios.json.gz : HTTP Error 404: Not Found)
+- Diagnostic : {'national_error': '<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1011)>', 'provinces_failed': ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52']}
 
 ## Italie (pages enrichies)
 
@@ -88,7 +89,7 @@ Données : jeu officiel « Prix des carburants en France — flux instantané v2
 
 - Pages villes : contenu unique moyen 51 % (min 42 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 - Pages ville + carburant : contenu unique moyen 34 % (min 20 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
-- Pages départements / régions : contenu unique moyen 45 % (min 32 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
+- Pages départements / régions : contenu unique moyen 45 % (min 33 %) ; paires quasi identiques (Jaccard ≥ 0.5) : 0
 
 ## Validation
 
