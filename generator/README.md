@@ -12,7 +12,8 @@ Un seul point d'entrée : `python3 generate.py` (à la racine du dépôt). Il pr
 | Hubs | `/france/prix-carburant/`, `/espagne/precio-carburante/`, `/italie/prezzo-carburante/` | listes de villes (maillage depuis l'accueil) |
 | Espagne / Italie (206 villes) | inchangées | ancien template (`template.html`), octet pour octet |
 
-Sortie annexe : `sitemap_1.xml` (uniquement les pages indexables), `robots.txt` (ligne Sitemap), `SEO_REPORT.md`,
+Sortie annexe : `sitemap_2.xml` (uniquement les pages indexables), `sitemap_1.xml` (copie de compatibilité),
+`robots.txt` (annonce `sitemap_2.xml`), `SEO_REPORT.md`,
 `generator/generated_pages.json` (liste des pages écrites, sert à supprimer celles qui ne sont plus générées).
 
 ## Données (aucune donnée inventée)
@@ -52,5 +53,9 @@ l'Action régénère tout. Les textes communs par pays sont dans la section `"pa
 
 ## GitHub Actions
 
-`.github/workflows/generate-city-pages.yml` : au push sur `generator/**`, chaque jour à 05:30 UTC, ou à la demande
-(`Run workflow`). Elle génère, valide (échec si erreur), puis commit les pages.
+Dans Settings → Pages → Build and deployment, la source doit être **GitHub Actions**. La publication directe
+depuis `main` sert les anciens fichiers du dépôt et peut remplacer une publication issue du générateur.
+
+`.github/workflows/generate-city-pages.yml` génère et vérifie le site à chaque push sur `main`, tous les jours
+à 05:30 UTC et à la demande (`Run workflow`). Elle publie les fichiers validés, puis enregistre l’historique,
+le manifeste et le rapport dans `main`. Les PR du générateur exécutent la vérification en lecture seule.
