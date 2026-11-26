@@ -1,5 +1,5 @@
-const operationRoutes = new Set(['/unlock-trip', '/alerts/add', '/alerts/renew', '/alerts/remove']);
-const routes = new Set(['/status', '/claim', '/preview', '/redeem', '/issue', '/checkout', '/portal', '/stripe/webhook', '/unlock-analysis', ...operationRoutes]);
+const operationRoutes = new Set(['/trip', '/alerts/add', '/alerts/renew', '/alerts/remove']);
+const routes = new Set(['/status', '/claim', '/preview', '/redeem', '/issue', '/checkout', '/portal', '/stripe/webhook', '/analysis', ...operationRoutes]);
 
 export async function forwardPlus(request, env, headers, authenticate, isAdmin) {
   const action = new URL(request.url).pathname.slice('/plus'.length);
@@ -40,10 +40,18 @@ export async function forwardPlus(request, env, headers, authenticate, isAdmin) 
       if (body?.plan !== 'month' && body?.plan !== 'year') return fail('plan_invalid', 400);
       payload.plan = body.plan;
     }
-    if (operationRoutes.has(action)) {
+    if (operationRoutes.has(action) || action === '/analysis') {
       const body = await request.json().catch(() => null);
-      if (typeof body?.id !== 'string' || body.id.length !== 36) return fail('operation_invalid', 400);
-      payload.id = body.id;
+      if (operationRoutes.has(action)) {
+        if (typeof body?.id !== 'string' || body.id.length !== 36) return fail('operation_invalid', 400);
+        payload.id = body.id;
+      }
+      if (action === '/trip' || action === '/analysis') {
+        payload.confirm = body?.confirm === true;
+        const params = body?.params;
+        if (!params || JSON.stringify(params).length > 512) return fail('advanced_input_invalid', 400);
+        payload.params = params;
+      }
       if (action === '/alerts/add') payload.settings = body.settings;
     }
   }
@@ -51,7 +59,7 @@ export async function forwardPlus(request, env, headers, authenticate, isAdmin) 
     const result = await env.PLUS.fetch('https://plus.internal' + action, {
       method: 'POST', headers: forwardedHeaders, body: action === '/stripe/webhook' ? payload : JSON.stringify(payload),
     });
-    if (result.status >= 500) return fail('plus_unavailable', 503);
+    if (result.status >= 500 && action !== '/analysis' && action !== '/trip') return fail('plus_unavailable', 503);
     return new Response(result.body, {status: result.status, headers: responseHeaders});
   } catch {
     return fail('plus_unavailable', 503);

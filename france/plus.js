@@ -89,6 +89,9 @@
       extra_alert_limit: 'Ton compte a atteint la limite d’alertes supplémentaires.',
       extra_alert_duplicate: 'Une alerte identique existe déjà.',
       extra_alert_missing: 'Cette alerte a déjà été supprimée.',
+      advanced_no_data: 'Pas assez de données pour afficher ce résultat. Aucun crédit débité.',
+      advanced_service_unavailable: 'Les données sont indisponibles. Aucun crédit débité.',
+      advanced_in_progress: 'Un calcul détaillé est déjà en cours.',
     };
     let busy = false;
     let checked = '';
@@ -106,7 +109,8 @@
       plans.forEach(button => { button.hidden = plus.active || !data.billing?.canCheckout; });
       analysisState = data.analysis ? {token: getToken(), expires: data.analysis.expires,
         plusUntil: plus.until, lifetime: plus.lifetime} : null;
-      unlock.hidden = !analysisState || hasDetailedAnalysis();
+      unlock.hidden = !pendingPeriod || !analysisState;
+      unlock.textContent = hasDetailedAnalysis() ? 'Afficher l’analyse détaillée' : 'Débloquer l’analyse détaillée pour 24 h · 1 crédit';
       alertSection.hidden = !Array.isArray(data.alerts);
       if (!alertSection.hidden) renderAlerts(data.alerts, plus.active);
     }
@@ -115,12 +119,12 @@
       return new Intl.DateTimeFormat('fr-FR', {dateStyle: 'long', timeZone: 'Europe/Paris'}).format(timestamp);
     }
 
-    async function requestPlus(action, token, data = {}) {
+    async function requestPlus(action, token, data = {}, timeout = 10000) {
         const response = await fetch(PROXY + '/plus/' + action, {
           method: 'POST',
           headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token},
           body: JSON.stringify(data),
-          signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(timeout),
         });
         const payload = await response.json();
       if (!response.ok) throw Object.assign(new Error(payload.error), {status: response.status});
@@ -139,7 +143,7 @@
       dialog.setAttribute('aria-busy', 'true');
       message.textContent = '';
       try {
-        const payload = await requestPlus(action, token, data);
+        const payload = await requestPlus(action, token, data, action === 'analysis' ? 35000 : 10000);
         if (token !== getToken() || !dialog.open) return null;
         return payload;
       } catch (error) {
@@ -307,6 +311,20 @@
       }
     });
 
+    function showTripResult(section, result) {
+      const title = document.createElement('h3');
+      title.textContent = 'Comparaison de ' + result.verified + ' stations vérifiées';
+      section.replaceChildren(title);
+      for (const {label, station} of result.choices) {
+        const row = document.createElement('p');
+        row.textContent = label + ' · ' + (station.address || station.city) + ' · ' +
+          station.total.toFixed(2) + ' € au total · ' + station.price.toFixed(3) + ' €/L · +' +
+          Math.round(station.minutes) + ' min';
+        section.append(row);
+      }
+      section.hidden = false;
+    }
+
     const renderAlternatives = window.crTripRenderAlternatives;
     window.crTripRenderAlternatives = function (candidates) {
       renderAlternatives(candidates);
@@ -315,14 +333,15 @@
       document.querySelector('[data-plus-trip-button]')?.remove();
       if (!alternatives || candidates.length < 2 || !token) return;
       if (tripComparison?.run !== crTripRun || tripComparison?.token !== token) {
-        tripComparison = {run: crTripRun, token, id: crypto.randomUUID(), unlocked: false};
+        tripComparison = {run: crTripRun, token, id: crypto.randomUUID()};
       }
       const comparison = tripComparison;
-      if (comparison.unlocked) return;
+      if (comparison.result) return showTripResult(alternatives, comparison.result);
       alternatives.hidden = true;
       requestPlus('status', token).then(state => {
         if (!alternatives.isConnected || comparison.run !== crTripRun || token !== getToken()) return;
-        if (!state.trip || state.plus.active || comparison.unlocked) {
+        if (comparison.result) return showTripResult(alternatives, comparison.result);
+        if (!state.trip) {
           alternatives.hidden = false;
           return;
         }
@@ -330,21 +349,35 @@
         button.type = 'button';
         button.className = 'add-btn';
         button.dataset.plusTripButton = '';
-        button.textContent = 'Comparer les autres stations · 1 crédit';
+        const stateIsPlus = state.plus.active;
+        const caption = stateIsPlus ? 'Comparer les autres stations · inclus dans Plus' : 'Comparer les autres stations · 1 crédit';
+        button.textContent = caption;
         alternatives.before(button);
         button.addEventListener('click', async () => {
           button.disabled = true;
+          button.textContent = 'Comparaison en cours…';
           try {
-            await requestPlus('unlock-trip', token, {id: comparison.id});
+            const vehicle = radarVehicleConfig();
+            if (!vehicle) throw new Error('vehicle');
+            comparison.params ||= {origin: {lat: la, lon: lo},
+              destination: {lat: trajetDestLat, lon: trajetDestLon}, fuel: crFuelForActive(), ...vehicle};
+            const state = await requestPlus('trip', token, {id: comparison.id, confirm: !stateIsPlus,
+              params: comparison.params}, 42000);
             if (token !== getToken() || comparison.run !== crTripRun) return;
-            comparison.unlocked = true;
+            comparison.result = state.result;
             const currentAlternatives = document.getElementById('crTripAlternatives');
-            if (currentAlternatives) currentAlternatives.hidden = false;
+            if (currentAlternatives) showTripResult(currentAlternatives, state.result);
             document.querySelector('[data-plus-trip-button]')?.remove();
             button.remove();
           } catch (error) {
-            button.textContent = error.message === 'credits_insufficient'
-              ? 'Il te faut 1 crédit pour comparer' : 'Réessayer la comparaison · 1 crédit';
+            button.textContent = caption;
+            const notice = document.createElement('p');
+            notice.setAttribute('role', 'status');
+            notice.dataset.plusTripButton = '';
+            notice.textContent = error.message === 'vehicle' ? 'Configure ton véhicule pour comparer.'
+              : errors[error.message] || 'La comparaison est indisponible.';
+            button.before(notice);
+            button.addEventListener('click', () => notice.remove(), {once: true});
             button.disabled = false;
           }
         });
@@ -359,33 +392,64 @@
       return analysisState?.token === getToken() &&
         (analysisState.lifetime || analysisState.expires > Date.now() || analysisState.plusUntil > Date.now());
     }
-    const setPeriod = window.setPeriodeItem;
-    if (typeof setPeriod === 'function') window.setPeriodeItem = async function (id, period) {
+    function showAnalysisError(message) {
+      const target = document.getElementById('analyseLoading');
+      if (target) target.textContent = message;
+    }
+
+    function showAnalysis(result, params) {
+      if (params.stationId === null) afficherResultatZone(result.dates, result.average, params.period);
+      else afficherResultatStation(result.dates, result.prices, result.average, params.period, {rang: null, total: 0});
+    }
+
+    function protectAnalysis(original, args, params, req) {
       const token = getToken();
-      if (period <= 7 || !token || hasDetailedAnalysis()) return setPeriod(id, period);
-      let state;
-      try {
-        state = await requestPlus('status', token);
-      } catch {
-        if (analysisState?.token !== token) return setPeriod(id, period);
-        openMenu();
-        return link.click();
-      }
-      if (token !== getToken() || analyseOpenId !== id) return;
-      showState(state);
-      if (!state.analysis || hasDetailedAnalysis()) return setPeriod(id, period);
-      pendingPeriod = {id, period, token};
-      openMenu();
-      link.click();
+      if (params.period <= 7 || !token) return original(...args);
+      const current = () => token === getToken() && req === analyseReqId;
+      (async () => {
+        try {
+          const state = await requestPlus('status', token);
+          if (!current()) return;
+          if (!state.analysis) return original(...args);
+          showState(state);
+          if (hasDetailedAnalysis()) {
+            const data = await requestPlus('analysis', token, {params}, 35000);
+            if (current()) showAnalysis(data.result, params);
+            return;
+          }
+          pendingPeriod = {params, token, req};
+          openMenu();
+          link.click();
+        } catch (error) {
+          if (!current()) return;
+          if (analysisState?.token !== token) return original(...args);
+          showAnalysisError(errors[error.message] || 'L’analyse détaillée est indisponible.');
+        }
+      })();
+    }
+    const analyzeZone = window.chargerSerieZone;
+    window.chargerSerieZone = function (lat, lon, radius, period, fuel, req) {
+      return protectAnalysis(analyzeZone, arguments, {center: {lat, lon}, radius, period, fuel, stationId: null}, req);
     };
-    dialog.addEventListener('close', () => { pendingPeriod = undefined; });
+    const analyzeStation = window.chargerSerieStation;
+    window.chargerSerieStation = function (station, period, fuel, req) {
+      return protectAnalysis(analyzeStation, arguments, {center: {lat: station.lat, lon: station.lon}, radius: 5,
+        period, fuel, stationId: String(station.id)}, req);
+    };
+    dialog.addEventListener('close', () => {
+      if (pendingPeriod?.req === analyseReqId) showAnalysisError('Sélectionne une période pour afficher le graphique.');
+      pendingPeriod = undefined;
+    });
     unlock.addEventListener('click', async () => {
-      const state = await act('unlock-analysis');
+      const pending = pendingPeriod;
+      if (!pending || pending.token !== getToken()) return;
+      const state = await act('analysis', {params: pending.params, confirm: !hasDetailedAnalysis()});
       if (!state) return;
       showState(state);
       message.textContent = 'Analyse détaillée débloquée pour 24 h.';
-      if (pendingPeriod?.token === getToken() && hasDetailedAnalysis()) {
-        setPeriod(pendingPeriod.id, pendingPeriod.period);
+      if (pending.req === analyseReqId && pending.token === getToken()) {
+        showAnalysis(state.result, pending.params);
+        pendingPeriod = undefined;
         dialog.close();
         closeMenu();
       }

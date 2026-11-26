@@ -78,10 +78,12 @@ export class PlusLedger {
         event TEXT PRIMARY KEY NOT NULL,
         account TEXT NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS trip_receipt (
-        account TEXT NOT NULL, comparison TEXT NOT NULL,
+      CREATE TABLE IF NOT EXISTS trip_result (
+        account TEXT NOT NULL, comparison TEXT NOT NULL, params TEXT NOT NULL,
+        result TEXT NOT NULL, expires INTEGER NOT NULL,
         PRIMARY KEY (account, comparison)
       );
+      CREATE INDEX IF NOT EXISTS trip_result_expiry ON trip_result(expires);
       CREATE TABLE IF NOT EXISTS extra_alert (
         account TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, until INTEGER, removed INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (account, id)
@@ -126,16 +128,27 @@ export class PlusLedger {
     this.sql.exec('UPDATE member SET credits = credits - ? WHERE account = ?', credits, account);
   }
 
-  unlockTrip(account, comparison, now, created) {
+  tripResult(account, comparison, params, now) {
     operationId(comparison);
+    const row = this.row('SELECT * FROM trip_result WHERE account = ? AND comparison = ?', account, comparison);
+    if (!row) return null;
+    if (row.params !== params || row.expires <= now) throw new LedgerError('operation_invalid', 409);
+    return JSON.parse(row.result);
+  }
+
+  saveTripResult(account, comparison, params, result, now, created, confirmed) {
     return this.transaction(() => {
+      const existing = this.tripResult(account, comparison, params, now);
+      if (existing) return existing;
       const state = this.status(account, now, created);
-      if (state.plus.active) return {charged: false};
-      const receipt = this.row('SELECT 1 FROM trip_receipt WHERE account = ? AND comparison = ?', account, comparison);
-      if (receipt) return {charged: false};
-      this.debit(state, account, 1);
-      this.sql.exec('INSERT INTO trip_receipt VALUES (?, ?)', account, comparison);
-      return {charged: true};
+      if (!state.plus.active) {
+        if (!confirmed) throw new LedgerError('confirmation_required', 409);
+        this.debit(state, account, 1);
+      }
+      this.sql.exec('DELETE FROM trip_result WHERE expires <= ?', now);
+      this.sql.exec('INSERT INTO trip_result VALUES (?, ?, ?, ?, ?)',
+        account, comparison, params, JSON.stringify(result), now + 86400000);
+      return result;
     });
   }
 

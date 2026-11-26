@@ -127,25 +127,33 @@ test('le proxy ne fait confiance qu’à la session et contrôle la création de
   });
 });
 
-test('Analyse coûte un crédit par période complète, avec accès inclus pour Plus', async () => {
+test('Analyse renvoie les données côté serveur et débite après un résultat exploitable', async t => {
   const store = ledger();
   const preview = {PLUS_ANALYSIS_PREVIEW: '1'};
-  const call = (path, account, now, env = preview) =>
-    handleRequest(request(path, {account}), store, adminToken, now, env);
-  assert.equal((await call('/unlock-analysis', 'a', start, {})).status, 503);
-  const results = await Promise.all([0, 1].map(() => call('/unlock-analysis', 'a', start)));
-  for (const response of results) {
-    const data = await response.json();
-    assert.equal(data.credits, 4);
-    assert.deepEqual(data.analysis, {unlocked: true, expires: start + 86400000});
-  }
-  assert.equal((await (await call('/status', 'a', start + 86400000)).json()).analysis.unlocked, false);
-  assert.equal((await (await call('/unlock-analysis', 'a', start + 86400000)).json()).credits, 3);
+  const params = {fuel: 'E10', stationId: '75000001', radius: 5, period: 30};
+  let upstream = [];
+  t.mock.method(globalThis, 'fetch', async url => {
+    assert.equal(new URL(url).hostname, 'public.opendatasoft.com');
+    return Response.json({results: upstream});
+  });
+  const call = (account, confirm, now = start, env = preview) =>
+    handleRequest(request('/analysis', {account, params, confirm}), store, adminToken, now, env);
+  assert.equal((await call('a', true, start, {})).status, 503);
+  assert.equal((await call('a', false)).status, 409);
+  assert.equal((await call('a', true)).status, 422);
+  assert.equal(store.status('a', start).credits, 5);
+  upstream = [{date: '2026-11-26', price: 1.8}];
+  const result = await (await call('a', true)).json();
+  assert.equal(result.credits, 4);
+  assert.equal(result.result.prices.at(-1), 1.8);
+  assert.deepEqual(result.analysis, {unlocked: true, expires: start + 86400000});
+  assert.equal((await (await call('a', false)).json()).credits, 4);
+  assert.equal((await call('a', false, start + 86400000)).status, 409);
   const gift = await store.issue({months: 6, maxUses: 1}, start);
   await store.redeem('b', gift.code, start);
-  assert.equal((await (await call('/unlock-analysis', 'b', start)).json()).credits, 5);
-  for (let day = 2; day <= 4; day++) store.unlockAnalysis('a', start + day * 86400000);
-  assert.equal((await call('/unlock-analysis', 'a', start + 5 * 86400000)).status, 409);
+  assert.equal((await (await call('b', false)).json()).credits, 5);
+  for (let day = 1; day <= 4; day++) store.unlockAnalysis('a', start + day * 86400000);
+  assert.equal((await call('a', true, start + 5 * 86400000)).status, 409);
 });
 
 test('une recharge confirmée vaut deux crédits et un identifiant ne compte qu’une fois', async () => {
@@ -161,19 +169,39 @@ test('une recharge confirmée vaut deux crédits et un identifiant ne compte qu�
   assert.deepEqual([granted.rewarded, duplicate.rewarded, wrongAccount.rewarded], [true, false, false]);
 });
 
-test('la comparaison Trajet débite une seule fois après confirmation et reste incluse dans Plus', async () => {
+test('le serveur vérifie les détours, garde le résultat et refuse de débiter en cas d’échec', async t => {
   const store = ledger();
   const id = crypto.randomUUID();
-  const call = (account, operation, env = {PLUS_TRIP_PREVIEW: '1'}) =>
-    handleRequest(request('/unlock-trip', {account, id: operation}), store, adminToken, start, env);
+  const params = {origin: {lat: 48.8, lon: 2.3}, destination: {lat: 48.9, lon: 2.4},
+    fuel: 'E10', liters: 42, consumption: 6};
+  let upstream = [];
+  t.mock.method(globalThis, 'fetch', async url => {
+    const target = new URL(url);
+    if (target.hostname === 'data.economie.gouv.fr') return Response.json({results: upstream});
+    return Response.json({routes: [{distance: 5000, duration: 600, geometry: {
+      coordinates: [[2.3, 48.8], [2.4, 48.9]],
+    }}]});
+  });
+  const call = (account, operation, env = {PLUS_TRIP_PREVIEW: '1'}, values = {}) =>
+    handleRequest(request('/trip', {account, id: operation, confirm: true, params, ...values}), store, adminToken, start, env);
   assert.equal((await call('a', id, {})).status, 503);
   assert.equal((await call('a', 'unknown')).status, 400);
-  const results = await Promise.all([0, 1].map(async () => (await call('a', id)).json()));
-  assert.deepEqual(results.map(r => r.charged).sort(), [false, true]);
-  assert.equal(store.status('a', start).credits, 4);
+  assert.equal((await call('a', id)).status, 422);
+  assert.equal(store.status('a', start).credits, 5);
+  upstream = [
+    {id: '1', adresse: 'A', geom: {lat: 48.81, lon: 2.31}, e10_prix: 1.7},
+    {id: '2', adresse: 'B', geom: {lat: 48.85, lon: 2.35}, e10_prix: 1.8},
+  ];
+  assert.equal((await call('a', id, undefined, {confirm: false})).status, 409);
+  const completed = await (await call('a', id)).json();
+  assert.equal(completed.credits, 4);
+  assert.equal(completed.result.verified, 2);
+  assert.equal(completed.result.choices[0].station.id, '1');
+  assert.deepEqual(await (await call('a', id, undefined, {confirm: false})).json(), completed);
+  assert.equal((await call('a', id, undefined, {params: {...params, liters: 43}})).status, 409);
   const code = await store.issue({months: null, maxUses: 1}, start);
   await store.redeem('b', code.code, start);
-  assert.equal((await (await call('b', id)).json()).charged, false);
+  assert.equal((await call('b', id, undefined, {confirm: false})).status, 200);
   assert.equal(store.status('b', start).credits, 5);
 });
 

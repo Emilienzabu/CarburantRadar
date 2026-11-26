@@ -28,13 +28,13 @@ Dans la copie de test de `france/index.html`, remplacer l’URL de `PROXY` par c
 
 Configurer le portail client dans le même environnement Stripe. Le webhook public du proxy `POST /plus/stripe/webhook` relaie le corps et la signature au Worker Plus. Abonner l’endpoint à `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid` et `invoice.payment_failed`.
 
-`PLUS_ANALYSIS_PREVIEW=1` expose le déblocage de l’analyse détaillée pour 24 h contre un crédit. L’interface de prévisualisation vérifie cette autorisation quand elle a chargé l’état du compte. Pour une activation publique, faire vérifier l’accès par le serveur qui fournit les calculs avancés.
+`PLUS_ANALYSIS_PREVIEW=1` active les analyses de 30, 90 et 365 jours sur `POST /plus/analysis`. Le serveur lit l’historique public, agrège les prix par jour et vérifie l’accès avant de rendre la série. Il débite un crédit pour 24 h après une confirmation et uniquement quand il dispose d’une série exploitable. Le graphique de sept jours reste gratuit.
 
 La recharge de deux crédits via `/reward` est une opération privée qui nécessite le secret interne et un identifiant unique de récompense. L’adaptateur Google Ad Manager fournira cette opération uniquement après vérification de la notification de la régie.
 
 ## Comparaisons et alertes de préproduction
 
-- `PLUS_TRIP_PREVIEW=1` affiche le déblocage de la comparaison des autres stations après un calcul routier abouti, à un crédit par résultat. Un même résultat peut être revu sans débit supplémentaire.
+- `PLUS_TRIP_PREVIEW=1` propose la comparaison détaillée après le Trajet habituel, sur `POST /plus/trip`. Le serveur récupère les stations, vérifie les détours et compare le coût total, le prix au litre et le temps de détour. Il débite un crédit si au moins deux stations sont vérifiées. Une opération rejouée avec les mêmes paramètres retrouve son résultat pendant 24 h. Configurer `PLUS_OSRM_URL` avec une base OSRM HTTPS appropriée avec le suffixe `/route/v1/driving/` avant une utilisation durable. Le service de démonstration par défaut est réservé aux essais.
 - `PLUS_ALERTS_PREVIEW=1` affiche les alertes supplémentaires. Une alerte gratuite historique reste gérée par le proxy existant. Chaque alerte supplémentaire coûte deux crédits pour sept jours, avec renouvellement manuel. L’abonnement Plus permet de surveiller jusqu’à douze zones simultanément sans débit. Les alertes incluses deviennent inactives quand les droits expirent, sauf si elles ont une durée payée restante.
 - Copier `src/scheduled-alerts.mjs` près du fichier d’entrée du proxy de test et importer `deliverExtraAlerts`. Dans le gestionnaire planifié existant, appeler `ctx.waitUntil(deliverExtraAlerts(env, sendNotification))`. Activer `PLUS_ALERTS_DELIVERY=1` sur les deux Workers de test pour exécuter ce traitement. Les routes de traitement sont accessibles via la liaison de service privée et reprennent le service d’envoi Web Push du proxy. La règle des alertes supplémentaires est le seuil choisi par rapport à la moyenne, avec au plus une tentative de notification par alerte et par jour.
 
@@ -46,4 +46,4 @@ Depuis la racine du dépôt, avec Node 24.
 node --test workers/plus/test/plus.test.mjs
 ```
 
-Les tests exercent SQL avec une base SQLite en mémoire, les routes entre le proxy et le service Plus et les réponses Stripe simulées. Relier les Workers dans un environnement Cloudflare séparé permet ensuite de vérifier les liaisons, Stripe avec une carte de test et la réception des notifications sur un téléphone. La comparaison et l’analyse utilisent encore des données publiques chargées par le navigateur. Leur mise en production avec crédits nécessite un contrôle côté serveur des résultats détaillés.
+Les tests exercent SQL avec une base SQLite en mémoire, les routes du proxy et du service Plus, et des réponses simulées de Stripe, de l’historique, des stations et d’OSRM. Relier les Workers dans un environnement Cloudflare séparé permet ensuite de vérifier les services réels, Stripe avec une carte de test et la réception des notifications sur un téléphone.

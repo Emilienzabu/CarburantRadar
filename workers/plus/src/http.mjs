@@ -1,5 +1,17 @@
 import { LedgerError } from './ledger.mjs';
 import { beginCheckout, billingPortal, billingReady, stripeWebhook } from './billing.mjs';
+import { detailedAnalysis, detailedTrip } from './advanced.mjs';
+
+const advancedInFlight = new WeakMap();
+
+async function prepareAdvanced(ledger, account, work) {
+  if (!advancedInFlight.has(ledger)) advancedInFlight.set(ledger, new Set());
+  const pending = advancedInFlight.get(ledger);
+  if (pending.has(account)) throw new LedgerError('advanced_in_progress', 409);
+  pending.add(account);
+  try { return await work(); }
+  finally { pending.delete(account); }
+}
 
 function reply(payload, status = 200) {
   return Response.json(payload, {status, headers: {'cache-control': 'no-store'}});
@@ -67,15 +79,32 @@ export async function handleRequest(request, ledger, adminToken, now = Date.now(
         return reply(accountStatus(ledger, billingEnv, account, now, created));
       case '/checkout': return reply(await beginCheckout(ledger, billingEnv, account, data.plan, now, created));
       case '/portal': return reply(await billingPortal(ledger, billingEnv, account));
-      case '/unlock-analysis': {
+      case '/analysis': {
         if (billingEnv.PLUS_ANALYSIS_PREVIEW !== '1') throw new LedgerError('analysis_unavailable', 503);
-        ledger.unlockAnalysis(account, now, created);
-        return reply(accountStatus(ledger, billingEnv, account, now, created));
+        const state = ledger.status(account, now, created);
+        const hasAccess = state.plus.active || ledger.analysis(account, now).unlocked;
+        if (!hasAccess && data.confirm !== true) throw new LedgerError('confirmation_required', 409);
+        if (!hasAccess && state.credits < 1) throw new LedgerError('credits_insufficient', 409);
+        const result = await prepareAdvanced(ledger, account, () => detailedAnalysis(data.params, now));
+        if (data.confirm === true) ledger.unlockAnalysis(account, now, created);
+        else if (!ledger.status(account, now, created).plus.active && !ledger.analysis(account, now).unlocked) {
+          throw new LedgerError('confirmation_required', 409);
+        }
+        return reply({...accountStatus(ledger, billingEnv, account, now, created), result});
       }
-      case '/unlock-trip': {
+      case '/trip': {
         if (billingEnv.PLUS_TRIP_PREVIEW !== '1') throw new LedgerError('trip_unavailable', 503);
-        const receipt = ledger.unlockTrip(account, data.id, now, created);
-        return reply({...accountStatus(ledger, billingEnv, account, now, created), ...receipt});
+        const encoded = new TextEncoder().encode(JSON.stringify(data.params ?? null));
+        const params = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', encoded)),
+          byte => byte.toString(16).padStart(2, '0')).join('');
+        const existing = ledger.tripResult(account, data.id, params, now);
+        if (existing) return reply({...accountStatus(ledger, billingEnv, account, now, created), result: existing});
+        const state = ledger.status(account, now, created);
+        if (!state.plus.active && data.confirm !== true) throw new LedgerError('confirmation_required', 409);
+        if (!state.plus.active && state.credits < 1) throw new LedgerError('credits_insufficient', 409);
+        const result = await prepareAdvanced(ledger, account, () => detailedTrip(data.params, billingEnv.PLUS_OSRM_URL));
+        const saved = ledger.saveTripResult(account, data.id, params, result, now, created, data.confirm === true);
+        return reply({...accountStatus(ledger, billingEnv, account, now, created), result: saved});
       }
       case '/alerts/add':
       case '/alerts/renew':
@@ -94,6 +123,7 @@ export async function handleRequest(request, ledger, adminToken, now = Date.now(
     }
   } catch (error) {
     if (error instanceof LedgerError) return reply({error: error.code}, error.status);
+    if (pathname === '/analysis' || pathname === '/trip') return reply({error: 'advanced_service_unavailable'}, 503);
     throw error;
   }
 }
