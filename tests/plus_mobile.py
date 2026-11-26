@@ -27,6 +27,9 @@ def respond(route):
         calls.append(action)
         if action == "preview":
             route.fulfill(json={"months": 6, "lifetime": False, "until": 1800000000000}, headers=cors)
+        elif action == "checkout":
+            assert request.post_data_json == {"plan": "year"}
+            route.fulfill(json={"url": "https://checkout.stripe.com.example.test/invalid"}, headers=cors)
         else:
             if action == "unlock-analysis":
                 analysis_unlocked = True
@@ -65,6 +68,9 @@ with sync_playwright() as pw:
     expect(panel.get_by_text("6 crédits disponibles")).to_be_visible()
     expect(panel.get_by_role("button", name="Réclamer mon crédit du jour")).to_be_hidden()
     expect(panel.get_by_role("button", name="Tester à 1 €/mois")).to_be_visible()
+    panel.get_by_role("button", name="Tester à 10 €/an").click()
+    expect(panel.get_by_text("Le lien Stripe est indisponible.")).to_be_visible()
+    assert page.url == ORIGIN + "/france/"
     panel.get_by_role("button", name="Débloquer l’analyse détaillée pour 24 h", exact=False).click()
     expect(panel.get_by_text("Analyse détaillée débloquée pour 24 h.")).to_be_visible()
     expect(panel.get_by_text("5 crédits disponibles")).to_be_visible()
@@ -73,11 +79,11 @@ with sync_playwright() as pw:
     code.fill("1234-5678-90AB-CDEF-1234-5678")
     panel.get_by_role("button", name="Vérifier le code").click()
     expect(panel.get_by_text("Ce code ajoute 6 mois de Plus", exact=False)).to_be_visible()
-    assert calls == ["status", "claim", "unlock-analysis", "preview"]
+    assert calls == ["status", "claim", "checkout", "unlock-analysis", "preview"]
     panel.get_by_role("button", name="Activer le code").click()
     expect(panel.get_by_text("Ton accès Plus est activé.")).to_be_visible()
     expect(panel.get_by_text("Ton accès Plus est actif jusqu’au", exact=False)).to_be_visible()
-    assert calls == ["status", "claim", "unlock-analysis", "preview", "redeem"]
+    assert calls == ["status", "claim", "checkout", "unlock-analysis", "preview", "redeem"]
     panel.get_by_role("button", name="Fermer").click()
     expect(panel).to_be_hidden()
     browser.close()

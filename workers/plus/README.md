@@ -24,6 +24,8 @@ Les autres opérations `POST /plus/status`, `/plus/claim`, `/plus/preview` et `/
 
 Utiliser une instance privée distincte pour le Worker Plus et une copie de test du service de compte. Renseigner `STRIPE_SECRET_KEY` et `STRIPE_WEBHOOK_SECRET` comme secrets Cloudflare, les identifiants de prix `STRIPE_MONTHLY_PRICE` et `STRIPE_YEARLY_PRICE` comme variables, et `STRIPE_RETURN_URL` avec l’URL HTTPS de l’interface de test. Le service vérifie que les prix sont récurrents en euros à 100 centimes par mois et 1 000 centimes par an et exige une clé Stripe de test.
 
+Dans la copie de test de `france/index.html`, remplacer l’URL de `PROXY` par celle du proxy de test. Créer les comptes de test sur ce proxy. Utiliser des espaces de stockage distincts et appeler le webhook de ce même proxy depuis Stripe. Ne pas modifier le proxy de production pour effectuer ces tests.
+
 Configurer le portail client dans le même environnement Stripe. Le webhook public du proxy `POST /plus/stripe/webhook` relaie le corps et la signature au Worker Plus. Abonner l’endpoint à `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid` et `invoice.payment_failed`.
 
 `PLUS_ANALYSIS_PREVIEW=1` expose le déblocage de l’analyse détaillée pour 24 h contre un crédit. L’interface de prévisualisation vérifie cette autorisation quand elle a chargé l’état du compte. Pour une activation publique, faire vérifier l’accès par le serveur qui fournit les calculs avancés.
