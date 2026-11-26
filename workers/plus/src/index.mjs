@@ -8,7 +8,7 @@ export class PlusState extends DurableObject {
     this.ledger = new PlusLedger(ctx.storage.sql, callback => ctx.storage.transactionSync(callback));
   }
 
-  fetch(request) { return handleRequest(request, this.ledger, this.env.PLUS_ADMIN_TOKEN); }
+  fetch(request) { return handleRequest(request, this.ledger, this.env.PLUS_ADMIN_TOKEN, Date.now(), this.env); }
 }
 
 export default {

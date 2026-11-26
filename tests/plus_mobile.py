@@ -8,9 +8,11 @@ files = {"/france/": ("index.html", "text/html"),
          "/france/plus.js": ("plus.js", "application/javascript"),
          "/france/plus.css": ("plus.css", "text/css")}
 calls = []
+analysis_unlocked = False
 
 
 def respond(route):
+    global analysis_unlocked
     request = route.request
     cors = {"access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type",
             "access-control-allow-methods": "GET,POST,OPTIONS"}
@@ -26,8 +28,14 @@ def respond(route):
         if action == "preview":
             route.fulfill(json={"months": 6, "lifetime": False, "until": 1800000000000}, headers=cors)
         else:
-            route.fulfill(json={"credits": 5 if action == "status" else 6, "claimed": action == "claim",
+            if action == "unlock-analysis":
+                analysis_unlocked = True
+            credits = 5 if action == "status" or analysis_unlocked else 6
+            route.fulfill(json={"credits": credits, "claimed": action == "claim",
                                 "canClaimToday": action == "status",
+                                "analysis": {"unlocked": analysis_unlocked,
+                                             "expires": 4102444800000 if analysis_unlocked else None},
+                                "billing": {"test": True, "hasCustomer": False, "canCheckout": True},
                                 "plus": {"active": action == "redeem", "lifetime": False,
                                          "until": 1800000000000 if action == "redeem" else None}}, headers=cors)
     elif "carburant-proxy." in request.url and request.url.endswith("/account"):
@@ -56,16 +64,20 @@ with sync_playwright() as pw:
     panel.get_by_role("button", name="Réclamer mon crédit du jour").click()
     expect(panel.get_by_text("6 crédits disponibles")).to_be_visible()
     expect(panel.get_by_role("button", name="Réclamer mon crédit du jour")).to_be_hidden()
+    expect(panel.get_by_role("button", name="Tester à 1 €/mois")).to_be_visible()
+    panel.get_by_role("button", name="Débloquer l’analyse détaillée pour 24 h", exact=False).click()
+    expect(panel.get_by_text("Analyse détaillée débloquée pour 24 h.")).to_be_visible()
+    expect(panel.get_by_text("5 crédits disponibles")).to_be_visible()
     panel.get_by_role("button", name="J’ai un code").click()
     code = panel.get_by_label("Code Plus")
     code.fill("1234-5678-90AB-CDEF-1234-5678")
     panel.get_by_role("button", name="Vérifier le code").click()
     expect(panel.get_by_text("Ce code ajoute 6 mois de Plus", exact=False)).to_be_visible()
-    assert calls == ["status", "claim", "preview"]
+    assert calls == ["status", "claim", "unlock-analysis", "preview"]
     panel.get_by_role("button", name="Activer le code").click()
     expect(panel.get_by_text("Ton accès Plus est activé.")).to_be_visible()
     expect(panel.get_by_text("Ton accès Plus est actif jusqu’au", exact=False)).to_be_visible()
-    assert calls == ["status", "claim", "preview", "redeem"]
+    assert calls == ["status", "claim", "unlock-analysis", "preview", "redeem"]
     panel.get_by_role("button", name="Fermer").click()
     expect(panel).to_be_hidden()
     browser.close()

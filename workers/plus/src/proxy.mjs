@@ -1,4 +1,4 @@
-const routes = new Set(['/status', '/claim', '/preview', '/redeem', '/issue']);
+const routes = new Set(['/status', '/claim', '/preview', '/redeem', '/issue', '/checkout', '/portal', '/stripe/webhook', '/unlock-analysis']);
 
 export async function forwardPlus(request, env, headers, authenticate, isAdmin) {
   const action = new URL(request.url).pathname.slice('/plus'.length);
@@ -9,7 +9,12 @@ export async function forwardPlus(request, env, headers, authenticate, isAdmin) 
   if (!env.PLUS) return fail('plus_unavailable', 503);
   const forwardedHeaders = {'Content-Type': 'application/json'};
   let payload = {};
-  if (action === '/issue') {
+  if (action === '/stripe/webhook') {
+    const signature = request.headers.get('Stripe-Signature');
+    if (!signature) return fail('stripe_signature_invalid', 400);
+    forwardedHeaders['Stripe-Signature'] = signature;
+    payload = await request.text();
+  } else if (action === '/issue') {
     if (!isAdmin(request, env)) return fail('admin_required', 403);
     if (!env.PLUS_ADMIN_TOKEN) return fail('plus_unavailable', 503);
     forwardedHeaders.authorization = 'Bearer ' + env.PLUS_ADMIN_TOKEN;
@@ -29,10 +34,15 @@ export async function forwardPlus(request, env, headers, authenticate, isAdmin) 
       if (typeof body?.code !== 'string' || body.code.length > 64) return fail('code_invalid', 400);
       payload.code = body.code;
     }
+    if (action === '/checkout') {
+      const body = await request.json().catch(() => null);
+      if (body?.plan !== 'month' && body?.plan !== 'year') return fail('plan_invalid', 400);
+      payload.plan = body.plan;
+    }
   }
   try {
     const result = await env.PLUS.fetch('https://plus.internal' + action, {
-      method: 'POST', headers: forwardedHeaders, body: JSON.stringify(payload),
+      method: 'POST', headers: forwardedHeaders, body: action === '/stripe/webhook' ? payload : JSON.stringify(payload),
     });
     if (result.status >= 500) return fail('plus_unavailable', 503);
     return new Response(result.body, {status: result.status, headers: responseHeaders});

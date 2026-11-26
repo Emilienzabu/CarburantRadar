@@ -36,6 +36,7 @@ export class PlusLedger {
   constructor(sql, transaction) {
     this.sql = sql;
     this.transaction = transaction;
+    this.subscriptionUpdates = new Map();
     sql.exec(`
       CREATE TABLE IF NOT EXISTS member (
         account TEXT PRIMARY KEY NOT NULL,
@@ -55,6 +56,33 @@ export class PlusLedger {
         account TEXT NOT NULL,
         PRIMARY KEY (hash, account)
       );
+      CREATE TABLE IF NOT EXISTS stripe_customer (
+        account TEXT PRIMARY KEY NOT NULL,
+        customer TEXT UNIQUE NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS stripe_checkout (
+        account TEXT PRIMARY KEY NOT NULL,
+        attempt TEXT NOT NULL,
+        plan TEXT NOT NULL,
+        expires INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS stripe_subscription (
+        id TEXT PRIMARY KEY NOT NULL,
+        account TEXT NOT NULL,
+        paid_until INTEGER NOT NULL,
+        status TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS stripe_subscription_account ON stripe_subscription(account);
+      CREATE TABLE IF NOT EXISTS credit_access (
+        account TEXT NOT NULL,
+        feature TEXT NOT NULL,
+        expires INTEGER NOT NULL,
+        PRIMARY KEY (account, feature)
+      );
+      CREATE TABLE IF NOT EXISTS ad_reward (
+        event TEXT PRIMARY KEY NOT NULL,
+        account TEXT NOT NULL
+      );
     `);
   }
 
@@ -73,11 +101,57 @@ export class PlusLedger {
   status(account, now, created) {
     const member = this.member(account, now, created);
     const lifetime = member.gift_lifetime === 1;
+    const paid = this.row('SELECT MAX(paid_until) AS until FROM stripe_subscription WHERE account = ?', account).until;
+    const until = lifetime ? null : Math.max(member.gift_until || 0, paid || 0) || null;
     return {
       credits: member.credits,
       canClaimToday: member.last_claim < parisDate.format(now),
-      plus: {active: lifetime || (member.gift_until !== null && member.gift_until > now), lifetime, until: member.gift_until},
+      plus: {active: lifetime || (until !== null && until > now), lifetime, until},
     };
+  }
+
+  customer(account) {
+    return this.row('SELECT customer FROM stripe_customer WHERE account = ?', account)?.customer;
+  }
+
+  hasOpenSubscription(account) {
+    return !!this.row(`SELECT 1 FROM stripe_subscription
+      WHERE account = ? AND status IN ('active', 'past_due', 'unpaid', 'trialing', 'paused') LIMIT 1`, account);
+  }
+
+  saveCustomer(account, customer) {
+    if (!/^cus_[a-zA-Z0-9]+$/.test(customer || '')) throw new LedgerError('billing_unavailable', 503);
+    this.sql.exec('INSERT OR IGNORE INTO stripe_customer VALUES (?, ?)', account, customer);
+    return this.customer(account);
+  }
+
+  checkoutAttempt(account, plan, now) {
+    const current = this.row('SELECT * FROM stripe_checkout WHERE account = ?', account);
+    if (current?.expires > now) {
+      if (current.plan !== plan) throw new LedgerError('checkout_other_plan_pending', 409);
+      return {key: current.attempt, expires: current.expires};
+    }
+    // Stripe requires at least thirty minutes of validity when the session is created.
+    const expires = now + 60 * 60 * 1000;
+    const key = crypto.randomUUID();
+    this.sql.exec('INSERT OR REPLACE INTO stripe_checkout VALUES (?, ?, ?, ?)', account, key, plan, expires);
+    return {key, expires};
+  }
+
+  async syncSubscription(id, update) {
+    const previous = this.subscriptionUpdates.get(id) || Promise.resolve();
+    const pending = previous.catch(() => {}).then(update);
+    this.subscriptionUpdates.set(id, pending);
+    try { return await pending; }
+    finally {
+      if (this.subscriptionUpdates.get(id) === pending) this.subscriptionUpdates.delete(id);
+    }
+  }
+
+  saveSubscription(id, account, until, status) {
+    const previous = this.row('SELECT paid_until FROM stripe_subscription WHERE id = ?', id)?.paid_until || 0;
+    const paidUntil = status === 'past_due' ? Math.min(previous, until) : until;
+    this.sql.exec('INSERT OR REPLACE INTO stripe_subscription VALUES (?, ?, ?, ?)', id, account, paidUntil, status);
   }
 
   claim(account, now, created) {
@@ -89,6 +163,35 @@ export class PlusLedger {
         today, account, today,
       );
       return {...this.status(account, now), claimed: rowsWritten === 1};
+    });
+  }
+
+  analysis(account, now) {
+    const expires = this.row('SELECT expires FROM credit_access WHERE account = ? AND feature = ?', account, 'analysis')?.expires;
+    return {unlocked: Boolean(expires > now), expires: expires > now ? expires : null};
+  }
+
+  unlockAnalysis(account, now, created) {
+    return this.transaction(() => {
+      const state = this.status(account, now, created);
+      const access = this.analysis(account, now);
+      if (state.plus.active || access.unlocked) return;
+      if (state.credits < 1) throw new LedgerError('credits_insufficient', 409);
+      const expires = now + 86400000;
+      this.sql.exec('UPDATE member SET credits = credits - 1 WHERE account = ?', account);
+      this.sql.exec('INSERT OR REPLACE INTO credit_access VALUES (?, ?, ?)', account, 'analysis', expires);
+    });
+  }
+
+  reward(account, event, now, created) {
+    if (typeof event !== 'string' || !/^[a-zA-Z0-9._:-]{1,160}$/.test(event)) throw new LedgerError('reward_invalid');
+    return this.transaction(() => {
+      const {rowsWritten} = this.sql.exec('INSERT OR IGNORE INTO ad_reward VALUES (?, ?)', event, account);
+      if (rowsWritten === 1) {
+        this.member(account, now, created);
+        this.sql.exec('UPDATE member SET credits = credits + 2 WHERE account = ?', account);
+      }
+      return {...this.status(account, now), rewarded: rowsWritten === 1};
     });
   }
 

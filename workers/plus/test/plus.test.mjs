@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {test} from 'node:test';
+import {createHmac} from 'node:crypto';
 import {PlusLedger} from '../src/ledger.mjs';
 import {handleRequest} from '../src/http.mjs';
 import {forwardPlus} from '../src/proxy.mjs';
@@ -117,4 +118,112 @@ test('le proxy ne fait confiance qu’à la session et contrôle la création de
   assert.deepEqual(await (await call('status', {}, {authorization: 'two'})).json(), {
     credits: 6, canClaimToday: false, plus: {active: true, lifetime: true, until: null},
   });
+});
+
+test('Analyse coûte un crédit par période complète, avec accès inclus pour Plus', async () => {
+  const store = ledger();
+  const preview = {PLUS_ANALYSIS_PREVIEW: '1'};
+  const call = (path, account, now, env = preview) =>
+    handleRequest(request(path, {account}), store, adminToken, now, env);
+  assert.equal((await call('/unlock-analysis', 'a', start, {})).status, 503);
+  const results = await Promise.all([0, 1].map(() => call('/unlock-analysis', 'a', start)));
+  for (const response of results) {
+    const data = await response.json();
+    assert.equal(data.credits, 4);
+    assert.deepEqual(data.analysis, {unlocked: true, expires: start + 86400000});
+  }
+  assert.equal((await (await call('/status', 'a', start + 86400000)).json()).analysis.unlocked, false);
+  assert.equal((await (await call('/unlock-analysis', 'a', start + 86400000)).json()).credits, 3);
+  const gift = await store.issue({months: 6, maxUses: 1}, start);
+  await store.redeem('b', gift.code, start);
+  assert.equal((await (await call('/unlock-analysis', 'b', start)).json()).credits, 5);
+  for (let day = 2; day <= 4; day++) store.unlockAnalysis('a', start + day * 86400000);
+  assert.equal((await call('/unlock-analysis', 'a', start + 5 * 86400000)).status, 409);
+});
+
+test('une recharge confirmée vaut deux crédits et un identifiant ne compte qu’une fois', async () => {
+  const store = ledger();
+  const grant = (account, event, headers) =>
+    handleRequest(request('/reward', {account, event}, headers), store, adminToken, start);
+  assert.equal((await grant('a', 'test-1')).status, 403);
+  const headers = {authorization: 'Bearer ' + adminToken};
+  const granted = await (await grant('a', 'test-1', headers)).json();
+  const duplicate = await (await grant('a', 'test-1', headers)).json();
+  const wrongAccount = await (await grant('b', 'test-1', headers)).json();
+  assert.deepEqual([granted.credits, duplicate.credits, wrongAccount.credits], [7, 7, 5]);
+  assert.deepEqual([granted.rewarded, duplicate.rewarded, wrongAccount.rewarded], [true, false, false]);
+});
+
+test('Stripe de test vérifie les prix, évite les doublons et réserve l’accès aux paiements confirmés', async t => {
+  const store = ledger();
+  const account = 'a'.repeat(64);
+  const settings = {STRIPE_SECRET_KEY: 'sk_test_fixture', STRIPE_WEBHOOK_SECRET: 'whsec_fixture',
+    STRIPE_MONTHLY_PRICE: 'price_Month', STRIPE_YEARLY_PRICE: 'price_Year',
+    STRIPE_RETURN_URL: 'https://preprod.example.test/france/'};
+  const calls = [];
+  let existing = [];
+  let subscription = {id: 'sub_Test', livemode: false, customer: 'cus_Test', status: 'active',
+    metadata: {carburantradar_account: account}, latest_invoice: {status: 'paid'},
+    items: {data: [{price: {id: 'price_Month'}, current_period_end: Math.floor(start / 1000) + 3600}]}};
+  t.mock.method(globalThis, 'fetch', async (uri, options) => {
+    const path = new URL(uri).pathname;
+    calls.push({path, ...options});
+    if (path === '/v1/prices/price_Month') return Response.json({livemode: false, active: true, currency: 'eur',
+      unit_amount: 100, recurring: {interval: 'month', interval_count: 1}});
+    if (path === '/v1/prices/price_Year') return Response.json({livemode: false, active: true, currency: 'eur',
+      unit_amount: 1000, recurring: {interval: 'year', interval_count: 1}});
+    if (path === '/v1/customers') return Response.json({id: 'cus_Test'});
+    if (path === '/v1/subscriptions') return Response.json({data: existing});
+    if (path === '/v1/checkout/sessions') return Response.json({url: 'https://checkout.stripe.com/test'});
+    if (path === '/v1/billing_portal/sessions') return Response.json({url: 'https://billing.stripe.com/test'});
+    if (path === '/v1/subscriptions/sub_Test') return Response.json(subscription);
+    throw new Error('Stripe route inattendue : ' + path);
+  });
+  const call = (path, payload = {}, env = settings) =>
+    handleRequest(request(path, {account, ...payload}), store, adminToken, start, env);
+  assert.equal((await call('/checkout', {plan: 'month'}, {...settings, STRIPE_SECRET_KEY: 'sk_live_fixture'})).status, 503);
+  assert.equal((await call('/checkout', {plan: 'month'})).status, 200);
+  assert.equal((await call('/checkout', {plan: 'month'})).status, 200);
+  assert.equal((await call('/checkout', {plan: 'year'})).status, 409);
+  const attempts = calls.filter(item => item.path === '/v1/checkout/sessions');
+  assert.equal(attempts[0].headers['Idempotency-Key'], attempts[1].headers['Idempotency-Key']);
+  assert.equal(attempts[0].body.get('line_items[0][price]'), 'price_Month');
+  assert.equal(attempts[0].body.get('success_url'), settings.STRIPE_RETURN_URL + '?plus=retour');
+  assert.equal(store.status(account, start).plus.active, false);
+  existing = [{metadata: {carburantradar_account: account}, status: 'active'}];
+  assert.equal((await call('/checkout', {plan: 'month'})).status, 409);
+  existing = [];
+  const event = (type, object, {live = false, skew = 0, tampered = false} = {}) => {
+    const raw = JSON.stringify({livemode: live, type, data: {object}});
+    const timestamp = Math.floor(start / 1000) + skew;
+    const hmac = createHmac('sha256', settings.STRIPE_WEBHOOK_SECRET).update(timestamp + '.' + raw).digest('hex');
+    return new Request('https://example.test/stripe/webhook', {method: 'POST',
+      headers: {'Stripe-Signature': 't=' + timestamp + ',v1=' + hmac}, body: tampered ? raw + ' ' : raw});
+  };
+  const webhook = (type, object, options) =>
+    handleRequest(event(type, object, options), store, adminToken, start, settings);
+  for (const options of [{live: true}, {skew: 301}, {tampered: true}]) {
+    assert.equal((await webhook('customer.subscription.created', subscription, options)).status, 400);
+  }
+  subscription.latest_invoice.status = 'open';
+  await webhook('customer.subscription.created', subscription);
+  assert.equal(store.status(account, start).plus.active, false);
+  subscription.latest_invoice.status = 'paid';
+  await webhook('invoice.paid', {parent: {subscription_details: {subscription: 'sub_Test'}}});
+  assert.equal(store.status(account, start).plus.active, true);
+  const paidUntil = store.status(account, start).plus.until;
+  assert.equal((await call('/portal')).status, 200);
+  subscription = {...subscription, status: 'past_due', items: {data: [{
+    price: {id: 'price_Month'}, current_period_end: Math.floor(start / 1000) + 7200,
+  }]}};
+  await webhook('invoice.payment_failed', {subscription: 'sub_Test'});
+  assert.equal(store.status(account, start).plus.until, paidUntil);
+  assert.equal(store.status(account, paidUntil).plus.active, false);
+  subscription.status = 'active';
+  await webhook('invoice.paid', {subscription: 'sub_Test'});
+  assert.ok(store.status(account, start).plus.until > paidUntil);
+  subscription.status = 'canceled';
+  await webhook('customer.subscription.deleted', subscription);
+  await webhook('customer.subscription.created', {id: 'sub_Test'});
+  assert.equal(store.status(account, start).plus.active, false);
 });
