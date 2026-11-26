@@ -147,6 +147,8 @@ button{width:100%;padding:15px;background:var(--accent);color:#000;border:none;b
 .bar{height:4px;background:var(--bg-sunken);border-radius:4px;overflow:hidden;margin-bottom:10px}
 .fill{height:100%;background:linear-gradient(90deg,var(--success),var(--accent))}
 .go{display:block;width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:9px;font-size:13px;font-weight:700;text-align:center;text-decoration:none}
+#notificationStationGo[hidden],#testAlertBtn[hidden]{display:none}
+.radar-cost-total{border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .empty{text-align:center;padding:50px 20px;color:var(--text-muted)}
 .spinner{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -454,6 +456,15 @@ body:has(#page-map.active){padding-bottom:0!important}
 <div class="page" id="page-map"><div class="cr-map-wrap"><div id="map"></div><button type="button" class="cr-map-center" onclick="crMapRecenter()" aria-label="Recentrer la carte sur ma position" title="Ma position"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button></div></div>
 
 <div class="page active" id="page-radar">
+  <section class="card" id="notificationStation" hidden aria-labelledby="notificationStationTitle" style="margin:16px 20px 0">
+    <div class="card-header">
+      <h2 class="name" id="notificationStationTitle" tabindex="-1">Station de la notification</h2>
+      <button type="button" class="dots-btn" aria-label="Fermer la fiche station" onclick="fermerFicheNotification()">×</button>
+    </div>
+    <p class="addr" id="notificationStationAddress" role="status" style="margin:6px 0 12px"></p>
+    <p class="addr" id="notificationStationPrice" hidden style="margin:6px 0 12px"></p>
+    <a class="go" id="notificationStationGo" target="_blank" rel="noopener noreferrer" hidden>Y aller</a>
+  </section>
   <div style="padding:20px 20px 0">
     <h1 style="font-size:15px;font-weight:700;color:var(--text-muted);margin:0 0 12px;text-transform:none">Comparer les prix du carburant près de chez vous</h1>
     <button id="locBtn" onclick="locate()" aria-label="Me localiser ou actualiser les stations">Me localiser</button>
@@ -753,6 +764,8 @@ body:has(#page-map.active){padding-bottom:0!important}
       </div>
       <div class="alert-sub">Notification à 7h10 si une station de ta zone passe sous le seuil configuré par rapport à la moyenne locale, ou atteint son meilleur écart depuis plusieurs jours.</div>
       <div class="alert-status" id="alertStatus">Alertes désactivées</div>
+      <button type="button" class="side-item" id="testAlertBtn" hidden onclick="testerNotification()" style="margin:10px 0 0;width:100%;text-align:left;color:var(--text);font:inherit">Tester ma notification</button>
+      <p class="alert-sub" id="testAlertStatus" role="status" hidden></p>
     </div>
   </div>
   </div>
@@ -968,15 +981,9 @@ if('serviceWorker' in navigator){
   });
   // Ecouteur pour les messages du service worker (notifications)
   navigator.serviceWorker.addEventListener('message', function(event) {
-    if (event.data.type === 'NOTIFICATION_CLICK' && event.data.stationId) {
-      // Stocker l'ID de la station pour affichage
-      localStorage.setItem('notificationStationId', event.data.stationId);
-      if (event.data.lat != null) localStorage.setItem('notificationStationLat', event.data.lat);
-      if (event.data.lon != null) localStorage.setItem('notificationStationLon', event.data.lon);
-      // Si on est deja sur la page Radar, afficher la station
-      if (document.getElementById('page-radar').classList.contains('active')) {
-        showStationFromNotification(event.data.stationId, event.data.lat, event.data.lon);
-      }
+    var data=event.data;
+    if(data&&data.type==='NOTIFICATION_CLICK'){
+      showStationFromNotification(data.stationId,data.lat,data.lon,data.carburant);
     }
   });
 }
@@ -989,6 +996,7 @@ window.addEventListener('load',function(){
     document.getElementById('splash').classList.add('hide');
     setTimeout(function(){
       document.getElementById('splash').style.display='none';
+      if(!document.getElementById('notificationStation').hidden)return;
       // Écran de bienvenue au tout premier lancement (une seule fois), sauf si déjà connecté
       if(!getLs('cr_onboarding_vu')&&!estConnecte()){document.getElementById('onboardingModal').classList.add('on');}
       else if(!getLs('cr_tuto_vu')){setTimeout(ouvrirTuto,300);}
@@ -1003,109 +1011,103 @@ window.addEventListener('load',function(){
     }).catch(function(){});
   }
 
-  // Gestion du hash dans l'URL (ex: #station=12345&lat=..&lon=..) et des notifications
-  setTimeout(function(){
-    var hash = window.location.hash;
-    if (hash.indexOf('#station=') === 0) {
-      var params = hash.substring(1).split('&');
-      var id = null, hlat = null, hlon = null;
-      params.forEach(function(p){
-        var kv = p.split('=');
-        if (kv[0] === 'station') id = kv[1];
-        else if (kv[0] === 'lat') hlat = parseFloat(kv[1]);
-        else if (kv[0] === 'lon') hlon = parseFloat(kv[1]);
-      });
-      showStationFromNotification(id, isNaN(hlat) ? null : hlat, isNaN(hlon) ? null : hlon);
-      // Supprimer le hash après traitement pour éviter qu'il reste
-      history.replaceState({}, document.title, './');
-    }
-
-    // Vérifier si on arrive via une notification
-    var stationId = localStorage.getItem('notificationStationId');
-    if (stationId) {
-      localStorage.removeItem('notificationStationId');
-      var slat = parseFloat(localStorage.getItem('notificationStationLat'));
-      var slon = parseFloat(localStorage.getItem('notificationStationLon'));
-      localStorage.removeItem('notificationStationLat');
-      localStorage.removeItem('notificationStationLon');
-      // Si on est sur la page Radar, afficher la station
-      if (document.getElementById('page-radar').classList.contains('active')) {
-        showStationFromNotification(stationId, isNaN(slat) ? null : slat, isNaN(slon) ? null : slon);
-      }
-    }
-  }, 200);
+  var params=new URLSearchParams(window.location.hash.slice(1));
+  var ancienneStation=localStorage.getItem('notificationStationId');
+  if(params.has('station')){
+    showStationFromNotification(params.get('station'),params.get('lat'),params.get('lon'),params.get('carburant'));
+    var propre=new URL(window.location.href);
+    propre.searchParams.delete('notif');
+    propre.hash='';
+    history.replaceState(null,'',propre);
+  }else if(ancienneStation){
+    showStationFromNotification(ancienneStation,localStorage.getItem('notificationStationLat'),
+      localStorage.getItem('notificationStationLon'));
+  }
+  if(ancienneStation){
+    ['notificationStationId','notificationStationLat','notificationStationLon'].forEach(function(k){localStorage.removeItem(k);});
+  }
 });
 
-// Fonction pour afficher une station depuis une notification
-function showStationFromNotification(stationId, hintLat, hintLon) {
-  // Si les stations ne sont pas encore chargees, tenter de charger automatiquement
-  if (!st || !st.length) {
-    if (la === null) {
-      if (hintLat != null && hintLon != null) {
-        // Position fournie par la notification (station concernée)
-        la = hintLat; lo = hintLon; ra = ra || 5;
-      } else {
-        // Sinon on réutilise la zone configurée pour l'alerte (c'est forcément dans cette zone
-        // que la notification a été déclenchée)
-        var info = getLs('cr_alert_info');
-        if (info) { la = info.lat; lo = info.lon; ra = info.rayon || ra; }
-      }
-    }
-    if (la !== null) {
-      showPage('radar');
-      var lb = document.getElementById('locBtn'); if (lb) lb.textContent = 'Actualiser';
-      load();
-      // On attend que la recherche se termine (avec une limite de tentatives) avant de scroller
-      var tentatives = 0;
-      var attente = setInterval(function() {
-        tentatives++;
-        var trouvee = st.find(function(s) { return String(s.id) === String(stationId); });
-        if (trouvee || tentatives > 15) {
-          clearInterval(attente);
-          if (trouvee) { setTimeout(function() { scrollToStation(stationId); }, 300); }
-        }
-      }, 400);
-      return;
-    }
-    // Aucune position connue du tout (première ouverture, pas d'alerte configurée) : on retente
-    setTimeout(function() {
-      showStationFromNotification(stationId, hintLat, hintLon);
-    }, 1000);
-    return;
-  }
-
-  // Trouver la station dans la liste
-  var station = st.find(function(s) {
-    return String(s.id) === String(stationId);
-  });
-
-  if (station) {
-    // Si on n'est pas sur la page Radar, basculer vers celle-ci
-    if (!document.getElementById('page-radar').classList.contains('active')) {
-      showPage('radar');
-      // Attendre que la page soit affichee avant de faire defiler
-      setTimeout(function() {
-        scrollToStation(stationId);
-      }, 300);
-    } else {
-      scrollToStation(stationId);
-    }
-  }
+function coordonneesNotification(lat,lon){
+  if((typeof lat!=='number'&&typeof lat!=='string')||(typeof lon!=='number'&&typeof lon!=='string')||
+      String(lat).trim()===''||String(lon).trim()==='')return null;
+  var y=Number(lat),x=Number(lon);
+  return Number.isFinite(y)&&Number.isFinite(x)&&Math.abs(y)<=90&&Math.abs(x)<=180?{lat:y,lon:x}:null;
 }
 
-// Fonction pour faire defiler jusqu'a une station et la mettre en evidence
-function scrollToStation(stationId) {
-  var card = document.getElementById('card-' + stationId);
-  if (card) {
-    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    // Mettre en evidence temporairement
-    card.style.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-    card.style.boxShadow = '0 0 15px rgba(245, 166, 35, 0.7)';
-    setTimeout(function() {
-      card.style.borderColor = '';
-      card.style.boxShadow = '';
-    }, 3000);
+function lireStationNotification(row,carburant){
+  if(!row||!/^\w[\w-]{0,63}$/.test(String(row.id??'')))return null;
+  var geo=row.geom?coordonneesNotification(row.geom.lat,row.geom.lon):
+    coordonneesNotification(parseFloat(row.latitude)/100000,parseFloat(row.longitude)/100000);
+  if(!geo)return null;
+  var prix=Number(row[PK[carburant]]);
+  return {id:String(row.id),adresse:row.adresse,cp:row.cp,ville:row.ville,lat:geo.lat,lon:geo.lon,
+    prix:Number.isFinite(prix)&&prix>0&&prix<20?prix:null};
+}
+
+async function stationsNotification(centre,rayon,carburant){
+  var result=await crAlertTimeout(chargerStationsRadar(centre.lat,centre.lon,rayon,carburant),
+    12000,'La recherche de stations a pris trop de temps.');
+  if(!Array.isArray(result?.results))throw new Error('Données des stations indisponibles.');
+  return result.results.map(function(row){return lireStationNotification(row,carburant);}).filter(Boolean);
+}
+
+var ouvertureNotification=0;
+function fermerFicheNotification(){
+  ouvertureNotification++;
+  document.getElementById('notificationStation').hidden=true;
+  document.getElementById('nav-radar').focus();
+}
+
+async function showStationFromNotification(stationId,hintLat,hintLon,fuelHint){
+  var id=String(stationId??'');
+  if(!/^\w[\w-]{0,63}$/.test(id))return;
+  var ouverture=++ouvertureNotification;
+  var fiche=document.getElementById('notificationStation');
+  var titre=document.getElementById('notificationStationTitle');
+  var adresse=document.getElementById('notificationStationAddress');
+  var prix=document.getElementById('notificationStationPrice');
+  var aller=document.getElementById('notificationStationGo');
+  var info=getLs('cr_alert_info');
+  var ciblage=coordonneesNotification(hintLat,hintLon);
+  var centre=ciblage||coordonneesNotification(info?.lat,info?.lon);
+  var carburant=Object.hasOwn(PK,fuelHint)?fuelHint:(Object.hasOwn(PK,info?.carburant)?info.carburant:fu);
+  closeMenu();
+  document.getElementById('onboardingModal').classList.remove('on');
+  if(tutoActif)fermerTuto(false);
+  showPage('radar');
+  fiche.hidden=false;
+  titre.textContent='Station de la notification';
+  adresse.textContent='Recherche de la station…';
+  prix.hidden=true;
+  aller.hidden=true;
+  aller.removeAttribute('href');
+  titre.focus();
+  fiche.scrollIntoView({block:'start'});
+
+  var station=null;
+  if(centre){
+    try{
+      var lignes=await stationsNotification(centre,ciblage?5:(info.rayon||5),carburant);
+      station=lignes.find(function(s){return s.id===id;});
+    }catch(error){ /* La position transmise par la notification reste utilisable. */ }
   }
+  if(ouverture!==ouvertureNotification)return;
+  var position=station||ciblage;
+  if(!position){
+    adresse.textContent='Cette station est introuvable pour le moment.';
+    return;
+  }
+  var nom=getNames()[id];
+  if(typeof nom==='string'&&nom)titre.textContent=nom;
+  adresse.textContent=station?[station.adresse,[station.cp,station.ville].filter(Boolean).join(' ')].filter(Boolean).join(' · '):
+    'Position de la station reçue dans la notification.';
+  if(station&&station.prix!==null){
+    prix.textContent=FL[carburant]+' · '+station.prix.toFixed(3).replace('.',',')+' €/L';
+    prix.hidden=false;
+  }
+  aller.href=getNavigationUrl(position.lat,position.lon);
+  aller.hidden=false;
 }
 
 // Fonctions pour gerer la preference de navigation (Maps vs Waze)
@@ -1748,6 +1750,8 @@ function closeMenu(){document.getElementById('overlay').classList.remove('on');d
 function updateAlertUI(){
   var key=getLs('cr_alert_key'),info=getLs('cr_alert_info');
   var toggle=document.getElementById('alertToggle'),status=document.getElementById('alertStatus');
+  document.getElementById('testAlertBtn').hidden=!(key&&info);
+  if(!key||!info)document.getElementById('testAlertStatus').hidden=true;
   if(key&&info){
     toggle.checked=true;var reps=getReps(),locName='Position enregistrée';
     for(var i=0;i<reps.length;i++){if(Math.abs(reps[i].lat-info.lat)<0.0001&&Math.abs(reps[i].lon-info.lon)<0.0001){locName=reps[i].name;break;}}
@@ -1783,7 +1787,43 @@ function crAlertBusy(busy){
   btn.disabled=busy;btn.textContent=busy?'Activation en cours…':'Activer';
 }
 function crAlertTimeout(promise,ms,message){
-  return Promise.race([promise,new Promise(function(_,reject){setTimeout(function(){reject(new Error(message));},ms);})]);
+  var limite;
+  var retard=new Promise(function(_,reject){limite=setTimeout(function(){reject(new Error(message));},ms);});
+  return Promise.race([promise,retard]).finally(function(){clearTimeout(limite);});
+}
+async function testerNotification(){
+  var btn=document.getElementById('testAlertBtn'),etat=document.getElementById('testAlertStatus');
+  var cle=getLs('cr_alert_key'),info=getLs('cr_alert_info'),centre=coordonneesNotification(info?.lat,info?.lon);
+  if(btn.disabled||!cle||!centre||!Object.hasOwn(PK,info.carburant))return;
+  btn.disabled=true;
+  etat.hidden=false;
+  etat.textContent='Préparation de la notification…';
+  try{
+    if(!('Notification' in window)||Notification.permission!=='granted'||!navigator.serviceWorker){
+      throw new Error('Autorise les notifications dans les réglages de cet appareil.');
+    }
+    var reg=await crAlertTimeout(navigator.serviceWorker.ready,8000,'Le service des notifications est indisponible.');
+    var abonnement=reg.pushManager&&await crAlertTimeout(reg.pushManager.getSubscription(),8000,
+      'Impossible de vérifier l’abonnement aux alertes.');
+    if(!abonnement)throw new Error('Réactive les alertes sur cet appareil pour lancer le test.');
+    var stations=await stationsNotification(centre,info.rayon||5,info.carburant);
+    var station=stations.filter(function(s){return s.prix!==null;}).sort(function(a,b){
+      return hv(centre.lat,centre.lon,a.lat,a.lon)-hv(centre.lat,centre.lon,b.lat,b.lon);
+    })[0];
+    if(!station)throw new Error('Aucun prix disponible pour ce carburant dans la zone de ton alerte.');
+    if(getLs('cr_alert_key')!==cle)return;
+    await reg.showNotification('CarburantRadar · Test', {
+      body:'Appuie pour ouvrir la fiche de la station'+(station.adresse?' · '+station.adresse:''),
+      icon:new URL('icons/icon-192.png',reg.scope).href,
+      tag:'carburantradar-test',
+      data:{stationId:station.id,lat:station.lat,lon:station.lon,carburant:info.carburant,country:'france'}
+    });
+    etat.textContent='Notification de test affichée sur cet appareil.';
+  }catch(error){
+    etat.textContent=error?.message||'Impossible d’afficher la notification de test.';
+  }finally{
+    btn.disabled=false;
+  }
 }
 async function confirmAlert(){
   var btn=document.getElementById('crConfirmAlertBtn');if(btn&&btn.disabled)return;
@@ -2221,6 +2261,7 @@ function render(){
     var distTxt=s.distRoute!==null?(s.distRoute<1000?Math.round(s.distRoute)+' m':(s.distRoute/1000).toFixed(1)+' km'):(s.distance<1?Math.round(s.distance*1000)+' m':s.distance.toFixed(1)+' km');
     var prix=s.prix?(s.prix.toFixed(3)+' EUR'):'N/A';
     var navUrl = getNavigationUrl(s.lat, s.lon);
+    var couts=coutsRadarAffiches(s,cfg);
 
     // Même référence de coût complet que le classement.
     var savingsEUR = Number.isFinite(s.coutTotal) && avgTotalCost !== null
@@ -2229,7 +2270,7 @@ function render(){
 
     return '<div class="card'+(best?' best':'')+(fav?' fav':'')+'" id="card-'+s.id+'">'+
 
-      '<div class="rank">#'+(i+1)+(s.coutTotal!==null&&Number.isFinite(s.coutTotal)?' - '+s.coutTotal.toFixed(2)+' €':'')+(fav?' '+ic('star','11px'):'')+'</div>'+
+      '<div class="rank">#'+(i+1)+(couts?' - '+eurosRadar(couts.total):'')+(fav?' '+ic('star','11px'):'')+'</div>'+
       '<div class="card-header"><div><div class="name">'+echapperHTML(nomPerso||s.adresse)+(s.automate?'<span class="open-badge">24h/24</span>':'')+'</div>'+
       (nomPerso?'<div class="addr">'+echapperHTML(s.adresse)+'</div>':'<div class="addr">'+echapperHTML(s.cp)+' '+echapperHTML(s.ville)+'</div>')+
       '</div><button class="dots-btn" onclick="toggleCtx(\''+s.id+'\','+(fav?'true':'false')+');event.stopPropagation()">⋮</button></div>'+
@@ -2243,9 +2284,26 @@ function render(){
             '<div class="mv" style="color:'+(savingsEUR >= 0 ? 'var(--success)' : 'var(--danger)')+'">'+(savingsEUR >= 0 ? '+' : '')+savingsEUR.toFixed(2)+' €</div>'+
           '</div>'+
         '</div>' : '')+
-      '<div class="metrics"><div class="m" style="grid-column:span 3"><div class="ml">Coût total</div><div class="mv s">'+(Number.isFinite(s.coutTotal)?s.coutTotal.toFixed(2)+' €':'Trajet non calculé')+'</div></div></div>'+
+      (couts?'<div style="background:var(--bg-sunken);border-radius:8px;padding:8px;margin:8px 0">'+
+        '<div class="metrics" style="grid-template-columns:repeat(2,minmax(0,1fr));margin:0">'+
+        '<div class="m"><div class="ml">Carburant acheté</div><div class="mv">'+eurosRadar(couts.plein)+'</div></div>'+
+        '<div class="m"><div class="ml">Trajet aller-retour</div><div class="mv">'+eurosRadar(couts.trajet)+'</div></div></div>'+
+        '<div class="radar-cost-total"><span class="ml">Coût total estimé</span><strong class="mv s">'+eurosRadar(couts.total)+'</strong></div></div>':
+        '<div class="metrics"><div class="m" style="grid-column:span 3"><div class="ml">Coût total</div><div class="mv s">Trajet non calculé</div></div></div>')+
       '<a class="go" href="'+navUrl+'" target="_blank">Y aller</a></div>';
   }).join(''));
+}
+
+function coutsRadarAffiches(station,vehicule){
+  if(!vehicule||!Number.isFinite(station.coutTotal)||
+      !Number.isFinite(station.distRoute)||!Number.isFinite(station.distRetour))return null;
+  var plein=Math.round(station.prix*vehicule.liters*100);
+  var trajet=Math.round(station.prix*(station.distRoute+station.distRetour)*vehicule.consumption/1000);
+  return {plein:plein,trajet:trajet,total:plein+trajet};
+}
+
+function eurosRadar(centimes){
+  return (centimes/100).toFixed(2).replace('.',',')+' €';
 }
 
 // Autocomplétion

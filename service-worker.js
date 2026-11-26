@@ -75,7 +75,8 @@ self.addEventListener('push', event => {
   const options = {
     body: data.body || '', icon:'icons/icon-192.png', badge:'icons/icon-192.png',
     vibrate:[100,50,100],
-    data:{stationId:data.stationId || null,lat:data.lat ?? null,lon:data.lon ?? null}
+    data:{stationId:data.stationId || null,lat:data.lat ?? null,lon:data.lon ?? null,
+      country:data.country ?? null,carburant:data.carburant ?? data.fuel ?? null}
   };
   event.waitUntil(self.registration.showNotification(title,options));
 });
@@ -85,23 +86,41 @@ self.addEventListener('notificationclick', event => {
   const d = event.notification.data || {};
   const stationId = d.stationId || null;
   const scope = self.registration.scope;
-  const hash = stationId ? '#station=' + encodeURIComponent(stationId) +
-    (d.lat != null && d.lon != null ? '&lat=' + d.lat + '&lon=' + d.lon : '') : '';
+  const hash = new URLSearchParams();
+  if (stationId) {
+    hash.set('station', stationId);
+    if (d.lat != null && d.lon != null) {
+      hash.set('lat', d.lat);
+      hash.set('lon', d.lon);
+    }
+    if (d.carburant) hash.set('carburant', d.carburant);
+  }
   event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(async list => {
-    const client = list.find(c => c.url.startsWith(scope) && 'focus' in c);
-    // Respecter le pays déjà ouvert ; sinon le pays transmis par la notification.
-    const countryFromClient = client && /\/(france|espagne|italie)\//.exec(new URL(client.url).pathname);
-    const country = countryFromClient ? countryFromClient[1] :
-      (['france','espagne','italie'].includes(d.country) ? d.country : 'france');
-    const url = scope + country + '/' + (stationId ? '?notif=1' + hash : '');
+    const windows = list.filter(c => c.url.startsWith(scope) && 'focus' in c);
+    const countryOf = c => /\/(france|espagne|italie)\//.exec(new URL(c.url).pathname)?.[1];
+    const explicitCountry = ['france','espagne','italie'].includes(d.country) ? d.country : null;
+    const country = explicitCountry || windows.map(countryOf).find(Boolean) || 'france';
+    const existing = windows.find(c => countryOf(c) === country);
+    const client = existing || windows.find(c => typeof c.navigate === 'function');
+    const target = new URL(country + '/', scope);
+    if (stationId) {
+      target.searchParams.set('notif', '1');
+      target.hash = hash.toString();
+    }
     if (client) {
-      if (stationId && 'navigate' in client) {
-        try { const navigated = await client.navigate(url); return (navigated || client).focus(); }
+      if (stationId && typeof client.navigate === 'function') {
+        try {
+          const navigated = await client.navigate(target.href);
+          if (navigated) return navigated.focus();
+        }
         catch (e) { /* message fallback below */ }
       }
-      if (stationId) client.postMessage({type:'NOTIFICATION_CLICK',stationId,lat:d.lat,lon:d.lon});
-      return client.focus();
+      if (!stationId) return client.focus();
+      if (existing) {
+        existing.postMessage({type:'NOTIFICATION_CLICK',stationId,lat:d.lat,lon:d.lon,carburant:d.carburant});
+        return existing.focus();
+      }
     }
-    if (clients.openWindow) return clients.openWindow(url);
+    if (clients.openWindow) return clients.openWindow(target.href);
   }));
 });
