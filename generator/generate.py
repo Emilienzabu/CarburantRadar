@@ -273,12 +273,11 @@ def write_sitemap(root, entries):
         out += f"  <url>\n    <loc>{loc}</loc>\n" + (f"    <lastmod>{lastmod}</lastmod>\n" if lastmod else "") \
                + f"    <changefreq>{freq}</changefreq>\n    <priority>{prio}</priority>\n  </url>\n"
     out += "</urlset>\n"
-    for name in audit.SITEMAP_FILES:   # Publier les deux noms et annoncer le dernier dans robots.txt.
-        with open(os.path.join(root, name), "w", encoding="utf-8", newline="\n") as f:
-            f.write(out)
+    with open(os.path.join(root, audit.SITEMAP_FILE), "w", encoding="utf-8", newline="\n") as f:
+        f.write(out)
     rp = os.path.join(root, "robots.txt")
     txt = open(rp, encoding="utf-8").read() if os.path.isfile(rp) else "User-agent: *\nAllow: /\nDisallow: /admin/\n"
-    line = f"Sitemap: {SITE_URL}/{audit.SITEMAP_FILES[-1]}"
+    line = f"Sitemap: {SITE_URL}/{audit.SITEMAP_FILE}"
     txt = re.sub(r"(?im)^sitemap:.*$", line, txt) if re.search(r"(?im)^sitemap:", txt) else txt.rstrip("\n") + "\n\n" + line + "\n"
     with open(rp, "w", encoding="utf-8", newline="\n") as f:
         f.write(txt)

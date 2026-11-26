@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /admin/
 
-Sitemap: https://carburantradar.fr/sitemap_1.xml
+Sitemap: https://carburantradar.fr/sitemap_2.xml

@@ -10,7 +10,7 @@ from urllib.parse import urljoin, urlparse
 from xml.etree import ElementTree as ET
 
 SITE_URL = "https://carburantradar.fr"
-SITEMAP_FILES = ("sitemap_1.xml", "sitemap_2.xml")
+SITEMAP_FILE = "sitemap_2.xml"
 SITEMAP_NS = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 LEGACY = {"/", "/france/", "/espagne/", "/italie/", "/guide/"}
 SKIP_DIRS = {".git", ".github", "admin", "icons", "node_modules", "generator"}
@@ -171,21 +171,20 @@ def target_exists(root, path):
     return False
 
 
-def sitemap_entries(root, name, errors):
+def sitemap_urls(root, errors):
     try:
-        tree = ET.parse(os.path.join(root, name)).getroot()
+        tree = ET.parse(os.path.join(root, SITEMAP_FILE)).getroot()
     except (OSError, ET.ParseError) as exc:
-        errors.append(f"{name} : lecture impossible ({exc})")
+        errors.append(f"{SITEMAP_FILE} : lecture impossible ({exc})")
         return []
     if tree.tag != f"{SITEMAP_NS}urlset":
-        errors.append(f"{name} : racine XML inattendue ({tree.tag})")
+        errors.append(f"{SITEMAP_FILE} : racine XML inattendue ({tree.tag})")
         return []
-    entries = [(node.findtext(f"{SITEMAP_NS}loc", "").strip(),
-                node.findtext(f"{SITEMAP_NS}lastmod", "").strip())
-               for node in tree.findall(f"{SITEMAP_NS}url")]
-    if not entries or any(not url for url, _ in entries):
-        errors.append(f"{name} : URL manquante")
-    return entries
+    urls = [node.findtext(f"{SITEMAP_NS}loc", "").strip()
+            for node in tree.findall(f"{SITEMAP_NS}url")]
+    if not urls or any(not url for url in urls):
+        errors.append(f"{SITEMAP_FILE} : URL manquante")
+    return urls
 
 
 def audit(root, generated_check=True):
@@ -296,10 +295,7 @@ def audit(root, generated_check=True):
                    "jsonld_types": sorted({(json.loads(j).get("@type") if j.strip().startswith("{") else "?") for j in pg.jsonld if _ok(j)})}
 
     # sitemap
-    first, second = [sitemap_entries(root, name, errors) for name in SITEMAP_FILES]
-    if Counter(first) != Counter(second):
-        errors.append("sitemap_1.xml et sitemap_2.xml : URL ou dates différentes")
-    sm_urls = [url for url, _ in second]
+    sm_urls = sitemap_urls(root, errors)
     if sm_urls:
         dup = [u for u, n in Counter(sm_urls).items() if n > 1]
         for u in dup:
@@ -323,7 +319,7 @@ def audit(root, generated_check=True):
 
     # robots.txt
     rp = os.path.join(root, "robots.txt")
-    sitemap_url = f"{SITE_URL}/{SITEMAP_FILES[-1]}"
+    sitemap_url = f"{SITE_URL}/{SITEMAP_FILE}"
     if os.path.isfile(rp):
         m = re.findall(r"(?im)^sitemap:\s*(\S+)", open(rp, encoding="utf-8").read())
         if sitemap_url not in m:
