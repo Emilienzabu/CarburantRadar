@@ -215,7 +215,9 @@
       try {
         state = await requestPlus('status', token);
       } catch {
-        return;
+        if (analysisState?.token !== token) return setPeriod(id, period);
+        openMenu();
+        return link.click();
       }
       if (token !== getToken() || analyseOpenId !== id) return;
       showState(state);

@@ -191,7 +191,7 @@ export class PlusLedger {
         this.member(account, now, created);
         this.sql.exec('UPDATE member SET credits = credits + 2 WHERE account = ?', account);
       }
-      return {...this.status(account, now), rewarded: rowsWritten === 1};
+      return {...this.status(account, now, created), rewarded: rowsWritten === 1};
     });
   }
 

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Codes offerts · CarburantRadar Plus</title>
+  <style>
+    :root { color-scheme: dark; font: 16px system-ui, sans-serif; background: #17191f; color: #f5f4f0; }
+    main { max-width: 32rem; margin: 3rem auto; padding: 0 1.25rem; }
+    form { display: grid; gap: .75rem; }
+    label { display: grid; gap: .35rem; }
+    input, select, button { box-sizing: border-box; width: 100%; font: inherit; padding: .65rem; border-radius: .5rem; border: 1px solid #6f7683; }
+    button { color: #202127; background: #f8ae43; cursor: pointer; font-weight: 650; }
+    button:disabled { opacity: .65; cursor: wait; }
+    output { display: block; min-height: 1.5rem; font-weight: 650; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Créer un code Plus</h1>
+  <form>
+    <label>Clé d’administration <input name="key" type="password" autocomplete="off" required></label>
+    <label>Durée offerte
+      <select name="months">
+        <option value="6">6 mois</option>
+        <option value="12">1 an</option>
+        <option value="lifetime">À vie</option>
+      </select>
+    </label>
+    <label>Nombre d’utilisations <input name="uses" type="number" min="1" max="10000" value="1" required></label>
+    <label>Dernier jour d’activation (facultatif, heure UTC)
+      <input name="deadline" type="date">
+    </label>
+    <button type="submit">Générer le code</button>
+    <output role="status" aria-live="polite"></output>
+  </form>
+</main>
+<script>
+const form = document.querySelector('form');
+const result = document.querySelector('output');
+const submit = document.querySelector('button');
+const proxy = 'https://carburant-proxy.emilienzabukovec09.workers.dev';
+
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (submit.disabled) return;
+  const {key, months, uses, deadline} = Object.fromEntries(new FormData(form));
+  form.elements.key.value = '';
+  submit.disabled = true;
+  result.textContent = 'Création du code…';
+  try {
+    const response = await fetch(proxy + '/plus/issue', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Admin-Key': key.trim()},
+      body: JSON.stringify({months: months === 'lifetime' ? null : Number(months),
+        maxUses: Number(uses), deadline: deadline ? Date.parse(deadline + 'T00:00:00Z') + 86400000 : null}),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await response.json();
+    result.textContent = response.ok && data.code ? data.code
+      : response.status === 403 ? 'Clé d’administration incorrecte.'
+      : data.error === 'gift_settings_invalid' ? 'Vérifie la date limite et le nombre d’utilisations.'
+      : 'Le service Plus est indisponible.';
+  } catch {
+    result.textContent = 'Création non confirmée. Réessaie après avoir vérifié la connexion.';
+  } finally {
+    submit.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

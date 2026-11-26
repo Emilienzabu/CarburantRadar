@@ -16,7 +16,7 @@ if (path.startsWith('/plus/')) {
 }
 ```
 
-Le secret `PLUS_ADMIN_TOKEN` est à générer et à installer dans les deux Workers. Le proxy utilise la vérification d’administration existante pour la création d’un code. Cette opération reçoit `{months: 6 | 12 | null, maxUses: nombre, deadline?: millisecondes UTC}` sur `POST /plus/issue` avec l’en-tête `X-Admin-Key`. La réponse contient le code en clair à transmettre au bénéficiaire. Les valeurs des secrets restent dans Cloudflare.
+Le secret `PLUS_ADMIN_TOKEN` est à générer et à installer dans les deux Workers. La page `/admin/plus.html` permet de créer un code avec la clé d’administration existante. Cette opération reçoit `{months: 6 | 12 | null, maxUses: nombre, deadline?: millisecondes UTC}` sur `POST /plus/issue` avec l’en-tête `X-Admin-Key`. La réponse contient le code en clair à transmettre au bénéficiaire. Les valeurs des secrets restent dans Cloudflare.
 
 Les autres opérations `POST /plus/status`, `/plus/claim`, `/plus/preview` et `/plus/redeem` utilisent le jeton du compte CarburantRadar. Les deux dernières reçoivent `{code}`. L’identité et la date de création sont lues côté serveur.
 
