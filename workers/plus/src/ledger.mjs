@@ -1,14 +1,9 @@
+import { extraAlert, EXTRA_ALERT_LIMIT, EXTRA_ALERT_WEEK, LedgerError, operationId } from './features.mjs';
+export { LedgerError } from './features.mjs';
+
 const parisDate = new Intl.DateTimeFormat('sv-SE', {
   timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit',
 });
-
-export class LedgerError extends Error {
-  constructor(code, status = 400) {
-    super(code);
-    this.code = code;
-    this.status = status;
-  }
-}
 
 function normalizedCode(value) {
   const code = typeof value === 'string' ? value.trim().toUpperCase().replaceAll('-', '') : '';
@@ -83,6 +78,18 @@ export class PlusLedger {
         event TEXT PRIMARY KEY NOT NULL,
         account TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS trip_receipt (
+        account TEXT NOT NULL, comparison TEXT NOT NULL,
+        PRIMARY KEY (account, comparison)
+      );
+      CREATE TABLE IF NOT EXISTS extra_alert (
+        account TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, until INTEGER, removed INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (account, id)
+      );
+      CREATE TABLE IF NOT EXISTS extra_alert_delivery (
+        account TEXT NOT NULL, id TEXT NOT NULL, day TEXT NOT NULL,
+        PRIMARY KEY (account, id)
+      );
     `);
   }
 
@@ -100,14 +107,106 @@ export class PlusLedger {
 
   status(account, now, created) {
     const member = this.member(account, now, created);
+    return {
+      credits: member.credits, canClaimToday: member.last_claim < parisDate.format(now),
+      plus: this.access(account, now, member),
+    };
+  }
+
+  access(account, now, member = this.row('SELECT gift_lifetime, gift_until FROM member WHERE account = ?', account)) {
+    if (!member) return {active: false, lifetime: false, until: null};
     const lifetime = member.gift_lifetime === 1;
     const paid = this.row('SELECT MAX(paid_until) AS until FROM stripe_subscription WHERE account = ?', account).until;
     const until = lifetime ? null : Math.max(member.gift_until || 0, paid || 0) || null;
+    return {active: lifetime || (until !== null && until > now), lifetime, until};
+  }
+
+  debit(state, account, credits) {
+    if (state.credits < credits) throw new LedgerError('credits_insufficient', 409);
+    this.sql.exec('UPDATE member SET credits = credits - ? WHERE account = ?', credits, account);
+  }
+
+  unlockTrip(account, comparison, now, created) {
+    operationId(comparison);
+    return this.transaction(() => {
+      const state = this.status(account, now, created);
+      if (state.plus.active) return {charged: false};
+      const receipt = this.row('SELECT 1 FROM trip_receipt WHERE account = ? AND comparison = ?', account, comparison);
+      if (receipt) return {charged: false};
+      this.debit(state, account, 1);
+      this.sql.exec('INSERT INTO trip_receipt VALUES (?, ?)', account, comparison);
+      return {charged: true};
+    });
+  }
+
+  alerts(account, now, created) {
+    const state = this.status(account, now, created);
+    return this.sql.exec('SELECT * FROM extra_alert WHERE account = ? AND removed = 0 ORDER BY id', account)
+      .toArray().map(row => {
+        const {sub, ...settings} = JSON.parse(row.data);
+        return {...settings, id: row.id, until: row.until,
+          active: state.plus.active || row.until > now};
+      });
+  }
+
+  addAlert(account, id, value, now, created) {
+    operationId(id);
+    const settings = extraAlert(value);
+    return this.transaction(() => {
+      const existing = this.row('SELECT removed FROM extra_alert WHERE account = ? AND id = ?', account, id);
+      if (existing?.removed) throw new LedgerError('extra_alert_missing', 404);
+      if (existing) return;
+      const state = this.status(account, now, created);
+      const current = this.sql.exec('SELECT data FROM extra_alert WHERE account = ? AND removed = 0', account).toArray();
+      if (current.length >= EXTRA_ALERT_LIMIT) throw new LedgerError('extra_alert_limit', 409);
+      if (current.some(row => {
+        const other = JSON.parse(row.data);
+        return ['lat', 'lon', 'carburant', 'rayon', 'seuil'].every(key => other[key] === settings[key]);
+      })) throw new LedgerError('extra_alert_duplicate', 409);
+      if (!state.plus.active) this.debit(state, account, 2);
+      this.sql.exec('INSERT INTO extra_alert(account, id, data, until) VALUES (?, ?, ?, ?)',
+        account, id, JSON.stringify(settings), state.plus.active ? null : now + EXTRA_ALERT_WEEK);
+    });
+  }
+
+  renewAlert(account, id, now, created) {
+    operationId(id);
+    return this.transaction(() => {
+      const alert = this.row('SELECT until FROM extra_alert WHERE account = ? AND id = ? AND removed = 0', account, id);
+      if (!alert) throw new LedgerError('extra_alert_missing', 404);
+      const state = this.status(account, now, created);
+      if (state.plus.active || alert.until > now) return;
+      this.debit(state, account, 2);
+      this.sql.exec('UPDATE extra_alert SET until = ? WHERE account = ? AND id = ?', now + EXTRA_ALERT_WEEK, account, id);
+    });
+  }
+
+  removeAlert(account, id) {
+    operationId(id);
+    this.sql.exec("UPDATE extra_alert SET removed = 1, data = '{}', until = NULL WHERE account = ? AND id = ?", account, id);
+  }
+
+  scheduledAlerts(after, now) {
+    const rows = this.sql.exec(`SELECT account, id, data, until FROM extra_alert
+      WHERE removed = 0 AND (account || ':' || id) > ? ORDER BY account || ':' || id LIMIT 100`, after)
+      .toArray();
     return {
-      credits: member.credits,
-      canClaimToday: member.last_claim < parisDate.format(now),
-      plus: {active: lifetime || (until !== null && until > now), lifetime, until},
+      alerts: rows.filter(row => row.until > now || this.access(row.account, now).active)
+        .map(row => ({account: row.account, id: row.id, ...JSON.parse(row.data)})),
+      cursor: rows.length === 100 ? rows.at(-1).account + ':' + rows.at(-1).id : null,
     };
+  }
+
+  reserveAlertDelivery(account, id, now) {
+    operationId(id);
+    return this.transaction(() => {
+      const row = this.row('SELECT until FROM extra_alert WHERE account = ? AND id = ? AND removed = 0', account, id);
+      if (!row || !(row.until > now || this.access(account, now).active)) return false;
+      const day = parisDate.format(now);
+      const {rowsWritten} = this.sql.exec(`INSERT INTO extra_alert_delivery VALUES (?, ?, ?)
+        ON CONFLICT(account, id) DO UPDATE SET day = excluded.day WHERE day < excluded.day`, account, id, day);
+      return rowsWritten === 1;
+    });
   }
 
   customer(account) {
@@ -176,9 +275,8 @@ export class PlusLedger {
       const state = this.status(account, now, created);
       const access = this.analysis(account, now);
       if (state.plus.active || access.unlocked) return;
-      if (state.credits < 1) throw new LedgerError('credits_insufficient', 409);
+      this.debit(state, account, 1);
       const expires = now + 86400000;
-      this.sql.exec('UPDATE member SET credits = credits - 1 WHERE account = ?', account);
       this.sql.exec('INSERT OR REPLACE INTO credit_access VALUES (?, ?, ?)', account, 'analysis', expires);
     });
   }

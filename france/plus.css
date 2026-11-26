@@ -26,7 +26,7 @@
 }
 .cr-plus .cr-plus-close { min-width: 44px; flex: none; }
 .cr-plus form { display: grid; gap: 8px; margin-top: 12px; }
-.cr-plus input {
+.cr-plus input, .cr-plus select {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -38,3 +38,7 @@
   font: inherit;
 }
 .cr-plus [hidden] { display: none; }
+.cr-plus [data-plus-alerts] { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--border, #534d46); }
+.cr-plus [data-plus-alert-list] { padding-left: 18px; }
+.cr-plus [data-plus-alert-list] button { margin: 0 8px 8px 0; }
+#crTripAlternatives[hidden] { display: none; }

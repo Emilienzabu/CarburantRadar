@@ -5,10 +5,17 @@ import {createHmac} from 'node:crypto';
 import {PlusLedger} from '../src/ledger.mjs';
 import {handleRequest} from '../src/http.mjs';
 import {forwardPlus} from '../src/proxy.mjs';
+import {deliverExtraAlerts} from '../src/scheduled-alerts.mjs';
 
 const start = Date.parse('2026-11-26T22:59:59Z');
 const tomorrow = start + 1000;
 const adminToken = 'test-secret-with-more-than-32-characters';
+const alertPreview = {PLUS_ALERTS_PREVIEW: '1', PLUS_ALERTS_DELIVERY: '1'};
+const fixtureAlert = {
+  name: 'Travail', lat: 48.8, lon: 2.3, carburant: 'E10', rayon: 5, seuil: 3,
+  sub: {endpoint: 'https://fcm.googleapis.com/fcm/send/fixture',
+    keys: {p256dh: 'A'.repeat(87), auth: 'B'.repeat(22)}},
+};
 
 function ledger() {
   const db = new DatabaseSync(':memory:');
@@ -152,6 +159,81 @@ test('une recharge confirmée vaut deux crédits et un identifiant ne compte qu�
   const wrongAccount = await (await grant('b', 'test-1', headers)).json();
   assert.deepEqual([granted.credits, duplicate.credits, wrongAccount.credits], [7, 7, 5]);
   assert.deepEqual([granted.rewarded, duplicate.rewarded, wrongAccount.rewarded], [true, false, false]);
+});
+
+test('la comparaison Trajet débite une seule fois après confirmation et reste incluse dans Plus', async () => {
+  const store = ledger();
+  const id = crypto.randomUUID();
+  const call = (account, operation, env = {PLUS_TRIP_PREVIEW: '1'}) =>
+    handleRequest(request('/unlock-trip', {account, id: operation}), store, adminToken, start, env);
+  assert.equal((await call('a', id, {})).status, 503);
+  assert.equal((await call('a', 'unknown')).status, 400);
+  const results = await Promise.all([0, 1].map(async () => (await call('a', id)).json()));
+  assert.deepEqual(results.map(r => r.charged).sort(), [false, true]);
+  assert.equal(store.status('a', start).credits, 4);
+  const code = await store.issue({months: null, maxUses: 1}, start);
+  await store.redeem('b', code.code, start);
+  assert.equal((await (await call('b', id)).json()).charged, false);
+  assert.equal(store.status('b', start).credits, 5);
+});
+
+test('les alertes supplémentaires sont privées, renouvelables et expirent après sept jours', async () => {
+  const store = ledger();
+  const id = crypto.randomUUID();
+  const endpoint = (action, account, now, body = {}, env = alertPreview) =>
+    handleRequest(request('/alerts/' + action, {account, id, ...body}), store, adminToken, now, env);
+  assert.equal((await endpoint('add', 'a', start, {settings: fixtureAlert}, {})).status, 503);
+  const invalid = {...fixtureAlert, sub: {...fixtureAlert.sub, endpoint: 'https://unrelated.example.test/'}};
+  assert.equal((await endpoint('add', 'a', start, {settings: invalid})).status, 400);
+  assert.equal(store.status('a', start).credits, 5);
+  const create = async () => (await endpoint('add', 'a', start, {settings: fixtureAlert})).json();
+  const results = await Promise.all([create(), create()]);
+  assert.equal(results[0].alerts.length, 1);
+  assert.equal(results[1].credits, 3);
+  assert.equal(results[0].alerts[0].sub, undefined);
+  assert.equal((await endpoint('add', 'a', start, {id: crypto.randomUUID(), settings: fixtureAlert})).status, 409);
+  assert.equal((await endpoint('renew', 'b', start)).status, 404);
+  const ends = results[0].alerts[0].until;
+  assert.equal(ends, start + 7 * 86400000);
+  assert.equal(store.alerts('a', ends)[0].active, false);
+  assert.equal((await (await endpoint('renew', 'a', ends - 1)).json()).credits, 3);
+  assert.equal((await (await endpoint('renew', 'a', ends)).json()).credits, 1);
+  assert.equal((await (await endpoint('renew', 'a', ends)).json()).credits, 1);
+  assert.equal((await endpoint('remove', 'b', ends)).status, 200);
+  assert.equal((await (await endpoint('remove', 'a', ends)).json()).alerts.length, 0);
+  assert.equal((await endpoint('add', 'a', ends, {settings: fixtureAlert})).status, 404);
+  const code = await store.issue({months: 6, maxUses: 1}, start);
+  const access = await store.redeem('b', code.code, start);
+  const plusAlert = await (await endpoint('add', 'b', start, {settings: fixtureAlert})).json();
+  assert.equal(plusAlert.credits, 5);
+  assert.equal(plusAlert.alerts[0].until, null);
+  assert.equal(store.alerts('b', access.plus.until)[0].active, false);
+});
+
+test('le traitement planifié envoie une fois par jour et transmet la station cible', async () => {
+  const store = ledger();
+  const id = crypto.randomUUID();
+  store.addAlert('a', id, fixtureAlert, start);
+  let now = start;
+  const env = {...alertPreview, PLUS_ADMIN_TOKEN: adminToken,
+    PLUS: {fetch: (url, init) => handleRequest(new Request(url, init), store, adminToken, now, alertPreview)}};
+  const sent = [];
+  let expired = false;
+  const send = async (...args) => {sent.push(args); return {expire: expired};};
+  let rows = [{id: '75000', adresse: 'Station A', geom: {lat: 48.8, lon: 2.3}, e10_prix: 1.8}];
+  const load = async () => rows;
+  await deliverExtraAlerts(env, send, load);
+  assert.equal(sent.length, 0);
+  rows.push({id: '75001', adresse: 'Station B', geom: {lat: 48.81, lon: 2.31}, e10_prix: 2});
+  await Promise.all([deliverExtraAlerts(env, send, load), deliverExtraAlerts(env, send, load)]);
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0][4], {stationId: '75000', lat: 48.8, lon: 2.3, carburant: 'E10', country: 'france'});
+  now = tomorrow;
+  expired = true;
+  await deliverExtraAlerts(env, send, load);
+  assert.equal(sent.length, 2);
+  assert.equal(store.alerts('a', now).length, 0);
+  assert.equal((await handleRequest(request('/scheduled/alerts', {}), store, adminToken, now, alertPreview)).status, 403);
 });
 
 test('Stripe de test vérifie les prix, évite les doublons et réserve l’accès aux paiements confirmés', async t => {

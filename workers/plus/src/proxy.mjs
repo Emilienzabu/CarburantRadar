@@ -1,4 +1,5 @@
-const routes = new Set(['/status', '/claim', '/preview', '/redeem', '/issue', '/checkout', '/portal', '/stripe/webhook', '/unlock-analysis']);
+const operationRoutes = new Set(['/unlock-trip', '/alerts/add', '/alerts/renew', '/alerts/remove']);
+const routes = new Set(['/status', '/claim', '/preview', '/redeem', '/issue', '/checkout', '/portal', '/stripe/webhook', '/unlock-analysis', ...operationRoutes]);
 
 export async function forwardPlus(request, env, headers, authenticate, isAdmin) {
   const action = new URL(request.url).pathname.slice('/plus'.length);
@@ -38,6 +39,12 @@ export async function forwardPlus(request, env, headers, authenticate, isAdmin) 
       const body = await request.json().catch(() => null);
       if (body?.plan !== 'month' && body?.plan !== 'year') return fail('plan_invalid', 400);
       payload.plan = body.plan;
+    }
+    if (operationRoutes.has(action)) {
+      const body = await request.json().catch(() => null);
+      if (typeof body?.id !== 'string' || body.id.length !== 36) return fail('operation_invalid', 400);
+      payload.id = body.id;
+      if (action === '/alerts/add') payload.settings = body.settings;
     }
   }
   try {

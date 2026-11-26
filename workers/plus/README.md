@@ -32,6 +32,12 @@ Configurer le portail client dans le même environnement Stripe. Le webhook publ
 
 La recharge de deux crédits via `/reward` est une opération privée qui nécessite le secret interne et un identifiant unique de récompense. L’adaptateur Google Ad Manager fournira cette opération uniquement après vérification de la notification de la régie.
 
+## Comparaisons et alertes de préproduction
+
+- `PLUS_TRIP_PREVIEW=1` affiche le déblocage de la comparaison des autres stations après un calcul routier abouti, à un crédit par résultat. Un même résultat peut être revu sans débit supplémentaire.
+- `PLUS_ALERTS_PREVIEW=1` affiche les alertes supplémentaires. Une alerte gratuite historique reste gérée par le proxy existant. Chaque alerte supplémentaire coûte deux crédits pour sept jours, avec renouvellement manuel. L’abonnement Plus permet de surveiller jusqu’à douze zones simultanément sans débit. Les alertes incluses deviennent inactives quand les droits expirent, sauf si elles ont une durée payée restante.
+- Copier `src/scheduled-alerts.mjs` près du fichier d’entrée du proxy de test et importer `deliverExtraAlerts`. Dans le gestionnaire planifié existant, appeler `ctx.waitUntil(deliverExtraAlerts(env, sendNotification))`. Activer `PLUS_ALERTS_DELIVERY=1` sur les deux Workers de test pour exécuter ce traitement. Les routes de traitement sont accessibles via la liaison de service privée et reprennent le service d’envoi Web Push du proxy. La règle des alertes supplémentaires est le seuil choisi par rapport à la moyenne, avec au plus une tentative de notification par alerte et par jour.
+
 ## Tests
 
 Depuis la racine du dépôt, avec Node 24.
@@ -40,4 +46,4 @@ Depuis la racine du dépôt, avec Node 24.
 node --test workers/plus/test/plus.test.mjs
 ```
 
-Les tests exercent SQL avec une base SQLite en mémoire, les routes entre le proxy et le service Plus et les réponses Stripe simulées. Relier les Workers dans un environnement Cloudflare séparé permet ensuite de vérifier les liaisons et l’environnement Stripe avec une carte de test. Les alertes multizones et le Trajet avancé feront l’objet d’un lot séparé.
+Les tests exercent SQL avec une base SQLite en mémoire, les routes entre le proxy et le service Plus et les réponses Stripe simulées. Relier les Workers dans un environnement Cloudflare séparé permet ensuite de vérifier les liaisons, Stripe avec une carte de test et la réception des notifications sur un téléphone. La comparaison et l’analyse utilisent encore des données publiques chargées par le navigateur. Leur mise en production avec crédits nécessite un contrôle côté serveur des résultats détaillés.

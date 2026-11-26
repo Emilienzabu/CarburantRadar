@@ -9,6 +9,8 @@ function accountStatus(ledger, env, account, now, created) {
   const status = ledger.status(account, now, created);
   const analysis = ledger.analysis(account, now);
   if (env.PLUS_ANALYSIS_PREVIEW === '1') status.analysis = analysis;
+  if (env.PLUS_TRIP_PREVIEW === '1') status.trip = true;
+  if (env.PLUS_ALERTS_PREVIEW === '1') status.alerts = ledger.alerts(account, now, created);
   if (billingReady(env)) {
     status.billing = {test: true, hasCustomer: !!ledger.customer(account), canCheckout: !ledger.hasOpenSubscription(account)};
   }
@@ -32,7 +34,8 @@ async function adminAuthorized(request, secret) {
 export async function handleRequest(request, ledger, adminToken, now = Date.now(), billingEnv = {}) {
   const {pathname} = new URL(request.url);
   if (request.method !== 'POST') return reply({error: 'method_not_allowed'}, 405);
-  if (['/issue', '/reward'].includes(pathname) && !(await adminAuthorized(request, adminToken))) {
+  if (['/issue', '/reward', '/scheduled/alerts', '/scheduled/reserve', '/scheduled/remove'].includes(pathname) &&
+      !(await adminAuthorized(request, adminToken))) {
     return reply({error: 'admin_required'}, 403);
   }
   try {
@@ -40,6 +43,14 @@ export async function handleRequest(request, ledger, adminToken, now = Date.now(
     const data = await request.json().catch(() => null);
     if (!data || typeof data !== 'object' || Array.isArray(data)) return reply({error: 'invalid_request'}, 400);
     if (pathname === '/issue') return reply(await ledger.issue(data, now), 201);
+    if (pathname.startsWith('/scheduled/') && billingEnv.PLUS_ALERTS_DELIVERY !== '1') {
+      throw new LedgerError('extra_alert_unavailable', 503);
+    }
+    if (pathname === '/scheduled/alerts') {
+      const after = data.cursor ?? '';
+      if (typeof after !== 'string' || after.length > 300) throw new LedgerError('invalid_request');
+      return reply(ledger.scheduledAlerts(after, now));
+    }
     const {account, code, created} = data;
     if (typeof account !== 'string' || !account.trim() || account.length > 256) {
       return reply({error: 'account_required'}, 401);
@@ -61,7 +72,24 @@ export async function handleRequest(request, ledger, adminToken, now = Date.now(
         ledger.unlockAnalysis(account, now, created);
         return reply(accountStatus(ledger, billingEnv, account, now, created));
       }
+      case '/unlock-trip': {
+        if (billingEnv.PLUS_TRIP_PREVIEW !== '1') throw new LedgerError('trip_unavailable', 503);
+        const receipt = ledger.unlockTrip(account, data.id, now, created);
+        return reply({...accountStatus(ledger, billingEnv, account, now, created), ...receipt});
+      }
+      case '/alerts/add':
+      case '/alerts/renew':
+      case '/alerts/remove':
+        if (billingEnv.PLUS_ALERTS_PREVIEW !== '1') throw new LedgerError('extra_alert_unavailable', 503);
+        if (pathname === '/alerts/add') ledger.addAlert(account, data.id, data.settings, now, created);
+        if (pathname === '/alerts/renew') ledger.renewAlert(account, data.id, now, created);
+        if (pathname === '/alerts/remove') ledger.removeAlert(account, data.id);
+        return reply(accountStatus(ledger, billingEnv, account, now, created));
       case '/reward': return reply(ledger.reward(account, data.event, now, created));
+      case '/scheduled/reserve': return reply({reserved: ledger.reserveAlertDelivery(account, data.id, now)});
+      case '/scheduled/remove':
+        ledger.removeAlert(account, data.id);
+        return reply({removed: true});
       default: return reply({error: 'not_found'}, 404);
     }
   } catch (error) {
