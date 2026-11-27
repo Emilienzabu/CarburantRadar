@@ -271,6 +271,7 @@ test('le traitement planifié envoie une fois par jour et transmet la station ci
 test('Stripe de test vérifie les prix, évite les doublons et réserve l’accès aux paiements confirmés', async t => {
   const store = ledger();
   const account = 'a'.repeat(64);
+  const annualAccount = 'b'.repeat(64);
   const settings = {PLUS_BILLING_TEST: '1', STRIPE_SECRET_KEY: 'sk_test_fixture', STRIPE_WEBHOOK_SECRET: 'whsec_fixture',
     STRIPE_MONTHLY_PRICE: 'price_Month', STRIPE_YEARLY_PRICE: 'price_Year',
     STRIPE_RETURN_URL: 'https://preprod.example.test/france/'};
@@ -292,7 +293,7 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
     if (path === '/v1/subscriptions') return Response.json({data: existing});
     if (path === '/v1/checkout/sessions') return Response.json({url: 'https://checkout.stripe.com/test'});
     if (path === '/v1/billing_portal/sessions') return Response.json({url: 'https://billing.stripe.com/test'});
-    if (path === '/v1/subscriptions/sub_Test') return Response.json(subscription);
+    if (path === '/v1/subscriptions/' + subscription.id) return Response.json(subscription);
     throw new Error('Stripe route inattendue : ' + path);
   });
   const call = (path, payload = {}, env = settings) =>
@@ -312,14 +313,18 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
   existing = [];
   let eventSequence = 0;
   const event = (type, object, {live = false, skew = 0, tampered = false, id = 'evt_' + ++eventSequence} = {}) => {
-    const raw = JSON.stringify({id, livemode: live, type, data: {object}});
+    const raw = JSON.stringify({id, api_version: '2026-11-18.endive', livemode: live, type, data: {object}}, null, 2);
     const timestamp = Math.floor(start / 1000) + skew;
     const hmac = createHmac('sha256', settings.STRIPE_WEBHOOK_SECRET).update(timestamp + '.' + raw).digest('hex');
-    return new Request('https://example.test/stripe/webhook', {method: 'POST',
+    return new Request('https://example.test/plus/stripe/webhook', {method: 'POST',
       headers: {'Stripe-Signature': 't=' + timestamp + ',v1=' + hmac}, body: tampered ? raw + ' ' : raw});
   };
+  const bindings = {PLUS: {fetch: (url, init) => handleRequest(new Request(url, init), store, adminToken, start, settings)}};
   const webhook = (type, object, options) =>
-    handleRequest(event(type, object, options), store, adminToken, start, settings);
+    forwardPlus(event(type, object, options), bindings, {});
+  const invoice = id => ({object: 'invoice', parent: {
+    type: 'subscription_details', subscription_details: {subscription: id},
+  }});
   for (const options of [{live: true}, {skew: 301}, {tampered: true}]) {
     assert.equal((await webhook('customer.subscription.created', subscription, options)).status, 400);
   }
@@ -335,23 +340,33 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
   const paidUntil = store.status(account, start).plus.until;
   assert.equal((await call('/portal')).status, 200);
   assert.equal(calls.at(-1).body.get('return_url'), settings.STRIPE_RETURN_URL + '?plus=gestion');
-  assert.equal((await call('/portal', {account: 'b'.repeat(64), customer: 'cus_Test'})).status, 404);
+  assert.equal((await call('/portal', {account: annualAccount, customer: 'cus_Test'})).status, 404);
   subscription.cancel_at_period_end = true;
   await webhook('customer.subscription.updated', subscription);
   assert.equal(store.status(account, start).plus.until, paidUntil);
   subscription = {...subscription, status: 'past_due', items: {data: [{
     price: {id: 'price_Month'}, current_period_end: Math.floor(start / 1000) + 7200,
   }]}};
-  await webhook('invoice.payment_failed', {subscription: 'sub_Test'});
+  assert.equal((await webhook('invoice.payment_failed', invoice('sub_Test'))).status, 200);
   assert.equal(store.status(account, start).plus.until, paidUntil);
   assert.equal(store.status(account, paidUntil).plus.active, false);
   subscription.status = 'active';
-  await webhook('invoice.paid', {subscription: 'sub_Test'});
+  assert.equal((await webhook('invoice.paid', invoice('sub_Test'))).status, 200);
   assert.ok(store.status(account, start).plus.until > paidUntil);
   subscription.status = 'canceled';
   await webhook('customer.subscription.deleted', subscription);
   await webhook('customer.subscription.created', {id: 'sub_Test'});
   assert.equal(store.status(account, start).plus.active, false);
-  assert.equal((await call('/checkout', {account: 'b'.repeat(64), plan: 'year'})).status, 200);
+  assert.equal((await call('/checkout', {account: annualAccount, plan: 'year'})).status, 200);
   assert.equal(calls.at(-1).body.get('line_items[0][price]'), 'price_Year');
+  assert.equal(store.status(annualAccount, start).plus.active, false);
+  const annualExpiry = Math.floor(start / 1000) + 365 * 86400;
+  subscription = {id: 'sub_Annual', livemode: false, customer: 'cus_Second', status: 'active',
+    metadata: {carburantradar_account: annualAccount}, latest_invoice: {status: 'paid'},
+    items: {data: [{price: {id: 'price_Year'}, current_period_end: annualExpiry}]}};
+  assert.equal((await webhook('invoice.paid', invoice('sub_Annual'))).status, 200);
+  assert.deepEqual(store.status(annualAccount, start).plus, {active: true, lifetime: false, until: annualExpiry * 1000});
+  assert.equal(store.status(annualAccount, start).credits, 5);
+  assert.equal(store.status(account, start).plus.active, false);
+  assert.ok(calls.every(({headers}) => headers['Stripe-Version'] === '2025-04-30.basil'));
 });
