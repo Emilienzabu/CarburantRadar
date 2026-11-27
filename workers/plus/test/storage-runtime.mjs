@@ -1,5 +1,6 @@
 import {DurableObject} from 'cloudflare:workers';
 import {PlusLedger} from '../src/ledger.mjs';
+import {nearby} from '../src/advanced.mjs';
 
 export class StorageCheck extends DurableObject {
   fetch() {
@@ -22,7 +23,15 @@ export class StorageCheck extends DurableObject {
 }
 
 export default {
-  fetch(request, env) {
+  async fetch(request, env) {
+    if (new URL(request.url).pathname === '/stations') {
+      const stations = await nearby({lat: 48.8566, lon: 2.3522}, 5, (url, options) => {
+        const outgoing = new Request(url, options);
+        if (outgoing.redirect !== 'manual') throw new Error('Redirections externes interdites.');
+        return Response.json({results: [{id: 94160001}]});
+      });
+      return Response.json({stations});
+    }
     return env.STORAGE_CHECK.getByName('case').fetch(request);
   },
 };

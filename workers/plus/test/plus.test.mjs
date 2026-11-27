@@ -6,6 +6,7 @@ import {PlusLedger} from '../src/ledger.mjs';
 import {handleRequest} from '../src/http.mjs';
 import {forwardPlus} from '../src/proxy.mjs';
 import {deliverExtraAlerts} from '../src/scheduled-alerts.mjs';
+import {nearby} from '../src/advanced.mjs';
 
 const start = Date.parse('2026-11-26T22:59:59Z');
 const tomorrow = start + 1000;
@@ -133,7 +134,10 @@ test('Analyse renvoie les données côté serveur et débite après un résultat
   const params = {fuel: 'E10', stationId: '75000001', radius: 5, period: 30};
   let upstream = [];
   t.mock.method(globalThis, 'fetch', async url => {
-    assert.equal(new URL(url).hostname, 'public.opendatasoft.com');
+    const target = new URL(url);
+    assert.equal(target.hostname, 'public.opendatasoft.com');
+    assert.equal(target.searchParams.get('group_by'), "date_format(update,'yyyy-MM-dd') AS date");
+    assert.equal(target.searchParams.get('select'), 'avg(price_e10) AS price');
     return Response.json({results: upstream});
   });
   const call = (account, confirm, now = start, env = preview) =>
@@ -149,11 +153,24 @@ test('Analyse renvoie les données côté serveur et débite après un résultat
   assert.deepEqual(result.analysis, {unlocked: true, expires: start + 86400000});
   assert.equal((await (await call('a', false)).json()).credits, 4);
   assert.equal((await call('a', false, start + 86400000)).status, 409);
-  const gift = await store.issue({months: 6, maxUses: 1}, start);
-  await store.redeem('b', gift.code, start);
+  store.saveStripeSubscription('sub_Analysis', 'b', {plan: 'month', status: 'active',
+    until: start + 86400000, periodEnd: start + 86400000, cancelAtPeriodEnd: false}, null, start);
   assert.equal((await (await call('b', false)).json()).credits, 5);
   for (let day = 1; day <= 4; day++) store.unlockAnalysis('a', start + day * 86400000);
   assert.equal((await call('a', true, start + 5 * 86400000)).status, 409);
+});
+
+test('les stations arrivent en JSON et toute redirection du fournisseur est refusée', async () => {
+  const point = {lat: 48.8566, lon: 2.3522};
+  const fixtures = [{id: 94160001, geom: point, e10_prix: 1.79}];
+  const result = await nearby(point, 5, async (url, options) => {
+    assert.equal(new URL(url).searchParams.get('where'), "within_distance(geom,geom'POINT(2.3522 48.8566)',5000m)");
+    assert.equal(options.redirect, 'manual');
+    return Response.json({results: fixtures});
+  });
+  assert.deepEqual(result, fixtures);
+  await assert.rejects(nearby(point, 5, async () => Response.redirect('https://example.test/')),
+    {code: 'advanced_service_unavailable', status: 503});
 });
 
 test('une recharge confirmée vaut deux crédits et un identifiant ne compte qu’une fois', async () => {
@@ -202,8 +219,8 @@ test('le serveur vérifie les détours, garde le résultat et refuse de débiter
   assert.equal(completed.result.choices[0].station.id, '1');
   assert.deepEqual(await (await call('a', id, undefined, {confirm: false})).json(), completed);
   assert.equal((await call('a', id, undefined, {params: {...params, liters: 43}})).status, 409);
-  const code = await store.issue({months: null, maxUses: 1}, start);
-  await store.redeem('b', code.code, start);
+  store.saveStripeSubscription('sub_Trip', 'b', {plan: 'year', status: 'active',
+    until: start + 86400000, periodEnd: start + 86400000, cancelAtPeriodEnd: false}, null, start);
   assert.equal((await call('b', id, undefined, {confirm: false})).status, 200);
   assert.equal(store.status('b', start).credits, 5);
 });

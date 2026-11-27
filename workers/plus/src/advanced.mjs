@@ -20,7 +20,9 @@ function fuelField(fuel) {
 }
 
 async function get(url, load) {
-  const response = await load(url, {signal: AbortSignal.timeout(7000), redirect: 'error'});
+  // Workers n’implémente pas redirect: 'error'. Les réponses 3xx restent refusées par response.ok.
+  const response = await load(url, {headers: {accept: 'application/json'},
+    signal: AbortSignal.timeout(7000), redirect: 'manual'});
   if (!response.ok) throw new LedgerError('advanced_service_unavailable', 503);
   return response.json();
 }
@@ -39,8 +41,8 @@ async function aggregated(ids, field, since, load) {
   const day = "date_format(update,'yyyy-MM-dd')";
   url.searchParams.set('limit', '100');
   url.searchParams.set('where', `id IN (${ids.map(id => '"' + id + '"').join(',')}) AND update >= "${since}" AND ${field} > 0`);
-  url.searchParams.set('select', `${day} AS date, avg(${field}) AS price`);
-  url.searchParams.set('group_by', day);
+  url.searchParams.set('select', `avg(${field}) AS price`);
+  url.searchParams.set('group_by', `${day} AS date`);
   url.searchParams.set('order_by', 'date asc');
   const out = [];
   for (let offset = 0; offset < 400; offset += 100) {

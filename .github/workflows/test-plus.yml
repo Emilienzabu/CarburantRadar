@@ -37,6 +37,7 @@ jobs:
           trap 'kill "$!" 2>/dev/null || true' EXIT
           curl --no-progress-meter --fail --retry 20 --retry-delay 1 --retry-connrefused http://localhost:8790/ > /tmp/plus-storage.json || { cat /tmp/plus-storage.log; exit 1; }
           node --input-type=module -e "import assert from 'node:assert/strict'; import fs from 'node:fs'; const result=JSON.parse(fs.readFileSync('/tmp/plus-storage.json')); console.log(result); assert.ok(result.rowsWritten > 1); assert.deepEqual([result.before,result.after,result.active,result.plan],[false,true,true,'month']);"
+          node --input-type=module -e "import assert from 'node:assert/strict'; const response=await fetch('http://localhost:8790/stations'); assert.equal(response.status,200); assert.deepEqual(await response.json(),{stations:[{id:94160001}]});"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
