@@ -163,11 +163,14 @@ test('une recharge confirmée vaut deux crédits et un identifiant ne compte qu�
     handleRequest(request('/reward', {account, event}, headers), store, adminToken, start);
   assert.equal((await grant('a', 'test-1')).status, 403);
   const headers = {authorization: 'Bearer ' + adminToken};
-  const granted = await (await grant('a', 'test-1', headers)).json();
-  const duplicate = await (await grant('a', 'test-1', headers)).json();
+  const parallel = await Promise.all([grant('a', 'test-1', headers), grant('a', 'test-1', headers)]);
+  const sameAccount = await Promise.all(parallel.map(response => response.json()));
   const wrongAccount = await (await grant('b', 'test-1', headers)).json();
-  assert.deepEqual([granted.credits, duplicate.credits, wrongAccount.credits], [7, 7, 5]);
-  assert.deepEqual([granted.rewarded, duplicate.rewarded, wrongAccount.rewarded], [true, false, false]);
+  assert.deepEqual([...sameAccount.map(result => result.credits), wrongAccount.credits], [7, 7, 5]);
+  assert.equal(sameAccount.filter(result => result.rewarded).length, 1);
+  assert.equal(wrongAccount.rewarded, false);
+  assert.deepEqual(store.history('a').map(entry => ({...entry})), [{id: 1, amount: 2, reason: 'reward', time: start}]);
+  assert.deepEqual(store.history('b'), []);
 });
 
 test('le serveur vérifie les détours, garde le résultat et refuse de débiter en cas d’échec', async t => {
