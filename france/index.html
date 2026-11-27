@@ -3638,9 +3638,11 @@ function init(){
  function clearDetail(){if(openedSub){openedSub.a.after(openedSub.body);openedSub=null}Array.from(detail.children).forEach(function(c){if(c.classList.contains('cr-v07-row'))c.remove();else if(c.classList.contains('cr-v07-section')){while(c.firstChild)stash.appendChild(c.firstChild);c.remove()}else stash.appendChild(c)})}
  var items=[['compte','Compte','♙'],['lieux','Lieux et favoris','⌖'],['perso','Véhicules et réglages','⚙'],['alertes','Alertes prix','♧'],['infos','Aide et informations','ⓘ']];
  function row(label,icon,action){var b=document.createElement('button');b.type='button';b.className='cr-v07-row';b.innerHTML='<span class="cr-v07-icon">'+icon+'</span><span class="cr-v07-label"></span><span class="cr-v07-chevron">›</span>';b.querySelector('.cr-v07-label').textContent=label;b.onclick=action;return b}
- var current='',sub='';function setHead(t,back){document.getElementById('crV07Title').textContent=t;document.getElementById('crV07Back').style.display=back?'':'none'}
- function home(){current='';sub='';side.classList.remove('cr-v07-detail');setHead('Menu',false)}
- function section(key){current=key;sub='';clearDetail();setHead(items.find(function(x){return x[0]===key})[1],true);side.classList.add('cr-v07-detail');detail.scrollTop=0;
+ var current='',sub='',plusSection=null;function setHead(t,back){document.getElementById('crV07Title').textContent=t;document.getElementById('crV07Back').style.display=back?'':'none'}
+ function leave(){if(current==='plus'&&plusSection){plusSection.panel.hidden=true;plusSection.close()}}
+ function home(){leave();current='';sub='';side.classList.remove('cr-v07-detail');setHead('Menu',false)}
+ function section(key){leave();current=key;sub='';clearDetail();setHead(items.find(function(x){return x[0]===key})[1],true);side.classList.add('cr-v07-detail');detail.scrollTop=0;
+  if(key==='plus'){detail.append(plusSection.panel);plusSection.panel.hidden=false;plusSection.open();return}
   if(key==='alertes'){
     var holder=document.createElement('div');
     holder.className='cr-v07-section';
@@ -3653,6 +3655,11 @@ function init(){
   gs.forEach(function(g){var accs=Array.from(g.querySelectorAll(':scope > .acc-header'));if(accs.length){accs.forEach(function(a){var body=a.nextElementSibling;detail.append(row(a.querySelector('.acc-title')?.textContent.trim()||'Rubrique','•',function(){sub=a.querySelector('.acc-title')?.textContent.trim()||'Rubrique';clearDetail();openedSub={a:a,body:body};var h=document.createElement('div');h.className='cr-v07-section';h.append(body);detail.append(h);setHead(sub,true)}))})}else{var h=document.createElement('div');h.className='cr-v07-section';h.append(g);detail.append(h)}})
  }
  items.forEach(function(x){main.append(row(x[1],x[2],function(){section(x[0])}))});var install=row('Télécharger l’application','↓',function(){if(typeof installerApp==='function')installerApp()});install.id='crV07Install';install.style.marginTop='0';main.append(install);
+ window.crRegisterPlus=function(panel,open,close){
+   plusSection={panel:panel,open:open,close:close};
+   items.push(['plus','CarburantRadar Plus','★']);
+   main.insertBefore(row('CarburantRadar Plus','★',function(){section('plus')}),install);
+ };
  document.getElementById('crV07Back').onclick=function(){if(sub){section(current)}else home()};document.getElementById('crV07Close').onclick=function(){closeMenu()};
  var oldOpen=window.openMenu;window.openMenu=function(key){
    if(oldOpen)oldOpen();

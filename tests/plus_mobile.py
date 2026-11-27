@@ -1,3 +1,4 @@
+from os import environ
 from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
@@ -19,8 +20,9 @@ def respond(route):
     request = route.request
     cors = {"access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type",
             "access-control-allow-methods": "GET,POST,OPTIONS"}
-    if request.url.startswith(ORIGIN) and request.url[len(ORIGIN):] in files:
-        filename, mime = files[request.url[len(ORIGIN):]]
+    local_path = request.url[len(ORIGIN):].split("?", 1)[0]
+    if request.url.startswith(ORIGIN) and local_path in files:
+        filename, mime = files[local_path]
         route.fulfill(body=Path("france", filename).read_bytes(), content_type=mime + "; charset=utf-8")
     elif "carburant-proxy." in request.url and request.method == "OPTIONS":
         route.fulfill(status=204, headers=cors)
@@ -103,7 +105,7 @@ with sync_playwright() as pw:
     expect(page.locator("#splash")).to_be_hidden()
     page.locator(".menu-btn").click()
     page.get_by_role("button", name="CarburantRadar Plus").click()
-    panel = page.get_by_role("dialog", name="CarburantRadar Plus")
+    panel = page.get_by_role("region", name="CarburantRadar Plus")
     expect(panel).to_be_visible()
     expect(panel.get_by_text("5 crédits disponibles")).to_be_visible()
     panel.get_by_role("button", name="Réclamer mon crédit du jour").click()
@@ -132,7 +134,6 @@ with sync_playwright() as pw:
     expect(panel.get_by_text("2 crédits simulés obtenus.")).to_be_visible()
     expect(panel.get_by_text("6 crédits disponibles")).to_be_visible()
     assert calls == ["status", "claim", "checkout"]
-    panel.get_by_role("button", name="Fermer").click()
     page.locator("#crV07Close").click()
     page.locator("#nav-analyse").click()
     page.evaluate("""() => {
@@ -163,9 +164,8 @@ with sync_playwright() as pw:
     expect(panel.get_by_text("Ton accès Plus est activé.")).to_be_visible()
     expect(panel.get_by_text("Ton accès Plus est actif jusqu’au", exact=False)).to_be_visible()
     assert calls[-2:] == ["preview", "redeem"]
-    panel.get_by_role("button", name="Fermer").click()
-    expect(panel).to_be_hidden()
     page.locator("#crV07Close").click()
+    expect(panel).to_be_hidden()
     page.locator("#nav-trajet").click()
     page.evaluate("""() => {
       window.comparisonFixture = [
@@ -186,4 +186,58 @@ with sync_playwright() as pw:
     expect(page.locator("#crTripAlternatives")).to_be_visible()
     expect(comparison).to_be_hidden()
     assert len(trip_charges) == 1
+    ctx.close()
+
+    for width, height, touch in [(360, 780, True), (768, 1024, True), (1440, 900, False)]:
+        screen = browser.new_context(viewport={"width": width, "height": height},
+                                     has_touch=touch, service_workers="block", locale="fr-FR")
+        page = screen.new_page()
+        attempts = [0]
+
+        def billing_response(route):
+            request = route.request
+            if request.method == "POST" and request.url.endswith("/plus/status"):
+                returning = bool(request.post_data_json.get("refresh"))
+                attempts[0] += 1
+                active = returning and attempts[0] >= 2
+                expiry = 4102444800000 if active else None
+                route.fulfill(json={
+                    "credits": 5, "canClaimToday": False, "history": [], "rewards": {"mode": "simulation"},
+                    "plus": {"active": active, "lifetime": False, "until": expiry},
+                    "billing": {"test": True, "hasCustomer": active, "canCheckout": not active,
+                                "subscription": {"plan": "month", "status": "active", "paidUntil": expiry,
+                                                 "periodEnd": expiry, "cancelAtPeriodEnd": False} if active else None},
+                }, headers={"access-control-allow-origin": "*"})
+            else:
+                respond(route)
+
+        page.route("**/*", billing_response)
+        page.add_init_script("""localStorage.setItem('cr_onboarding_vu', 'true');
+            localStorage.setItem('cr_tuto_vu', 'true');
+            localStorage.setItem('cr_account_token', 'session-fixture');""")
+        page.goto(ORIGIN + "/france/")
+        expect(page.locator("#splash")).to_be_hidden()
+        page.locator(".menu-btn").click()
+        page.get_by_role("button", name="CarburantRadar Plus").click()
+        plus = page.get_by_role("region", name="CarburantRadar Plus")
+        expect(plus.get_by_text("−16,67 %")).to_be_visible()
+        expect(plus.get_by_role("heading", name="Crédits", exact=True)).to_be_visible()
+        assert page.locator("#crV07Close").bounding_box()["width"] <= 40
+        assert plus.evaluate("element => element.closest('#crV07Detail').scrollWidth <= element.closest('#crV07Detail').clientWidth")
+        page.wait_for_function("Math.abs(document.getElementById('sideMenu').getBoundingClientRect().right - innerWidth) <= 1")
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        attempts[0] = 0
+        page.goto(ORIGIN + "/france/?plus=retour")
+        expect(plus.get_by_text("Vérification de ton abonnement…")).to_be_visible()
+        expect(plus.get_by_text("Abonnement de test confirmé.")).to_be_visible(timeout=12000)
+        expect(plus.get_by_text("Offre mensuelle · 1 €/mois", exact=False)).to_be_visible()
+        expect(plus.get_by_role("button", name="Tester à 1 €/mois")).to_be_hidden()
+        expect(plus.get_by_role("button", name="Gérer mon abonnement de test")).to_be_visible()
+        expect(plus.get_by_text("Vérification de ton abonnement…")).to_be_hidden()
+        assert page.locator("#crV07Close").bounding_box()["width"] <= 40
+        if "PLUS_SCREENSHOTS_DIR" in environ:
+            screenshots = Path(environ["PLUS_SCREENSHOTS_DIR"])
+            screenshots.mkdir(parents=True, exist_ok=True)
+            page.screenshot(path=screenshots / f"plus-{width}.png", animations="disabled")
+        screen.close()
     browser.close()

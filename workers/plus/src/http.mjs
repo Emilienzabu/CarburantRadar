@@ -1,5 +1,5 @@
 import { LedgerError } from './ledger.mjs';
-import { beginCheckout, billingPortal, billingReady, stripeWebhook } from './billing.mjs';
+import { beginCheckout, billingPortal, billingReady, reconcileBilling, stripeWebhook } from './billing.mjs';
 import { detailedAnalysis, detailedTrip } from './advanced.mjs';
 
 const advancedInFlight = new WeakMap();
@@ -26,7 +26,8 @@ function accountStatus(ledger, env, account, now, created) {
   if (env.PLUS_TRIP_PREVIEW === '1') status.trip = true;
   if (env.PLUS_ALERTS_PREVIEW === '1') status.alerts = ledger.alerts(account, now, created);
   if (billingReady(env)) {
-    status.billing = {test: true, hasCustomer: !!ledger.customer(account), canCheckout: !ledger.hasOpenSubscription(account)};
+    status.billing = {test: true, hasCustomer: !!ledger.customer(account),
+      canCheckout: !ledger.hasOpenSubscription(account), subscription: ledger.billingDetails(account)};
   }
   return status;
 }
@@ -70,7 +71,11 @@ export async function handleRequest(request, ledger, adminToken, now = Date.now(
       return reply({error: 'account_required'}, 401);
     }
     switch (pathname) {
-      case '/status': return reply(accountStatus(ledger, billingEnv, account, now, created));
+      case '/status': {
+        try { await reconcileBilling(ledger, billingEnv, account, now, data.refresh === true); }
+        catch { /* L’accès déjà confirmé reste consultable si Stripe est indisponible. */ }
+        return reply(accountStatus(ledger, billingEnv, account, now, created));
+      }
       case '/claim': {
         const {claimed} = ledger.claim(account, now, created);
         return reply({...accountStatus(ledger, billingEnv, account, now, created), claimed});

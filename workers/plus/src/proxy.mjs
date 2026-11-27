@@ -30,6 +30,10 @@ export async function forwardPlus(request, env, headers, authenticate, isAdmin) 
     const key = new TextEncoder().encode(JSON.stringify([email.trim().toLowerCase(), created]));
     const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', key));
     payload = {account: Array.from(hash, byte => byte.toString(16).padStart(2, '0')).join(''), created};
+    if (action === '/status') {
+      const body = await request.json().catch(() => null);
+      payload.refresh = body?.refresh === true;
+    }
     if (action === '/preview' || action === '/redeem') {
       const body = await request.json().catch(() => null);
       if (typeof body?.code !== 'string' || body.code.length > 64) return fail('code_invalid', 400);

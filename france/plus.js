@@ -1,32 +1,53 @@
 (function () {
   function init() {
-    const menu = document.getElementById('crV07Main');
-    if (!menu) return;
+    if (typeof window.crRegisterPlus !== 'function') return;
 
-    const dialog = document.createElement('dialog');
+    const dialog = document.createElement('section');
     dialog.className = 'cr-plus';
-    dialog.setAttribute('aria-labelledby', 'crPlusTitle');
+    dialog.hidden = true;
+    dialog.setAttribute('aria-labelledby', 'crV07Title');
     dialog.innerHTML = `
-      <header>
-        <h2 id="crPlusTitle">CarburantRadar Plus</h2>
-        <button type="button" class="cr-plus-close" aria-label="Fermer">×</button>
-      </header>
-      <p data-plus-status>Chargement de ton compte…</p>
-      <p data-plus-balance hidden></p>
-      <button type="button" data-plus-claim hidden>Réclamer mon crédit du jour</button>
-      <details data-plus-history hidden>
-        <summary>Historique des crédits</summary>
-        <ul></ul>
-      </details>
+      <div class="cr-plus-card">
+        <p data-plus-status>Chargement de ton compte…</p>
+        <p data-plus-subscription hidden></p>
+        <p data-plus-wait role="status" hidden><span class="cr-plus-spinner" aria-hidden="true"></span>Vérification de ton abonnement…</p>
+        <div class="cr-plus-actions">
+          <button type="button" class="cr-plus-small" data-plus-portal hidden>Gérer mon abonnement de test</button>
+          <button type="button" class="cr-plus-small" data-plus-code-toggle aria-expanded="false">J’ai un code</button>
+        </div>
+        <form hidden>
+          <label for="crPlusCode">Code Plus</label>
+          <input id="crPlusCode" name="code" maxlength="64" required spellcheck="false" autocapitalize="characters" autocomplete="off">
+          <button type="submit">Vérifier le code</button>
+          <button type="button" data-plus-confirm hidden>Activer le code</button>
+        </form>
+      </div>
       <button type="button" data-plus-login hidden>Me connecter</button>
-      <button type="button" data-plus-code-toggle aria-expanded="false">J’ai un code</button>
-      <form hidden>
-        <label for="crPlusCode">Code Plus</label>
-        <input id="crPlusCode" name="code" maxlength="64" required spellcheck="false" autocapitalize="characters" autocomplete="off">
-        <button type="submit">Vérifier le code</button>
-        <button type="button" data-plus-confirm hidden>Activer le code</button>
-      </form>
-      <section data-plus-alerts hidden aria-labelledby="crExtraAlertsTitle">
+      <p data-plus-message role="status" aria-live="polite"></p>
+      <section class="cr-plus-card" data-plus-billing hidden aria-labelledby="crPlusPlansTitle">
+        <h3 id="crPlusPlansTitle">Abonnements</h3>
+        <p class="cr-plus-note">Offres de test Stripe</p>
+        <div class="cr-plus-offers">
+          <article>
+            <h4>Mensuel</h4>
+            <p class="cr-plus-price">1 € <span>/ mois</span></p>
+            <button type="button" data-plus-plan="month">Tester à 1 €/mois</button>
+          </article>
+          <article class="cr-plus-annual">
+            <h4>Annuel</h4>
+            <span class="cr-plus-saving">−16,67 %</span>
+            <p class="cr-plus-price">10 € <span>/ an</span></p>
+            <button type="button" data-plus-plan="year">Tester à 10 €/an</button>
+          </article>
+        </div>
+      </section>
+      <section class="cr-plus-card" data-plus-credits hidden aria-labelledby="crPlusCreditsTitle">
+        <h3 id="crPlusCreditsTitle">Crédits</h3>
+        <p data-plus-balance></p>
+        <button type="button" data-plus-claim hidden>Réclamer mon crédit du jour</button>
+        <details data-plus-history hidden><summary>Historique des crédits</summary><ul></ul></details>
+      </section>
+      <section class="cr-plus-card" data-plus-alerts hidden aria-labelledby="crExtraAlertsTitle">
         <h3 id="crExtraAlertsTitle">Alertes supplémentaires</h3>
         <ul data-plus-alert-list></ul>
         <form data-plus-alert-form>
@@ -47,14 +68,7 @@
           <button type="submit" data-plus-add-alert></button>
         </form>
       </section>
-      <section data-plus-billing hidden aria-label="Abonnement de test">
-        <p>Abonnement de test Stripe. Aucun paiement réel.</p>
-        <button type="button" data-plus-plan="month">Tester à 1 €/mois</button>
-        <button type="button" data-plus-plan="year">Tester à 10 €/an</button>
-        <p>Économise 16,67 % avec l’offre annuelle.</p>
-        <button type="button" data-plus-portal hidden>Gérer mon abonnement de test</button>
-      </section>
-      <section data-plus-rewards hidden aria-labelledby="crPlusRewardTitle">
+      <section class="cr-plus-card" data-plus-rewards hidden aria-labelledby="crPlusRewardTitle">
         <h3 id="crPlusRewardTitle">Publicité récompensée · simulation</h3>
         <p>Regarde une publicité de démonstration pour obtenir 2 crédits simulés.</p>
         <label><input type="checkbox" data-plus-no-ad> Simuler une annonce indisponible</label>
@@ -62,9 +76,7 @@
         <button type="button" data-plus-start hidden>Regarder</button>
         <button type="button" data-plus-skip hidden>Refuser</button>
         <p data-plus-reward-message role="status"></p>
-      </section>
-      <p data-plus-message role="status" aria-live="polite"></p>`;
-    document.body.append(dialog);
+      </section>`;
     const select = selector => dialog.querySelector(selector);
     const form = select('#crPlusCode').form;
     const code = select('#crPlusCode');
@@ -77,6 +89,9 @@
     const toggle = select('[data-plus-code-toggle]');
     const billing = select('[data-plus-billing]');
     const portal = select('[data-plus-portal]');
+    const subscription = select('[data-plus-subscription]');
+    const creditsCard = select('[data-plus-credits]');
+    const waiting = select('[data-plus-wait]');
     const plans = dialog.querySelectorAll('[data-plus-plan]');
     const creditHistory = select('[data-plus-history]');
     const rewards = select('[data-plus-rewards]');
@@ -98,6 +113,7 @@
     let tripComparison;
     let analysisState;
     let pendingPeriod;
+    let panelRun = 0;
     const back = new URL(location.href);
     let billingReturn = back.searchParams.get('plus');
     const errors = {
@@ -108,6 +124,7 @@
       code_used_up: 'Toutes les utilisations de ce code ont été prises.',
       plus_lifetime_already_active: 'Tu as déjà le Plus à vie.',
       plus_already_active: 'Ton accès Plus est déjà actif.',
+      stripe_subscription_pending: 'Stripe a déjà un abonnement pour ce compte. Vérification en cours.',
       checkout_other_plan_pending: 'Un autre paiement de test est déjà en cours. Tu peux reprendre la même offre.',
       credits_insufficient: 'Il te faut 1 crédit pour débloquer cette analyse.',
       analysis_unavailable: 'L’analyse détaillée est indisponible pour le moment.',
@@ -124,11 +141,23 @@
 
     function showState(data) {
       const {credits, canClaimToday, plus} = data;
+      const subscriptionInfo = data.billing?.subscription;
       status.textContent = plus.lifetime ? 'Ton accès Plus est actif à vie.'
         : plus.active ? 'Ton accès Plus est actif jusqu’au ' + date(plus.until) + '.'
+        : !waiting.hidden ? 'Confirmation Stripe en cours'
         : 'Ton compte est en offre gratuite.';
+      subscription.hidden = !subscriptionInfo?.plan || subscriptionInfo.status === 'canceled';
+      if (!subscription.hidden) {
+        const plan = subscriptionInfo.plan === 'year' ? 'Offre annuelle' : 'Offre mensuelle';
+        const price = subscriptionInfo.plan === 'year' ? '10 €/an' : '1 €/mois';
+        const paid = subscriptionInfo.paidUntil > Date.now();
+        const next = subscriptionInfo.cancelAtPeriodEnd ? 'Fin de l’abonnement le ' : 'Prochain renouvellement le ';
+        subscription.textContent = plan + ' · ' + price + ' · Test' +
+          (subscriptionInfo.status === 'active' && paid && subscriptionInfo.periodEnd ? ' · ' + next + date(subscriptionInfo.periodEnd)
+            : ' · Paiement en attente');
+      }
       balance.textContent = credits + (credits === 1 ? ' crédit disponible' : ' crédits disponibles');
-      balance.hidden = false;
+      creditsCard.hidden = false;
       claim.hidden = !canClaimToday;
       creditHistory.hidden = !data.history?.length;
       creditHistory.querySelector('ul').replaceChildren(...(data.history || []).map(entry => {
@@ -138,9 +167,8 @@
         return row;
       }));
       rewards.hidden = data.rewards?.mode !== 'simulation';
-      billing.hidden = data.billing?.test !== true;
-      portal.hidden = !data.billing?.hasCustomer;
-      plans.forEach(button => { button.hidden = plus.active || !data.billing?.canCheckout; });
+      billing.hidden = data.billing?.test !== true || plus.active || !data.billing?.canCheckout || !waiting.hidden;
+      portal.hidden = data.billing?.test !== true || !data.billing.hasCustomer;
       analysisState = data.analysis ? {token: getToken(), expires: data.analysis.expires,
         plusUntil: plus.until, lifetime: plus.lifetime} : null;
       unlock.hidden = !pendingPeriod || !analysisState;
@@ -174,17 +202,21 @@
         return null;
       }
       busy = true;
+      const run = panelRun;
       dialog.setAttribute('aria-busy', 'true');
       message.textContent = '';
       try {
         const payload = await requestPlus(action, token, data, action === 'analysis' ? 35000 : 10000);
-        if (token !== getToken() || !dialog.open) return null;
+        if (token !== getToken() || dialog.hidden || run !== panelRun) return null;
         return payload;
       } catch (error) {
-        if (token === getToken() && dialog.open) {
+        if (token === getToken() && !dialog.hidden && run === panelRun) {
           if (error.status === 401) login.hidden = false;
           message.textContent = errors[error.message] || 'Le service Plus est indisponible. Réessaie dans un instant.';
           if (action === 'status') status.textContent = 'Solde indisponible.';
+          if (action === 'checkout' && ['plus_already_active', 'stripe_subscription_pending'].includes(error.message)) {
+            void refreshStatus('retour');
+          }
         }
         return null;
       } finally {
@@ -206,11 +238,10 @@
       clearPreview();
       if (!form.hidden) code.focus();
     });
-    select('.cr-plus-close').addEventListener('click', () => dialog.close());
     watch.addEventListener('click', async () => {
       const run = ++rewardRun;
       const token = getToken();
-      const current = () => run === rewardRun && dialog.open && getToken() === token;
+      const current = () => run === rewardRun && !dialog.hidden && getToken() === token;
       const rewardAvailable = !select('[data-plus-no-ad]').checked;
       watch.disabled = true;
       rewardMessage.textContent = 'Préparation de la publicité de démonstration…';
@@ -246,14 +277,14 @@
         });
       } catch { finish('unavailable'); }
     });
-    dialog.addEventListener('close', () => {
+    function resetReward() {
       rewardRun++;
       stopAd?.();
       stopAd = undefined;
       watch.disabled = false;
       startAd.hidden = skipAd.hidden = true;
       rewardMessage.textContent = '';
-    });
+    }
     async function openBilling(action, fields, host) {
       const session = await act(action, fields);
       if (!session) return;
@@ -265,7 +296,6 @@
       openBilling('checkout', {plan: button.dataset.plusPlan}, 'checkout.stripe.com')));
     portal.addEventListener('click', () => openBilling('portal', {}, 'billing.stripe.com'));
     login.addEventListener('click', () => {
-      dialog.close();
       openMenu('compte');
     });
     claim.addEventListener('click', async () => {
@@ -297,17 +327,65 @@
       message.textContent = 'Ton accès Plus est activé.';
     });
 
-    const link = document.createElement('button');
-    link.type = 'button';
-    link.className = 'cr-v07-row';
-    link.innerHTML = '<span class="cr-v07-icon" aria-hidden="true">★</span><span class="cr-v07-label">CarburantRadar Plus</span><span class="cr-v07-chevron" aria-hidden="true">›</span>';
-    link.addEventListener('click', async () => {
-      if (busy || dialog.open) return;
+    let statusRefresh;
+    function refreshStatus(returned) {
+      if (statusRefresh) return statusRefresh;
+      const token = getToken();
+      if (!token) {
+        status.textContent = errors.account_required;
+        login.hidden = false;
+        return;
+      }
+      const run = panelRun;
+      const payment = returned === 'retour';
+      const isCurrent = () => !dialog.hidden && run === panelRun && token === getToken();
+      if (payment) {
+        waiting.hidden = false;
+        billing.hidden = true;
+        status.textContent = 'Confirmation Stripe en cours';
+        message.textContent = '';
+      }
+      const confirmed = data => data?.billing?.subscription?.paidUntil > Date.now();
+      let latest;
+      const task = (async () => {
+        const delays = payment ? [0, 1500, 3000, 5000, 8000, 8000, 12000] : [0];
+        for (const delay of delays) {
+          if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+          if (!isCurrent()) return;
+          try {
+            latest = await requestPlus('status', token, returned === 'retour' || returned === 'gestion' ? {refresh: true} : {}, 18000);
+            if (!isCurrent()) return;
+            showState(latest);
+            if (confirmed(latest)) break;
+          } catch (error) {
+            if (!isCurrent()) return;
+            if (error.status === 401) {
+              login.hidden = false;
+              status.textContent = errors.account_required;
+              break;
+            }
+          }
+        }
+        if (!isCurrent()) return;
+        waiting.hidden = true;
+        if (latest && (!payment || confirmed(latest))) showState(latest);
+        if (latest && payment && !confirmed(latest) && !latest.plus.active) status.textContent = 'Confirmation Stripe en attente';
+        if (!latest && login.hidden) status.textContent = 'Statut indisponible.';
+        if (returned === 'annule') message.textContent = 'Paiement de test annulé.';
+        if (payment) message.textContent = confirmed(latest) ? 'Abonnement de test confirmé.'
+          : 'Stripe n’a pas encore confirmé le paiement. Le statut sera actualisé à ton retour sur cette page.';
+      })();
+      statusRefresh = task;
+      void task.finally(() => { if (statusRefresh === task) statusRefresh = null; });
+      return task;
+    }
+    function openPanel() {
+      panelRun++;
       form.hidden = true;
       code.value = '';
       toggle.setAttribute('aria-expanded', 'false');
       clearPreview();
-      balance.hidden = true;
+      creditsCard.hidden = true;
       claim.hidden = true;
       creditHistory.hidden = true;
       rewards.hidden = true;
@@ -315,31 +393,25 @@
       alertSection.hidden = true;
       login.hidden = true;
       billing.hidden = true;
+      portal.hidden = true;
+      subscription.hidden = true;
+      waiting.hidden = true;
       status.textContent = 'Chargement de ton compte…';
-      dialog.showModal();
-      const data = await act('status');
-      if (!data) return;
-      showState(data);
       const returned = billingReturn;
-      billingReturn = null;
-      if (returned === 'annule') message.textContent = 'Paiement de test annulé. Ton compte n’a pas été modifié.';
-      if (returned === 'retour') {
-        const token = getToken();
-        let current = data;
-        if (!current.plus.active) message.textContent = 'Stripe vérifie le paiement de test…';
-        for (let attempt = 0; !current.plus.active && attempt < 3; attempt++) {
-          await new Promise(resolve => setTimeout(resolve, 1800));
-          if (!dialog.open || token !== getToken()) return;
-          try { current = await requestPlus('status', token); }
-          catch { break; }
-          if (!dialog.open || token !== getToken()) return;
-          showState(current);
-        }
-        message.textContent = current.plus.active ? 'Ton accès Plus est actif.'
-          : 'Paiement de test en attente de confirmation. Rouvre CarburantRadar Plus pour actualiser le statut.';
-      }
+      if (getToken()) billingReturn = null;
+      void refreshStatus(returned || (pendingPeriod ? undefined : 'gestion'));
+    }
+    function closePanel() {
+      panelRun++;
+      statusRefresh = null;
+      resetReward();
+      if (pendingPeriod?.req === analyseReqId) showAnalysisError('Sélectionne une période pour afficher le graphique.');
+      pendingPeriod = undefined;
+    }
+    window.crRegisterPlus(dialog, openPanel, closePanel);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && !dialog.hidden && !busy) void refreshStatus('gestion');
     });
-    menu.insertBefore(link, document.getElementById('crV07Install'));
     function renderAlerts(alerts, hasPlus) {
       alertList.replaceChildren();
       for (const item of alerts) {
@@ -393,7 +465,7 @@
         if (!subscription) subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
         });
-        if (token !== getToken() || !dialog.open) return;
+        if (token !== getToken() || dialog.hidden) return;
         const settings = {name: place.name, lat: place.lat, lon: place.lon, sub: subscription.toJSON(),
           carburant: values.get('carburant'), rayon: Number(values.get('rayon')), seuil: Number(values.get('seuil'))};
         const fingerprint = JSON.stringify(settings);
@@ -406,7 +478,7 @@
         showState(state);
         message.textContent = 'Alerte supplémentaire activée.';
       } catch (error) {
-        if (dialog.open && token === getToken()) message.textContent = error.message || 'Impossible d’activer l’alerte.';
+        if (!dialog.hidden && token === getToken()) message.textContent = error.message || 'Impossible d’activer l’alerte.';
       } finally {
         preparingAlert = false;
         addAlert.disabled = !alertPlaces.length;
@@ -520,8 +592,8 @@
             return;
           }
           pendingPeriod = {params, token, req};
-          openMenu();
-          link.click();
+          if (dialog.hidden) openMenu('plus');
+          else showState(state);
         } catch (error) {
           if (!current()) return;
           if (analysisState?.token !== token) return original(...args);
@@ -538,10 +610,6 @@
       return protectAnalysis(analyzeStation, arguments, {center: {lat: station.lat, lon: station.lon}, radius: 5,
         period, fuel, stationId: String(station.id)}, req);
     };
-    dialog.addEventListener('close', () => {
-      if (pendingPeriod?.req === analyseReqId) showAnalysisError('Sélectionne une période pour afficher le graphique.');
-      pendingPeriod = undefined;
-    });
     unlock.addEventListener('click', async () => {
       const pending = pendingPeriod;
       if (!pending || pending.token !== getToken()) return;
@@ -552,15 +620,13 @@
       if (pending.req === analyseReqId && pending.token === getToken()) {
         showAnalysis(state.result, pending.params);
         pendingPeriod = undefined;
-        dialog.close();
         closeMenu();
       }
     });
     if (['retour', 'annule', 'gestion'].includes(billingReturn)) {
       back.searchParams.delete('plus');
       history.replaceState(history.state, '', back);
-      openMenu();
-      link.click();
+      openMenu('plus');
     }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

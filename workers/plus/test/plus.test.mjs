@@ -17,13 +17,12 @@ const fixtureAlert = {
     keys: {p256dh: 'A'.repeat(87), auth: 'B'.repeat(22)}},
 };
 
-function ledger() {
-  const db = new DatabaseSync(':memory:');
+function ledger(db = new DatabaseSync(':memory:')) {
   const sql = {
     exec(query, ...values) {
       if (query.startsWith('\n')) return db.exec(query);
       const statement = db.prepare(query);
-      if (query.startsWith('SELECT')) return {toArray: () => statement.all(...values)};
+      if (statement.columns().length) return {toArray: () => statement.all(...values)};
       return {rowsWritten: Number(statement.run(...values).changes)};
     },
   };
@@ -308,8 +307,11 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
   assert.equal(attempts[0].body.get('line_items[0][price]'), 'price_Month');
   assert.equal(attempts[0].body.get('success_url'), settings.STRIPE_RETURN_URL + '?plus=retour');
   assert.equal(store.status(account, start).plus.active, false);
-  existing = [{metadata: {carburantradar_account: account}, status: 'active'}];
+  existing = [{id: 'sub_Test', metadata: {carburantradar_account: account}, status: 'active'}];
   assert.equal((await call('/checkout', {plan: 'month'})).status, 409);
+  assert.equal(store.status(account, start).plus.active, true);
+  const monthlyDetails = (await (await call('/status')).json()).billing.subscription;
+  assert.equal(monthlyDetails.plan, 'month');
   existing = [];
   let eventSequence = 0;
   const event = (type, object, {live = false, skew = 0, tampered = false, id = 'evt_' + ++eventSequence} = {}) => {
@@ -330,7 +332,7 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
   }
   subscription.latest_invoice.status = 'open';
   await webhook('customer.subscription.created', subscription);
-  assert.equal(store.status(account, start).plus.active, false);
+  assert.equal(store.status(account, start).plus.active, true);
   subscription.latest_invoice.status = 'paid';
   const duplicate = () => webhook('checkout.session.completed', {mode: 'subscription', subscription: 'sub_Test'}, {id: 'evt_checkout'});
   const before = calls.length;
@@ -369,4 +371,42 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
   assert.equal(store.status(annualAccount, start).credits, 5);
   assert.equal(store.status(account, start).plus.active, false);
   assert.ok(calls.every(({headers}) => headers['Stripe-Version'] === '2025-04-30.basil'));
+});
+
+test('le statut réconcilie un paiement existant et une ancienne livraison non appliquée peut être rejouée', async t => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE stripe_event (id TEXT PRIMARY KEY NOT NULL, received INTEGER NOT NULL);
+    INSERT INTO stripe_event VALUES ('evt_old', 1795733999000)`);
+  const store = ledger(db);
+  const account = 'c'.repeat(64);
+  const end = Math.floor(start / 1000) + 2592000;
+  const settings = {PLUS_BILLING_TEST: '1', STRIPE_SECRET_KEY: 'sk_test_fixture', STRIPE_WEBHOOK_SECRET: 'whsec_fixture',
+    STRIPE_MONTHLY_PRICE: 'price_Month', STRIPE_YEARLY_PRICE: 'price_Year',
+    STRIPE_RETURN_URL: 'https://preprod.example.test/france/'};
+  store.saveCustomer(account, 'cus_Existing');
+  assert.equal(store.hasStripeEvent('evt_old'), false);
+  const record = {id: 'sub_Existing', livemode: false, customer: 'cus_Existing', status: 'active',
+    metadata: {carburantradar_account: account}, latest_invoice: {status: 'paid'},
+    items: {data: [{price: {id: 'price_Month'}, current_period_end: end}]}};
+  let reads = 0;
+  t.mock.method(globalThis, 'fetch', async (uri, {method}) => {
+    assert.equal(method, 'GET');
+    reads++;
+    return Response.json(new URL(uri).pathname === '/v1/subscriptions' ? {data: [record]} : record);
+  });
+  const status = () => handleRequest(request('/status', {account, refresh: true}), store, adminToken, start, settings);
+  const [left, right] = await Promise.all([status(), status()]);
+  for (const response of [left, right]) {
+    const result = await response.json();
+    assert.equal(result.plus.active, true);
+    assert.deepEqual(result.billing.subscription, {status: 'active', plan: 'month', periodEnd: end * 1000,
+      paidUntil: end * 1000, cancelAtPeriodEnd: false});
+    assert.equal(result.billing.canCheckout, false);
+  }
+  assert.equal(reads, 2);
+  assert.equal(store.hasStripeEvent('evt_old'), false);
+  store.saveStripeSubscription(record.id, account, {until: end * 1000, periodEnd: end * 1000, plan: 'month', status: 'active',
+    cancelAtPeriodEnd: true}, 'evt_old', start);
+  assert.equal(store.hasStripeEvent('evt_old'), true);
+  assert.equal(store.billingDetails(account).cancelAtPeriodEnd, true);
 });
