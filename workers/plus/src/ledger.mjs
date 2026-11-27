@@ -68,6 +68,15 @@ export class PlusLedger {
         status TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS stripe_subscription_account ON stripe_subscription(account);
+      CREATE TABLE IF NOT EXISTS stripe_event (
+        id TEXT PRIMARY KEY NOT NULL, received INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS stripe_event_received ON stripe_event(received);
+      CREATE TABLE IF NOT EXISTS credit_entry (
+        id INTEGER PRIMARY KEY, account TEXT NOT NULL, amount INTEGER NOT NULL,
+        reason TEXT NOT NULL, time INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS credit_entry_account ON credit_entry(account, id DESC);
       CREATE TABLE IF NOT EXISTS credit_access (
         account TEXT NOT NULL,
         feature TEXT NOT NULL,
@@ -123,9 +132,18 @@ export class PlusLedger {
     return {active: lifetime || (until !== null && until > now), lifetime, until};
   }
 
-  debit(state, account, credits) {
+  creditEntry(account, amount, reason, now) {
+    this.sql.exec('INSERT INTO credit_entry(account, amount, reason, time) VALUES (?, ?, ?, ?)', account, amount, reason, now);
+  }
+
+  history(account) {
+    return this.sql.exec('SELECT id, amount, reason, time FROM credit_entry WHERE account = ? ORDER BY id DESC LIMIT 20', account).toArray();
+  }
+
+  debit(state, account, credits, reason, now) {
     if (state.credits < credits) throw new LedgerError('credits_insufficient', 409);
     this.sql.exec('UPDATE member SET credits = credits - ? WHERE account = ?', credits, account);
+    this.creditEntry(account, -credits, reason, now);
   }
 
   tripResult(account, comparison, params, now) {
@@ -143,7 +161,7 @@ export class PlusLedger {
       const state = this.status(account, now, created);
       if (!state.plus.active) {
         if (!confirmed) throw new LedgerError('confirmation_required', 409);
-        this.debit(state, account, 1);
+        this.debit(state, account, 1, 'trip', now);
       }
       this.sql.exec('DELETE FROM trip_result WHERE expires <= ?', now);
       this.sql.exec('INSERT INTO trip_result VALUES (?, ?, ?, ?, ?)',
@@ -176,7 +194,7 @@ export class PlusLedger {
         const other = JSON.parse(row.data);
         return ['lat', 'lon', 'carburant', 'rayon', 'seuil'].every(key => other[key] === settings[key]);
       })) throw new LedgerError('extra_alert_duplicate', 409);
-      if (!state.plus.active) this.debit(state, account, 2);
+      if (!state.plus.active) this.debit(state, account, 2, 'alert', now);
       this.sql.exec('INSERT INTO extra_alert(account, id, data, until) VALUES (?, ?, ?, ?)',
         account, id, JSON.stringify(settings), state.plus.active ? null : now + EXTRA_ALERT_WEEK);
     });
@@ -189,7 +207,7 @@ export class PlusLedger {
       if (!alert) throw new LedgerError('extra_alert_missing', 404);
       const state = this.status(account, now, created);
       if (state.plus.active || alert.until > now) return;
-      this.debit(state, account, 2);
+      this.debit(state, account, 2, 'alert', now);
       this.sql.exec('UPDATE extra_alert SET until = ? WHERE account = ? AND id = ?', now + EXTRA_ALERT_WEEK, account, id);
     });
   }
@@ -234,7 +252,9 @@ export class PlusLedger {
   saveCustomer(account, customer) {
     if (!/^cus_[a-zA-Z0-9]+$/.test(customer || '')) throw new LedgerError('billing_unavailable', 503);
     this.sql.exec('INSERT OR IGNORE INTO stripe_customer VALUES (?, ?)', account, customer);
-    return this.customer(account);
+    const saved = this.customer(account);
+    if (!saved) throw new LedgerError('billing_unavailable', 503);
+    return saved;
   }
 
   checkoutAttempt(account, plan, now) {
@@ -260,10 +280,19 @@ export class PlusLedger {
     }
   }
 
-  saveSubscription(id, account, until, status) {
-    const previous = this.row('SELECT paid_until FROM stripe_subscription WHERE id = ?', id)?.paid_until || 0;
-    const paidUntil = status === 'past_due' ? Math.min(previous, until) : until;
-    this.sql.exec('INSERT OR REPLACE INTO stripe_subscription VALUES (?, ?, ?, ?)', id, account, paidUntil, status);
+  hasStripeEvent(event) {
+    return !!this.row('SELECT 1 FROM stripe_event WHERE id = ?', event);
+  }
+
+  saveStripeEvent(event, now, id, account, until, status) {
+    this.transaction(() => {
+      const {rowsWritten} = this.sql.exec('INSERT OR IGNORE INTO stripe_event VALUES (?, ?)', event, now);
+      if (rowsWritten !== 1) return;
+      this.sql.exec('DELETE FROM stripe_event WHERE received < ?', now - 31 * 86400000);
+      const previous = this.row('SELECT paid_until FROM stripe_subscription WHERE id = ?', id)?.paid_until || 0;
+      const paidUntil = status === 'past_due' ? Math.min(previous, until) : until;
+      this.sql.exec('INSERT OR REPLACE INTO stripe_subscription VALUES (?, ?, ?, ?)', id, account, paidUntil, status);
+    });
   }
 
   claim(account, now, created) {
@@ -274,6 +303,7 @@ export class PlusLedger {
         'UPDATE member SET credits = credits + 1, last_claim = ? WHERE account = ? AND last_claim < ?',
         today, account, today,
       );
+      if (rowsWritten === 1) this.creditEntry(account, 1, 'daily', now);
       return {...this.status(account, now), claimed: rowsWritten === 1};
     });
   }
@@ -288,7 +318,7 @@ export class PlusLedger {
       const state = this.status(account, now, created);
       const access = this.analysis(account, now);
       if (state.plus.active || access.unlocked) return;
-      this.debit(state, account, 1);
+      this.debit(state, account, 1, 'analysis', now);
       const expires = now + 86400000;
       this.sql.exec('INSERT OR REPLACE INTO credit_access VALUES (?, ?, ?)', account, 'analysis', expires);
     });
@@ -301,6 +331,7 @@ export class PlusLedger {
       if (rowsWritten === 1) {
         this.member(account, now, created);
         this.sql.exec('UPDATE member SET credits = credits + 2 WHERE account = ?', account);
+        this.creditEntry(account, 2, 'reward', now);
       }
       return {...this.status(account, now, created), rewarded: rowsWritten === 1};
     });

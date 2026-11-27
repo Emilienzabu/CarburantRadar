@@ -14,6 +14,10 @@
       <p data-plus-status>Chargement de ton compte…</p>
       <p data-plus-balance hidden></p>
       <button type="button" data-plus-claim hidden>Réclamer mon crédit du jour</button>
+      <details data-plus-history hidden>
+        <summary>Historique des crédits</summary>
+        <ul></ul>
+      </details>
       <button type="button" data-plus-login hidden>Me connecter</button>
       <button type="button" data-plus-code-toggle aria-expanded="false">J’ai un code</button>
       <form hidden>
@@ -47,7 +51,17 @@
         <p>Abonnement de test Stripe. Aucun paiement réel.</p>
         <button type="button" data-plus-plan="month">Tester à 1 €/mois</button>
         <button type="button" data-plus-plan="year">Tester à 10 €/an</button>
+        <p>Économise 16,67 % avec l’offre annuelle.</p>
         <button type="button" data-plus-portal hidden>Gérer mon abonnement de test</button>
+      </section>
+      <section data-plus-rewards hidden aria-labelledby="crPlusRewardTitle">
+        <h3 id="crPlusRewardTitle">Publicité récompensée · simulation</h3>
+        <p>Regarde une publicité de démonstration pour obtenir 2 crédits simulés.</p>
+        <label><input type="checkbox" data-plus-no-ad> Simuler une annonce indisponible</label>
+        <button type="button" data-plus-watch>Préparer la publicité</button>
+        <button type="button" data-plus-start hidden>Regarder</button>
+        <button type="button" data-plus-skip hidden>Refuser</button>
+        <p data-plus-reward-message role="status"></p>
       </section>
       <p data-plus-message role="status" aria-live="polite"></p>`;
     document.body.append(dialog);
@@ -64,6 +78,16 @@
     const billing = select('[data-plus-billing]');
     const portal = select('[data-plus-portal]');
     const plans = dialog.querySelectorAll('[data-plus-plan]');
+    const creditHistory = select('[data-plus-history]');
+    const rewards = select('[data-plus-rewards]');
+    const watch = select('[data-plus-watch]');
+    const startAd = select('[data-plus-start]');
+    const skipAd = select('[data-plus-skip]');
+    const rewardMessage = select('[data-plus-reward-message]');
+    let stopAd;
+    let rewardRun = 0;
+    const creditReasons = {daily: 'Crédit du jour', reward: 'Publicité', analysis: 'Analyse détaillée',
+      trip: 'Comparaison de trajet', alert: 'Alerte supplémentaire'};
     const alertSection = select('[data-plus-alerts]');
     const alertForm = select('[data-plus-alert-form]');
     const alertPlace = alertForm.elements.place;
@@ -74,6 +98,8 @@
     let tripComparison;
     let analysisState;
     let pendingPeriod;
+    const back = new URL(location.href);
+    let billingReturn = back.searchParams.get('plus');
     const errors = {
       account_required: 'Connecte-toi pour retrouver tes crédits et activer un code.',
       code_invalid: 'Ce code est introuvable. Vérifie la saisie.',
@@ -104,6 +130,14 @@
       balance.textContent = credits + (credits === 1 ? ' crédit disponible' : ' crédits disponibles');
       balance.hidden = false;
       claim.hidden = !canClaimToday;
+      creditHistory.hidden = !data.history?.length;
+      creditHistory.querySelector('ul').replaceChildren(...(data.history || []).map(entry => {
+        const row = document.createElement('li');
+        row.textContent = (entry.amount > 0 ? '+' : '−') + Math.abs(entry.amount) +
+          ' · ' + (creditReasons[entry.reason] || 'Crédits') + ' · ' + date(entry.time);
+        return row;
+      }));
+      rewards.hidden = data.rewards?.mode !== 'simulation';
       billing.hidden = data.billing?.test !== true;
       portal.hidden = !data.billing?.hasCustomer;
       plans.forEach(button => { button.hidden = plus.active || !data.billing?.canCheckout; });
@@ -173,6 +207,53 @@
       if (!form.hidden) code.focus();
     });
     select('.cr-plus-close').addEventListener('click', () => dialog.close());
+    watch.addEventListener('click', async () => {
+      const run = ++rewardRun;
+      const token = getToken();
+      const current = () => run === rewardRun && dialog.open && getToken() === token;
+      const rewardAvailable = !select('[data-plus-no-ad]').checked;
+      watch.disabled = true;
+      rewardMessage.textContent = 'Préparation de la publicité de démonstration…';
+      function finish(reason) {
+        if (!current()) return;
+        watch.disabled = false;
+        startAd.hidden = skipAd.hidden = true;
+        rewardMessage.textContent = reason === 'complete' ? '2 crédits simulés obtenus.'
+          : reason === 'closed' ? 'Publicité passée. Aucun crédit simulé.'
+          : 'Aucune publicité disponible pour le moment.';
+      }
+      try {
+        const {watchRewarded, simulatedTag} = await import('./plus-rewarded.mjs');
+        if (!current()) return;
+        stopAd = watchRewarded(simulatedTag(rewardAvailable), '/simulation/rewarded', {
+          ready(play) {
+            if (!current()) return stopAd?.();
+            startAd.hidden = skipAd.hidden = false;
+            skipAd.textContent = 'Refuser';
+            rewardMessage.textContent = 'Publicité prête. Récompense simulée de 2 crédits.';
+            startAd.onclick = () => {
+              startAd.hidden = true;
+              skipAd.textContent = 'Fermer la publicité';
+              rewardMessage.textContent = 'Publicité de démonstration en cours…';
+              play();
+            };
+            skipAd.onclick = () => stopAd();
+          },
+          granted() {
+            if (current()) rewardMessage.textContent = 'Récompense simulée confirmée.';
+          },
+          end: finish,
+        });
+      } catch { finish('unavailable'); }
+    });
+    dialog.addEventListener('close', () => {
+      rewardRun++;
+      stopAd?.();
+      stopAd = undefined;
+      watch.disabled = false;
+      startAd.hidden = skipAd.hidden = true;
+      rewardMessage.textContent = '';
+    });
     async function openBilling(action, fields, host) {
       const session = await act(action, fields);
       if (!session) return;
@@ -228,6 +309,8 @@
       clearPreview();
       balance.hidden = true;
       claim.hidden = true;
+      creditHistory.hidden = true;
+      rewards.hidden = true;
       unlock.hidden = true;
       alertSection.hidden = true;
       login.hidden = true;
@@ -235,7 +318,26 @@
       status.textContent = 'Chargement de ton compte…';
       dialog.showModal();
       const data = await act('status');
-      if (data) showState(data);
+      if (!data) return;
+      showState(data);
+      const returned = billingReturn;
+      billingReturn = null;
+      if (returned === 'annule') message.textContent = 'Paiement de test annulé. Ton compte n’a pas été modifié.';
+      if (returned === 'retour') {
+        const token = getToken();
+        let current = data;
+        if (!current.plus.active) message.textContent = 'Stripe vérifie le paiement de test…';
+        for (let attempt = 0; !current.plus.active && attempt < 3; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 1800));
+          if (!dialog.open || token !== getToken()) return;
+          try { current = await requestPlus('status', token); }
+          catch { break; }
+          if (!dialog.open || token !== getToken()) return;
+          showState(current);
+        }
+        message.textContent = current.plus.active ? 'Ton accès Plus est actif.'
+          : 'Paiement de test en attente de confirmation. Rouvre CarburantRadar Plus pour actualiser le statut.';
+      }
     });
     menu.insertBefore(link, document.getElementById('crV07Install'));
     function renderAlerts(alerts, hasPlus) {
@@ -454,8 +556,7 @@
         closeMenu();
       }
     });
-    const back = new URL(location.href);
-    if (['retour', 'annule'].includes(back.searchParams.get('plus'))) {
+    if (['retour', 'annule', 'gestion'].includes(billingReturn)) {
       back.searchParams.delete('plus');
       history.replaceState(history.state, '', back);
       openMenu();

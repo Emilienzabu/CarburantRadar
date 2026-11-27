@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'workers/plus/**'
-      - 'france/plus.*'
+      - 'france/plus*'
       - 'france/index.html'
       - 'tests/plus_mobile.py'
       - '.github/workflows/test-plus.yml'
@@ -22,6 +22,14 @@ jobs:
         with:
           node-version: '24'
       - run: node --test workers/plus/test/plus.test.mjs
+      - run: node workers/plus/prepare-preprod.mjs
+      - run: npx --yes wrangler@4 deploy --dry-run --config workers/plus/wrangler.preprod.jsonc
+      - name: Tester le Worker de préproduction en local
+        run: |
+          npx --yes wrangler@4 dev --local --config workers/plus/wrangler.preprod.jsonc --port 8789 \
+            --var "PREVIEW_LOGIN_PASSWORD:local-fixture-never-used-elsewhere" > /tmp/plus-worker.log 2>&1 &
+          trap 'kill "$!" 2>/dev/null || true' EXIT
+          node workers/plus/test/preprod-smoke.mjs || { cat /tmp/plus-worker.log; exit 1; }
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

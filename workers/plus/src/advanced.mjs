@@ -25,7 +25,7 @@ async function get(url, load) {
   return response.json();
 }
 
-async function nearby(point, radius, load) {
+export async function nearby(point, radius, load = fetch) {
   const url = new URL(live);
   url.searchParams.set('limit', '100');
   url.searchParams.set('where', `within_distance(geom,geom'POINT(${point.lon} ${point.lat})',${radius * 1000}m)`);

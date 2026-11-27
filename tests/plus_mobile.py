@@ -6,6 +6,7 @@ from playwright.sync_api import expect, sync_playwright
 ORIGIN = "http://localhost:8765"
 files = {"/france/": ("index.html", "text/html"),
          "/france/plus.js": ("plus.js", "application/javascript"),
+         "/france/plus-rewarded.mjs": ("plus-rewarded.mjs", "application/javascript"),
          "/france/plus.css": ("plus.css", "text/css")}
 calls = []
 analysis_unlocked = False
@@ -64,6 +65,9 @@ def respond(route):
                                 "analysis": {"unlocked": analysis_unlocked,
                                              "expires": 4102444800000 if analysis_unlocked else None},
                                 "billing": {"test": True, "hasCustomer": False, "canCheckout": True},
+                                "rewards": {"mode": "simulation"},
+                                "history": [{"amount": 1, "reason": "daily", "time": 1795734000000}]
+                                           if action == "claim" else [],
                                 "trip": True, "alerts": extra_alerts, "result": result,
                                 "plus": {"active": action == "redeem", "lifetime": False,
                                          "until": 1800000000000 if action == "redeem" else None}}, headers=cors)
@@ -104,11 +108,30 @@ with sync_playwright() as pw:
     expect(panel.get_by_text("5 crédits disponibles")).to_be_visible()
     panel.get_by_role("button", name="Réclamer mon crédit du jour").click()
     expect(panel.get_by_text("6 crédits disponibles")).to_be_visible()
+    panel.get_by_text("Historique des crédits").click()
+    expect(panel.get_by_text("Crédit du jour", exact=False)).to_be_visible()
     expect(panel.get_by_role("button", name="Réclamer mon crédit du jour")).to_be_hidden()
     expect(panel.get_by_role("button", name="Tester à 1 €/mois")).to_be_visible()
     panel.get_by_role("button", name="Tester à 10 €/an").click()
     expect(panel.get_by_text("Le lien Stripe est indisponible.")).to_be_visible()
     assert page.url == ORIGIN + "/france/"
+    prepare_ad = panel.get_by_role("button", name="Préparer la publicité")
+    prepare_ad.click()
+    panel.get_by_role("button", name="Refuser").click()
+    expect(panel.get_by_text("Publicité passée. Aucun crédit simulé.")).to_be_visible()
+    prepare_ad.click()
+    panel.get_by_role("button", name="Regarder", exact=True).click()
+    panel.get_by_role("button", name="Fermer la publicité").click()
+    expect(panel.get_by_text("Publicité passée. Aucun crédit simulé.")).to_be_visible()
+    panel.get_by_label("Simuler une annonce indisponible").check()
+    prepare_ad.click()
+    expect(panel.get_by_text("Aucune publicité disponible pour le moment.")).to_be_visible()
+    panel.get_by_label("Simuler une annonce indisponible").uncheck()
+    prepare_ad.click()
+    panel.get_by_role("button", name="Regarder", exact=True).click()
+    expect(panel.get_by_text("2 crédits simulés obtenus.")).to_be_visible()
+    expect(panel.get_by_text("6 crédits disponibles")).to_be_visible()
+    assert calls == ["status", "claim", "checkout"]
     panel.get_by_role("button", name="Fermer").click()
     page.locator("#crV07Close").click()
     page.locator("#nav-analyse").click()

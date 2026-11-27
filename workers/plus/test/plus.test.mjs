@@ -124,6 +124,7 @@ test('le proxy ne fait confiance qu’à la session et contrôle la création de
   assert.equal(redeemed.headers.get('cache-control'), 'no-store');
   assert.deepEqual(await (await call('status', {}, {authorization: 'two'})).json(), {
     credits: 6, canClaimToday: false, plus: {active: true, lifetime: true, until: null},
+    history: [{id: 1, amount: 1, reason: 'daily', time: tomorrow}],
   });
 });
 
@@ -267,7 +268,7 @@ test('le traitement planifié envoie une fois par jour et transmet la station ci
 test('Stripe de test vérifie les prix, évite les doublons et réserve l’accès aux paiements confirmés', async t => {
   const store = ledger();
   const account = 'a'.repeat(64);
-  const settings = {STRIPE_SECRET_KEY: 'sk_test_fixture', STRIPE_WEBHOOK_SECRET: 'whsec_fixture',
+  const settings = {PLUS_BILLING_TEST: '1', STRIPE_SECRET_KEY: 'sk_test_fixture', STRIPE_WEBHOOK_SECRET: 'whsec_fixture',
     STRIPE_MONTHLY_PRICE: 'price_Month', STRIPE_YEARLY_PRICE: 'price_Year',
     STRIPE_RETURN_URL: 'https://preprod.example.test/france/'};
   const calls = [];
@@ -282,7 +283,9 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
       unit_amount: 100, recurring: {interval: 'month', interval_count: 1}});
     if (path === '/v1/prices/price_Year') return Response.json({livemode: false, active: true, currency: 'eur',
       unit_amount: 1000, recurring: {interval: 'year', interval_count: 1}});
-    if (path === '/v1/customers') return Response.json({id: 'cus_Test'});
+    if (path === '/v1/customers') return Response.json({
+      id: options.body.get('metadata[carburantradar_account]') === account ? 'cus_Test' : 'cus_Second',
+    });
     if (path === '/v1/subscriptions') return Response.json({data: existing});
     if (path === '/v1/checkout/sessions') return Response.json({url: 'https://checkout.stripe.com/test'});
     if (path === '/v1/billing_portal/sessions') return Response.json({url: 'https://billing.stripe.com/test'});
@@ -291,6 +294,7 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
   });
   const call = (path, payload = {}, env = settings) =>
     handleRequest(request(path, {account, ...payload}), store, adminToken, start, env);
+  assert.equal((await call('/checkout', {plan: 'month'}, {...settings, PLUS_BILLING_TEST: '0'})).status, 503);
   assert.equal((await call('/checkout', {plan: 'month'}, {...settings, STRIPE_SECRET_KEY: 'sk_live_fixture'})).status, 503);
   assert.equal((await call('/checkout', {plan: 'month'})).status, 200);
   assert.equal((await call('/checkout', {plan: 'month'})).status, 200);
@@ -303,8 +307,9 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
   existing = [{metadata: {carburantradar_account: account}, status: 'active'}];
   assert.equal((await call('/checkout', {plan: 'month'})).status, 409);
   existing = [];
-  const event = (type, object, {live = false, skew = 0, tampered = false} = {}) => {
-    const raw = JSON.stringify({livemode: live, type, data: {object}});
+  let eventSequence = 0;
+  const event = (type, object, {live = false, skew = 0, tampered = false, id = 'evt_' + ++eventSequence} = {}) => {
+    const raw = JSON.stringify({id, livemode: live, type, data: {object}});
     const timestamp = Math.floor(start / 1000) + skew;
     const hmac = createHmac('sha256', settings.STRIPE_WEBHOOK_SECRET).update(timestamp + '.' + raw).digest('hex');
     return new Request('https://example.test/stripe/webhook', {method: 'POST',
@@ -319,10 +324,18 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
   await webhook('customer.subscription.created', subscription);
   assert.equal(store.status(account, start).plus.active, false);
   subscription.latest_invoice.status = 'paid';
-  await webhook('invoice.paid', {parent: {subscription_details: {subscription: 'sub_Test'}}});
+  const duplicate = () => webhook('checkout.session.completed', {mode: 'subscription', subscription: 'sub_Test'}, {id: 'evt_checkout'});
+  const before = calls.length;
+  assert.deepEqual((await Promise.all([duplicate(), duplicate()])).map(response => response.status), [200, 200]);
+  assert.equal(calls.length - before, 1);
   assert.equal(store.status(account, start).plus.active, true);
   const paidUntil = store.status(account, start).plus.until;
   assert.equal((await call('/portal')).status, 200);
+  assert.equal(calls.at(-1).body.get('return_url'), settings.STRIPE_RETURN_URL + '?plus=gestion');
+  assert.equal((await call('/portal', {account: 'b'.repeat(64), customer: 'cus_Test'})).status, 404);
+  subscription.cancel_at_period_end = true;
+  await webhook('customer.subscription.updated', subscription);
+  assert.equal(store.status(account, start).plus.until, paidUntil);
   subscription = {...subscription, status: 'past_due', items: {data: [{
     price: {id: 'price_Month'}, current_period_end: Math.floor(start / 1000) + 7200,
   }]}};
@@ -336,4 +349,6 @@ test('Stripe de test vérifie les prix, évite les doublons et réserve l’acc�
   await webhook('customer.subscription.deleted', subscription);
   await webhook('customer.subscription.created', {id: 'sub_Test'});
   assert.equal(store.status(account, start).plus.active, false);
+  assert.equal((await call('/checkout', {account: 'b'.repeat(64), plan: 'year'})).status, 200);
+  assert.equal(calls.at(-1).body.get('line_items[0][price]'), 'price_Year');
 });

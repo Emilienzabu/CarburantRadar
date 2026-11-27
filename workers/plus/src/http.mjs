@@ -19,6 +19,8 @@ function reply(payload, status = 200) {
 
 function accountStatus(ledger, env, account, now, created) {
   const status = ledger.status(account, now, created);
+  status.history = ledger.history(account);
+  if (env.PLUS_REWARD_SIMULATION === '1') status.rewards = {mode: 'simulation'};
   const analysis = ledger.analysis(account, now);
   if (env.PLUS_ANALYSIS_PREVIEW === '1') status.analysis = analysis;
   if (env.PLUS_TRIP_PREVIEW === '1') status.trip = true;

@@ -14,7 +14,7 @@ export async function forwardPlus(request, env, headers, authenticate, isAdmin) 
     const signature = request.headers.get('Stripe-Signature');
     if (!signature) return fail('stripe_signature_invalid', 400);
     forwardedHeaders['Stripe-Signature'] = signature;
-    payload = await request.text();
+    payload = await request.arrayBuffer();
   } else if (action === '/issue') {
     if (!isAdmin(request, env)) return fail('admin_required', 403);
     if (!env.PLUS_ADMIN_TOKEN) return fail('plus_unavailable', 503);

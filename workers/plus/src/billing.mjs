@@ -9,7 +9,7 @@ const invoiceEvents = new Set(['invoice.paid', 'invoice.payment_failed']);
 
 export function billingReady(env) {
   const returnUrl = URL.canParse(env.STRIPE_RETURN_URL) ? new URL(env.STRIPE_RETURN_URL) : null;
-  return /^sk_test_/.test(env.STRIPE_SECRET_KEY || '') &&
+  return env.PLUS_BILLING_TEST === '1' && /^sk_test_/.test(env.STRIPE_SECRET_KEY || '') &&
     /^whsec_/.test(env.STRIPE_WEBHOOK_SECRET || '') &&
     /^price_[a-zA-Z0-9]+$/.test(env.STRIPE_MONTHLY_PRICE || '') &&
     /^price_[a-zA-Z0-9]+$/.test(env.STRIPE_YEARLY_PRICE || '') &&
@@ -71,7 +71,7 @@ export async function billingPortal(ledger, env, account) {
   const customer = ledger.customer(account);
   if (!customer) throw new LedgerError('billing_account_missing', 404);
   const session = await stripe('POST', '/billing_portal/sessions', env, {
-    customer, return_url: env.STRIPE_RETURN_URL + '?plus=retour',
+    customer, return_url: env.STRIPE_RETURN_URL + '?plus=gestion',
   });
   return {url: session.url};
 }
@@ -83,11 +83,14 @@ export async function verifyStripeEvent(raw, signature, secret, now) {
   const signatures = values.filter(([name, hash]) => name === 'v1' && /^[a-f0-9]{64}$/i.test(hash || ''));
   if (!signatures.length) return null;
   const key = await crypto.subtle.importKey('raw', encoder.encode(secret), {name: 'HMAC', hash: 'SHA-256'}, false, ['verify']);
-  const buffer = encoder.encode(value + '.' + raw);
+  const prefix = encoder.encode(value + '.');
+  const buffer = new Uint8Array(prefix.length + raw.byteLength);
+  buffer.set(prefix);
+  buffer.set(raw, prefix.length);
   for (const [, hash] of signatures) {
     const bytes = Uint8Array.from(hash.match(/../g), pair => parseInt(pair, 16));
     if (await crypto.subtle.verify('HMAC', key, bytes, buffer)) {
-      try { return JSON.parse(raw); } catch { return null; }
+      try { return JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(raw)); } catch { return null; }
     }
   }
   return null;
@@ -95,16 +98,20 @@ export async function verifyStripeEvent(raw, signature, secret, now) {
 
 export async function stripeWebhook(request, ledger, env, now) {
   if (!billingReady(env)) throw new LedgerError('billing_unavailable', 503);
-  const raw = await request.text();
+  const raw = new Uint8Array(await request.arrayBuffer());
   const event = await verifyStripeEvent(raw, request.headers.get('Stripe-Signature'), env.STRIPE_WEBHOOK_SECRET, now);
   if (!event || event.livemode !== false) throw new LedgerError('stripe_signature_invalid');
   const object = event.data?.object;
   const id = subscriptionEvents.has(event.type) ? object?.id
-    : invoiceEvents.has(event.type) ? (object?.parent?.subscription_details?.subscription || object?.subscription) : null;
+    : invoiceEvents.has(event.type) ? (object?.parent?.subscription_details?.subscription || object?.subscription)
+    : event.type === 'checkout.session.completed' && object?.mode === 'subscription' ? object.subscription : null;
   if (!id) return {received: true};
-  if (!/^sub_[a-zA-Z0-9]+$/.test(id || '')) throw new LedgerError('stripe_event_invalid');
+  if (!/^sub_[a-zA-Z0-9]+$/.test(id) || !/^evt_[a-zA-Z0-9_]+$/.test(event.id || '')) {
+    throw new LedgerError('stripe_event_invalid');
+  }
   // Relire la version actuelle pour que l'ordre de livraison des événements n'ait pas d'effet.
   return ledger.syncSubscription(id, async () => {
+    if (ledger.hasStripeEvent(event.id)) return {received: true};
     const subscription = await stripe('GET', '/subscriptions/' + id + '?expand%5B%5D=latest_invoice', env);
     const account = subscription.metadata?.carburantradar_account;
     if (subscription.livemode !== false || !/^[a-f0-9]{64}$/.test(account || '') ||
@@ -116,7 +123,8 @@ export async function stripeWebhook(request, ledger, env, now) {
         .map(item => item.current_period_end * 1000))
       : 0;
     const paid = subscription.latest_invoice?.status === 'paid';
-    ledger.saveSubscription(id, account, until, subscription.status === 'active' && !paid ? 'past_due' : subscription.status);
+    ledger.saveStripeEvent(event.id, now, id, account, until,
+      subscription.status === 'active' && !paid ? 'past_due' : subscription.status);
     return {received: true};
   });
 }
