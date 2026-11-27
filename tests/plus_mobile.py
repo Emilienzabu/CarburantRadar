@@ -109,7 +109,7 @@ with sync_playwright() as pw:
     panel.get_by_role("button", name="Réclamer mon crédit du jour").click()
     expect(panel.get_by_text("6 crédits disponibles")).to_be_visible()
     panel.get_by_text("Historique des crédits").click()
-    expect(panel.get_by_text("Crédit du jour", exact=False)).to_be_visible()
+    expect(panel.locator("[data-plus-history] li")).to_contain_text("Crédit du jour")
     expect(panel.get_by_role("button", name="Réclamer mon crédit du jour")).to_be_hidden()
     expect(panel.get_by_role("button", name="Tester à 1 €/mois")).to_be_visible()
     panel.get_by_role("button", name="Tester à 10 €/an").click()
