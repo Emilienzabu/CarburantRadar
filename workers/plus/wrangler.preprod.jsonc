@@ -1,0 +1,28 @@
+{
+  "name": "carburant-plus-preprod",
+  "main": "src/preprod.mjs",
+  "compatibility_date": "2026-11-26",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": ".preprod-assets",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "vars": {
+    "PLUS_BILLING_TEST": "1",
+    "PLUS_REWARD_SIMULATION": "1",
+    "PLUS_ANALYSIS_PREVIEW": "1",
+    "PLUS_TRIP_PREVIEW": "1",
+    "STRIPE_MONTHLY_PRICE": "price_1UgB34AG9FOoIq59oIUGRJMb",
+    "STRIPE_YEARLY_PRICE": "price_1UgB6bAG9FOoIq59cxU8lRPu",
+    "STRIPE_RETURN_URL": "https://carburant-plus-preprod.emilienzabukovec09.workers.dev/france/"
+  },
+  "durable_objects": {
+    "bindings": [
+      {"name": "PLUS_STATE", "class_name": "PlusState"},
+      {"name": "PREVIEW_ACCOUNTS", "class_name": "PreviewAccounts"}
+    ]
+  },
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["PlusState", "PreviewAccounts"]}]
+}

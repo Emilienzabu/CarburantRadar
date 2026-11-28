@@ -1,0 +1,65 @@
+name: Tester CarburantRadar Plus
+
+on:
+  pull_request:
+    paths:
+      - 'workers/plus/**'
+      - 'france/plus*'
+      - 'france/index.html'
+      - 'tests/plus_mobile.py'
+      - 'tests/plus_trajet_reel.py'
+      - '.github/workflows/test-plus.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  plus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test workers/plus/test/plus.test.mjs
+      - run: node workers/plus/prepare-preprod.mjs
+      - run: npx --yes wrangler@4 deploy --dry-run --config workers/plus/wrangler.preprod.jsonc
+      - name: Tester le Worker de préproduction en local
+        run: |
+          npx --yes wrangler@4 dev --local --config workers/plus/wrangler.preprod.jsonc --port 8789 \
+            --var "PREVIEW_LOGIN_PASSWORD:local-fixture-never-used-elsewhere" > /tmp/plus-worker.log 2>&1 &
+          trap 'kill "$!" 2>/dev/null || true' EXIT
+          node workers/plus/test/preprod-smoke.mjs || { cat /tmp/plus-worker.log; exit 1; }
+      - name: Reproduire la régression Stripe sur SQLite Cloudflare
+        run: |
+          npx --yes wrangler@4 dev --local --config workers/plus/test/wrangler.storage.jsonc --port 8790 \
+            > /tmp/plus-storage.log 2>&1 &
+          trap 'kill "$!" 2>/dev/null || true' EXIT
+          curl --no-progress-meter --fail --retry 20 --retry-delay 1 --retry-connrefused http://localhost:8790/ > /tmp/plus-storage.json || { cat /tmp/plus-storage.log; exit 1; }
+          node --input-type=module -e "import assert from 'node:assert/strict'; import fs from 'node:fs'; const result=JSON.parse(fs.readFileSync('/tmp/plus-storage.json')); console.log(result); assert.ok(result.rowsWritten > 1); assert.deepEqual([result.before,result.after,result.active,result.plan],[false,true,true,'month']);"
+          node --input-type=module -e "import assert from 'node:assert/strict'; const response=await fetch('http://localhost:8790/stations'); assert.equal(response.status,200); assert.deepEqual(await response.json(),{stations:[{id:94160001}]});"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: python tests/plus_mobile.py
+        env:
+          PLUS_SCREENSHOTS_DIR: ${{ runner.temp }}/plus-screenshots
+      - name: Tester les trajets réels sur trois tailles d’écran
+        env:
+          PLUS_SCREENSHOTS_DIR: ${{ runner.temp }}/plus-screenshots
+          PLUS_TRAJET_ORIGIN: http://127.0.0.1:8791
+          PLUS_TRAJET_PASSWORD: local-fixture-never-used-elsewhere
+        run: |
+          npx --yes wrangler@4 dev --local --config workers/plus/wrangler.preprod.jsonc --port 8791 \
+            --persist-to "${{ runner.temp }}/plus-trip-storage" \
+            --var "PREVIEW_LOGIN_PASSWORD:$PLUS_TRAJET_PASSWORD" > /tmp/plus-trip-worker.log 2>&1 &
+          trap 'kill "$!" 2>/dev/null || true' EXIT
+          curl --no-progress-meter --fail --retry 20 --retry-delay 1 --retry-connrefused "$PLUS_TRAJET_ORIGIN/france/" -o /dev/null || { cat /tmp/plus-trip-worker.log; exit 1; }
+          python tests/plus_trajet_reel.py || { cat /tmp/plus-trip-worker.log; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apercus-carburant-plus
+          path: ${{ runner.temp }}/plus-screenshots

@@ -1,0 +1,928 @@
+(function () {
+  function init() {
+    if (typeof window.crRegisterPlus !== 'function') return;
+
+    const dialog = document.createElement('section');
+    dialog.className = 'cr-plus';
+    dialog.hidden = true;
+    dialog.setAttribute('aria-labelledby', 'crV07Title');
+    dialog.innerHTML = `
+      <div class="cr-plus-card">
+        <p data-plus-status>Chargement de ton compte…</p>
+        <p data-plus-subscription hidden></p>
+        <p data-plus-wait role="status" hidden><span class="cr-plus-spinner" aria-hidden="true"></span>Vérification de ton abonnement…</p>
+        <div class="cr-plus-actions">
+          <button type="button" class="cr-plus-small" data-plus-portal hidden>Gérer mon abonnement de test</button>
+          <button type="button" class="cr-plus-small" data-plus-code-toggle aria-expanded="false">J’ai un code</button>
+        </div>
+        <form hidden>
+          <label for="crPlusCode">Code Plus</label>
+          <input id="crPlusCode" name="code" maxlength="64" required spellcheck="false" autocapitalize="characters" autocomplete="off">
+          <button type="submit">Vérifier le code</button>
+          <button type="button" data-plus-confirm hidden>Activer le code</button>
+        </form>
+      </div>
+      <button type="button" data-plus-login hidden>Me connecter</button>
+      <p data-plus-message role="status" aria-live="polite"></p>
+      <section class="cr-plus-card" data-plus-billing hidden aria-labelledby="crPlusPlansTitle">
+        <h3 id="crPlusPlansTitle">Les offres Plus</h3>
+        <p class="cr-plus-note">Toutes les fonctionnalités incluses. Abonnement renouvelable, résiliable depuis ton compte. Offres de test Stripe.</p>
+        <div class="cr-plus-offers">
+          <article>
+            <h4>Mensuel</h4>
+            <p class="cr-plus-price">1 € <span>/ mois</span></p>
+            <button type="button" data-plus-plan="month">Tester à 1 €/mois</button>
+          </article>
+          <article class="cr-plus-annual">
+            <h4>Annuel</h4>
+            <span class="cr-plus-saving">−16,67 %</span>
+            <p class="cr-plus-price">10 € <span>/ an</span></p>
+            <button type="button" data-plus-plan="year">Tester à 10 €/an</button>
+          </article>
+        </div>
+      </section>
+      <section class="cr-plus-card" data-plus-credits hidden aria-labelledby="crPlusCreditsTitle">
+        <h3 id="crPlusCreditsTitle">Crédits disponibles</h3>
+        <p data-plus-balance></p>
+        <button type="button" data-plus-claim hidden>Réclamer mon crédit quotidien</button>
+        <p class="cr-plus-note" data-plus-daily-note></p>
+      </section>
+      <section class="cr-plus-card" data-plus-alerts hidden aria-labelledby="crExtraAlertsTitle">
+        <h3 id="crExtraAlertsTitle">Alertes supplémentaires</h3>
+        <ul data-plus-alert-list></ul>
+        <form data-plus-alert-form>
+          <label for="crPlusAlertPlace">Lieu à surveiller</label>
+          <select id="crPlusAlertPlace" name="place" required></select>
+          <label for="crPlusAlertFuel">Carburant</label>
+          <select id="crPlusAlertFuel" name="carburant"></select>
+          <label for="crPlusAlertRadius">Rayon</label>
+          <select id="crPlusAlertRadius" name="rayon">
+            <option value="5">5 km</option><option value="10">10 km</option>
+            <option value="20">20 km</option><option value="50">50 km</option>
+          </select>
+          <label for="crPlusAlertThreshold">Baisse par rapport à la moyenne</label>
+          <select id="crPlusAlertThreshold" name="seuil">
+            <option value="2">2 %</option><option value="3" selected>3 %</option>
+            <option value="5">5 %</option><option value="8">8 %</option>
+          </select>
+          <button type="submit" data-plus-add-alert></button>
+        </form>
+      </section>
+      <section class="cr-plus-card" data-plus-rewards hidden aria-labelledby="crPlusRewardTitle">
+        <h3 id="crPlusRewardTitle">Publicité récompensée · simulation</h3>
+        <p>Regarde une publicité de démonstration pour obtenir 2 crédits simulés.</p>
+        <label><input type="checkbox" data-plus-no-ad> Simuler une annonce indisponible</label>
+        <button type="button" data-plus-watch>Regarder une publicité</button>
+        <button type="button" data-plus-start hidden>Regarder</button>
+        <button type="button" data-plus-skip hidden>Refuser</button>
+        <p data-plus-reward-message role="status"></p>
+      </section>
+      <section class="cr-plus-card" data-plus-guide aria-labelledby="crCreditGuide">
+        <h3 id="crCreditGuide">Comment fonctionnent les crédits ?</h3>
+        <p class="cr-plus-note">Les crédits donnent accès à certaines fonctionnalités. Ils ne représentent pas de l’argent. Tu démarres avec 5 crédits et tu peux obtenir 1 crédit gratuit par jour à partir du lendemain.</p>
+        <details data-plus-history hidden><summary>Historique des crédits</summary><ul></ul></details>
+      </section>`;
+    const select = selector => dialog.querySelector(selector);
+    const form = select('#crPlusCode').form;
+    const code = select('#crPlusCode');
+    const claim = select('[data-plus-claim]');
+    const balance = select('[data-plus-balance]');
+    const status = select('[data-plus-status]');
+    const message = select('[data-plus-message]');
+    const confirm = select('[data-plus-confirm]');
+    const login = select('[data-plus-login]');
+    const toggle = select('[data-plus-code-toggle]');
+    const billing = select('[data-plus-billing]');
+    const portal = select('[data-plus-portal]');
+    const subscription = select('[data-plus-subscription]');
+    const creditsCard = select('[data-plus-credits]');
+    const waiting = select('[data-plus-wait]');
+    const plans = dialog.querySelectorAll('[data-plus-plan]');
+    const creditHistory = select('[data-plus-history]');
+    const rewards = select('[data-plus-rewards]');
+    const watch = select('[data-plus-watch]');
+    const startAd = select('[data-plus-start]');
+    const skipAd = select('[data-plus-skip]');
+    const rewardMessage = select('[data-plus-reward-message]');
+    const dailyNote = select('[data-plus-daily-note]');
+    const headerCredits = document.getElementById('crHeaderCredits');
+    const headerCount = document.getElementById('crHeaderCreditCount');
+    dialog.prepend(creditsCard, rewards, billing, select('[data-plus-guide]'));
+    headerCredits.hidden = false;
+    headerCredits.addEventListener('click', () => openMenu('plus'));
+
+    const creditDialog = document.createElement('dialog');
+    creditDialog.className = 'cr-credit-confirm';
+    creditDialog.setAttribute('aria-labelledby', 'crCreditConfirmTitle');
+    creditDialog.setAttribute('aria-describedby', 'crCreditConfirmDetail crCreditConfirmMoney');
+    creditDialog.innerHTML = `
+      <form method="dialog">
+        <h2 id="crCreditConfirmTitle"></h2>
+        <p id="crCreditConfirmDetail"></p>
+        <p class="cr-credit-summary" data-credit-summary></p>
+        <p id="crCreditConfirmMoney">Aucun paiement réel n’est effectué.</p>
+        <div class="cr-credit-actions">
+          <button type="submit" value="later" autofocus>Plus tard</button>
+          <button type="submit" value="use"></button>
+        </div>
+      </form>`;
+    document.body.append(creditDialog);
+    let creditAnswer;
+    creditDialog.addEventListener('close', () => {
+      const answer = creditAnswer;
+      creditAnswer = undefined;
+      answer?.(creditDialog.returnValue === 'use');
+    });
+    function askCredit(state, count, title, detail) {
+      if (state.plus.active || count === 0) return Promise.resolve(true);
+      if (creditAnswer) return Promise.resolve(false);
+      const remaining = state.credits - count;
+      creditDialog.querySelector('h2').textContent = title;
+      creditDialog.querySelector('#crCreditConfirmDetail').textContent = detail;
+      creditDialog.querySelector('[data-credit-summary]').textContent = remaining < 0
+        ? count + (count === 1 ? ' crédit nécessaire' : ' crédits nécessaires') + ' · Solde : ' + state.credits
+        : count + (count === 1 ? ' crédit nécessaire' : ' crédits nécessaires') + ' · ' +
+          remaining + (remaining === 1 ? ' crédit restant' : ' crédits restants');
+      const use = creditDialog.querySelector('[value="use"]');
+      use.textContent = 'Utiliser ' + count + (count === 1 ? ' crédit' : ' crédits');
+      use.disabled = remaining < 0;
+      creditDialog.returnValue = '';
+      creditDialog.showModal();
+      return new Promise(resolve => { creditAnswer = resolve; });
+    }
+    let stopAd;
+    let rewardRun = 0;
+    const creditReasons = {daily: 'Crédit du jour', reward: 'Publicité', analysis: 'Analyse détaillée',
+      trip: 'Comparaison de trajet', alert: 'Alerte supplémentaire'};
+    const alertSection = select('[data-plus-alerts]');
+    const alertForm = select('[data-plus-alert-form]');
+    const alertPlace = alertForm.elements.place;
+    const alertList = select('[data-plus-alert-list]');
+    const addAlert = select('[data-plus-add-alert]');
+    let alertPlaces = [];
+    let alertRetry;
+    let tripComparison;
+    let analysisState;
+    let pendingPeriod;
+    let panelRun = 0;
+    const back = new URL(location.href);
+    let billingReturn = back.searchParams.get('plus');
+    const errors = {
+      account_required: 'Connecte-toi pour retrouver tes crédits et activer un code.',
+      code_invalid: 'Ce code est introuvable. Vérifie la saisie.',
+      code_used: 'Tu as déjà activé ce code.',
+      code_expired: 'Ce code a expiré.',
+      code_used_up: 'Toutes les utilisations de ce code ont été prises.',
+      plus_lifetime_already_active: 'Tu as déjà le Plus à vie.',
+      plus_already_active: 'Ton accès Plus est déjà actif.',
+      stripe_subscription_pending: 'Stripe a déjà un abonnement pour ce compte. Vérification en cours.',
+      checkout_other_plan_pending: 'Un autre paiement de test est déjà en cours. Tu peux reprendre la même offre.',
+      credits_insufficient: 'Ton solde de crédits est insuffisant.',
+      confirmation_required: 'Ton accès a changé. Relance l’action pour vérifier les crédits nécessaires.',
+      analysis_unavailable: 'L’analyse détaillée est indisponible pour le moment.',
+      extra_alert_invalid: 'Choisis un repère valide et un appareil compatible avec les notifications.',
+      extra_alert_limit: 'Ton compte a atteint la limite d’alertes supplémentaires.',
+      extra_alert_duplicate: 'Une alerte identique existe déjà.',
+      extra_alert_missing: 'Cette alerte a déjà été supprimée.',
+      advanced_no_data: 'Pas assez de données pour afficher ce résultat. Aucun crédit débité.',
+      advanced_service_unavailable: 'Les données sont indisponibles. Aucun crédit débité.',
+      advanced_in_progress: 'Un calcul détaillé est déjà en cours.',
+    };
+    let busy = false;
+    let checked = '';
+
+    function showState(data) {
+      const {credits, canClaimToday, plus} = data;
+      const subscriptionInfo = data.billing?.subscription;
+      status.textContent = plus.lifetime ? 'Ton accès Plus est actif à vie.'
+        : plus.active ? 'Ton accès Plus est actif jusqu’au ' + date(plus.until) + '.'
+        : !waiting.hidden ? 'Confirmation Stripe en cours'
+        : 'Ton compte est en offre gratuite.';
+      subscription.hidden = !subscriptionInfo?.plan || subscriptionInfo.status === 'canceled';
+      if (!subscription.hidden) {
+        const plan = subscriptionInfo.plan === 'year' ? 'Offre annuelle' : 'Offre mensuelle';
+        const price = subscriptionInfo.plan === 'year' ? '10 €/an' : '1 €/mois';
+        const paid = subscriptionInfo.paidUntil > Date.now();
+        const next = subscriptionInfo.cancelAtPeriodEnd ? 'Fin de l’abonnement le ' : 'Prochain renouvellement le ';
+        subscription.textContent = plan + ' · ' + price + ' · Test' +
+          (subscriptionInfo.status === 'active' && paid && subscriptionInfo.periodEnd ? ' · ' + next + date(subscriptionInfo.periodEnd)
+            : ' · Paiement en attente');
+      }
+      balance.textContent = credits + (credits === 1 ? ' crédit disponible' : ' crédits disponibles');
+      creditsCard.hidden = false;
+      claim.hidden = false;
+      claim.disabled = !canClaimToday;
+      dailyNote.textContent = canClaimToday ? '1 crédit gratuit à réclamer aujourd’hui.'
+        : 'Crédit quotidien indisponible jusqu’à demain (heure de Paris).';
+      creditHistory.hidden = !data.history?.length;
+      creditHistory.querySelector('ul').replaceChildren(...(data.history || []).map(entry => {
+        const row = document.createElement('li');
+        row.textContent = (entry.amount > 0 ? '+' : '−') + Math.abs(entry.amount) +
+          ' · ' + (creditReasons[entry.reason] || 'Crédits') + ' · ' + date(entry.time);
+        return row;
+      }));
+      rewards.hidden = data.rewards?.mode !== 'simulation';
+      billing.hidden = data.billing?.test !== true || plus.active || !data.billing?.canCheckout || !waiting.hidden;
+      portal.hidden = data.billing?.test !== true || !data.billing.hasCustomer;
+      analysisState = data.analysis ? {token: getToken(), expires: data.analysis.expires,
+        plusUntil: plus.until, lifetime: plus.lifetime} : null;
+      unlock.hidden = !pendingPeriod || !analysisState;
+      unlock.textContent = hasDetailedAnalysis() ? 'Afficher l’analyse détaillée' : 'Accéder à l’analyse détaillée · 1 crédit';
+      alertSection.hidden = !Array.isArray(data.alerts);
+      if (!alertSection.hidden) renderAlerts(data.alerts, plus.active);
+    }
+
+    function date(timestamp) {
+      return new Intl.DateTimeFormat('fr-FR', {dateStyle: 'long', timeZone: 'Europe/Paris'}).format(timestamp);
+    }
+
+    let observedToken;
+    let accountState;
+    let balanceRevision = 0;
+    let headerRefresh;
+    function showHeader(credits) {
+      headerCount.textContent = Number.isSafeInteger(credits) ? String(credits) : '—';
+      headerCredits.setAttribute('aria-label', Number.isSafeInteger(credits)
+        ? 'Crédits disponibles : ' + credits : 'Ouvrir les crédits');
+    }
+    async function requestPlus(action, token, data = {}, timeout = 10000) {
+      const revision = balanceRevision;
+      const response = await fetch(PROXY + '/plus/' + action, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token},
+        body: JSON.stringify(data),
+        signal: AbortSignal.timeout(timeout),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw Object.assign(new Error(payload.error), {status: response.status});
+      if (token === getToken() && Number.isSafeInteger(payload.credits) && payload.plus) {
+        if (action !== 'status') balanceRevision++;
+        if (action !== 'status' || revision === balanceRevision) {
+          accountState = payload;
+          showHeader(payload.credits);
+        } else if (accountState) return accountState;
+      }
+      return payload;
+    }
+
+    function refreshHeader(force = false) {
+      const token = getToken();
+      if (token !== observedToken) {
+        observedToken = token;
+        accountState = undefined;
+        balanceRevision++;
+        showHeader();
+        if (creditDialog.open) creditDialog.close('later');
+      }
+      if (!token || !force || headerRefresh?.token === token) return;
+      const task = {token};
+      headerRefresh = task;
+      void requestPlus('status', token).catch(error => {
+        if (error.status === 401 && token === getToken()) showHeader();
+      }).finally(() => { if (headerRefresh === task) headerRefresh = undefined; });
+    }
+    window.addEventListener('cr-account-updated', () => refreshHeader(getToken() !== observedToken));
+    window.addEventListener('storage', event => {
+      if (event.key === CR_TOKEN_KEY) refreshHeader(true);
+    });
+
+    async function act(action, data = {}) {
+      if (busy) return null;
+      const token = getToken();
+      if (!token) {
+        status.textContent = errors.account_required;
+        login.hidden = false;
+        return null;
+      }
+      busy = true;
+      const run = panelRun;
+      dialog.setAttribute('aria-busy', 'true');
+      message.textContent = '';
+      try {
+        const payload = await requestPlus(action, token, data, action === 'analysis' ? 35000 : 10000);
+        if (token !== getToken() || dialog.hidden || run !== panelRun) return null;
+        return payload;
+      } catch (error) {
+        if (token === getToken() && !dialog.hidden && run === panelRun) {
+          if (error.status === 401) login.hidden = false;
+          message.textContent = errors[error.message] || 'Le service Plus est indisponible. Réessaie dans un instant.';
+          if (action === 'status') status.textContent = 'Solde indisponible.';
+          if (action === 'checkout' && ['plus_already_active', 'stripe_subscription_pending'].includes(error.message)) {
+            void refreshStatus('retour');
+          }
+        }
+        return null;
+      } finally {
+        busy = false;
+        dialog.removeAttribute('aria-busy');
+      }
+    }
+
+    function clearPreview() {
+      checked = '';
+      confirm.hidden = true;
+      message.textContent = '';
+    }
+
+    code.addEventListener('input', clearPreview);
+    toggle.addEventListener('click', () => {
+      form.hidden = !form.hidden;
+      toggle.setAttribute('aria-expanded', String(!form.hidden));
+      clearPreview();
+      if (!form.hidden) code.focus();
+    });
+    watch.addEventListener('click', async () => {
+      const run = ++rewardRun;
+      const token = getToken();
+      const current = () => run === rewardRun && !dialog.hidden && getToken() === token;
+      const rewardAvailable = !select('[data-plus-no-ad]').checked;
+      watch.disabled = true;
+      rewardMessage.textContent = 'Préparation de la publicité de démonstration…';
+      function finish(reason) {
+        if (!current()) return;
+        watch.disabled = false;
+        startAd.hidden = skipAd.hidden = true;
+        rewardMessage.textContent = reason === 'complete' ? '2 crédits simulés obtenus.'
+          : reason === 'closed' ? 'Publicité passée. Aucun crédit simulé.'
+          : 'Aucune publicité disponible pour le moment.';
+      }
+      try {
+        const {watchRewarded, simulatedTag} = await import('./plus-rewarded.mjs');
+        if (!current()) return;
+        stopAd = watchRewarded(simulatedTag(rewardAvailable), '/simulation/rewarded', {
+          ready(play) {
+            if (!current()) return stopAd?.();
+            startAd.hidden = skipAd.hidden = false;
+            skipAd.textContent = 'Refuser';
+            rewardMessage.textContent = 'Publicité prête. Récompense simulée de 2 crédits.';
+            startAd.onclick = () => {
+              startAd.hidden = true;
+              skipAd.textContent = 'Fermer la publicité';
+              rewardMessage.textContent = 'Publicité de démonstration en cours…';
+              play();
+            };
+            skipAd.onclick = () => stopAd();
+          },
+          granted() {
+            if (current()) rewardMessage.textContent = 'Récompense simulée confirmée.';
+          },
+          end: finish,
+        });
+      } catch { finish('unavailable'); }
+    });
+    function resetReward() {
+      rewardRun++;
+      stopAd?.();
+      stopAd = undefined;
+      watch.disabled = false;
+      startAd.hidden = skipAd.hidden = true;
+      rewardMessage.textContent = '';
+    }
+    async function openBilling(action, fields, host) {
+      const session = await act(action, fields);
+      if (!session) return;
+      const target = URL.canParse(session.url) ? new URL(session.url) : null;
+      if (target?.origin === 'https://' + host) window.location.assign(target.href);
+      else message.textContent = 'Le lien Stripe est indisponible.';
+    }
+    plans.forEach(button => button.addEventListener('click', () =>
+      openBilling('checkout', {plan: button.dataset.plusPlan}, 'checkout.stripe.com')));
+    portal.addEventListener('click', () => openBilling('portal', {}, 'billing.stripe.com'));
+    login.addEventListener('click', () => {
+      openMenu('compte');
+    });
+    claim.addEventListener('click', async () => {
+      if (busy) return;
+      claim.disabled = true;
+      const data = await act('claim');
+      if (!data) {
+        claim.disabled = accountState?.canClaimToday !== true;
+        return;
+      }
+      showState(data);
+      message.textContent = data.claimed ? 'Ton crédit du jour a été ajouté.' : 'Ton crédit du jour a déjà été réclamé.';
+    });
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (busy) return;
+      clearPreview();
+      const value = code.value.trim();
+      const gift = await act('preview', {code: value});
+      if (!gift || form.hidden || code.value.trim() !== value) return;
+      checked = value;
+      confirm.hidden = false;
+      message.textContent = gift.lifetime ? 'Ce code te donne le Plus à vie.'
+        : 'Ce code ajoute ' + gift.months + ' mois de Plus, jusqu’au ' + date(gift.until) + '.';
+    });
+    confirm.addEventListener('click', async () => {
+      if (!checked || checked !== code.value.trim() || busy) return;
+      const data = await act('redeem', {code: checked});
+      checked = '';
+      confirm.hidden = true;
+      if (!data) return;
+      code.value = '';
+      showState(data);
+      message.textContent = 'Ton accès Plus est activé.';
+    });
+
+    let statusRefresh;
+    function refreshStatus(returned) {
+      if (statusRefresh) return statusRefresh;
+      const token = getToken();
+      if (!token) {
+        status.textContent = errors.account_required;
+        login.hidden = false;
+        return;
+      }
+      const run = panelRun;
+      const payment = returned === 'retour';
+      const isCurrent = () => !dialog.hidden && run === panelRun && token === getToken();
+      if (payment) {
+        waiting.hidden = false;
+        billing.hidden = true;
+        status.textContent = 'Confirmation Stripe en cours';
+        message.textContent = '';
+      }
+      const confirmed = data => data?.billing?.subscription?.paidUntil > Date.now();
+      let latest;
+      const task = (async () => {
+        const delays = payment ? [0, 1500, 3000, 5000, 8000, 8000, 12000] : [0];
+        for (const delay of delays) {
+          if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+          if (!isCurrent()) return;
+          try {
+            latest = await requestPlus('status', token, returned === 'retour' || returned === 'gestion' ? {refresh: true} : {}, 18000);
+            if (!isCurrent()) return;
+            showState(latest);
+            if (confirmed(latest)) break;
+          } catch (error) {
+            if (!isCurrent()) return;
+            if (error.status === 401) {
+              login.hidden = false;
+              status.textContent = errors.account_required;
+              break;
+            }
+          }
+        }
+        if (!isCurrent()) return;
+        waiting.hidden = true;
+        if (latest && (!payment || confirmed(latest))) showState(latest);
+        if (latest && payment && !confirmed(latest) && !latest.plus.active) status.textContent = 'Confirmation Stripe en attente';
+        if (!latest && login.hidden) status.textContent = 'Statut indisponible.';
+        if (returned === 'annule') message.textContent = 'Paiement de test annulé.';
+        if (payment) message.textContent = confirmed(latest) ? 'Abonnement de test confirmé.'
+          : 'Stripe n’a pas encore confirmé le paiement. Le statut sera actualisé à ton retour sur cette page.';
+      })();
+      statusRefresh = task;
+      void task.finally(() => { if (statusRefresh === task) statusRefresh = null; });
+      return task;
+    }
+    function openPanel() {
+      panelRun++;
+      form.hidden = true;
+      code.value = '';
+      toggle.setAttribute('aria-expanded', 'false');
+      clearPreview();
+      creditsCard.hidden = true;
+      claim.hidden = true;
+      creditHistory.hidden = true;
+      rewards.hidden = true;
+      unlock.hidden = true;
+      alertSection.hidden = true;
+      login.hidden = true;
+      billing.hidden = true;
+      portal.hidden = true;
+      subscription.hidden = true;
+      waiting.hidden = true;
+      status.textContent = 'Chargement de ton compte…';
+      const returned = billingReturn;
+      if (getToken()) billingReturn = null;
+      void refreshStatus(returned || (pendingPeriod ? undefined : 'gestion'));
+    }
+    function closePanel() {
+      panelRun++;
+      statusRefresh = null;
+      resetReward();
+      if (pendingPeriod?.req === analyseReqId) showAnalysisError('Sélectionne une période pour afficher le graphique.');
+      pendingPeriod = undefined;
+    }
+    window.crRegisterPlus(dialog, openPanel, closePanel);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden || busy) return;
+      if (dialog.hidden) refreshHeader(true);
+      else void refreshStatus('gestion');
+    });
+    function renderAlerts(alerts, hasPlus) {
+      alertList.replaceChildren();
+      for (const item of alerts) {
+        const row = document.createElement('li');
+        const label = document.createElement('p');
+        label.textContent = item.name + ' · ' + (FL[item.carburant] || item.carburant) + ' · ' + item.rayon + ' km'
+          + (item.active ? item.until && !hasPlus ? ' · jusqu’au ' + date(item.until) : ' · active' : ' · expirée');
+        row.append(label);
+        const actions = item.active ? [['remove', 'Supprimer']] : [['renew', 'Renouveler · 2 crédits'], ['remove', 'Supprimer']];
+        actions.forEach(([action, caption]) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = caption;
+          button.addEventListener('click', async () => {
+            const before = accountState;
+            if (action === 'renew' && (!before || !await askCredit(before, 2, 'Renouveler l’alerte',
+              'Reçois les alertes de prix pour « ' + item.name + ' » pendant 7 jours.'))) return;
+            if (!button.isConnected) return;
+            const state = await act('alerts/' + action, {id: item.id, confirm: action === 'renew' && !before?.plus.active});
+            if (state) showState(state);
+          });
+          row.append(button);
+        });
+        alertList.append(row);
+      }
+      const current = alertPlace.value;
+      alertPlaces = getReps().slice();
+      if (Number.isFinite(la) && Number.isFinite(lo)) alertPlaces.unshift({name: 'Position actuelle', lat: la, lon: lo});
+      alertPlace.replaceChildren(...alertPlaces.map((location, i) => new Option(location.name, String(i))));
+      if (current && alertPlace.options[current]) alertPlace.value = current;
+      if (!alertPlaces.length) alertPlace.append(new Option('Localise-toi ou ajoute un repère', ''));
+      addAlert.disabled = !alertPlaces.length;
+      addAlert.textContent = hasPlus ? 'Activer l’alerte' : 'Activer 7 jours · 2 crédits';
+    }
+    alertForm.elements.carburant.replaceChildren(...Object.entries(FL).map(([key, label]) => new Option(label, key)));
+    alertForm.elements.carburant.value = fu;
+    let preparingAlert = false;
+    alertForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (busy || preparingAlert) return;
+      const token = getToken();
+      const values = new FormData(alertForm);
+      const place = alertPlaces[values.get('place')];
+      if (!place) return;
+      preparingAlert = true;
+      addAlert.disabled = true;
+      try {
+        const before = accountState;
+        if (!before || !await askCredit(before, 2, 'Activer une alerte supplémentaire',
+          'Reçois les alertes de prix pour « ' + place.name + ' » pendant 7 jours.')) return;
+        if (token !== getToken() || dialog.hidden) return;
+        if (!('Notification' in window) || !navigator.serviceWorker || !('PushManager' in window)) {
+          throw new Error('Cet appareil ne prend pas en charge les notifications.');
+        }
+        const permission = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission;
+        if (permission !== 'granted') throw new Error('Autorise les notifications pour activer cette alerte.');
+        const registration = await crAlertTimeout(navigator.serviceWorker.ready, 10000, 'Le service de notifications ne répond pas.');
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+        if (token !== getToken() || dialog.hidden) return;
+        const settings = {name: place.name, lat: place.lat, lon: place.lon, sub: subscription.toJSON(),
+          carburant: values.get('carburant'), rayon: Number(values.get('rayon')), seuil: Number(values.get('seuil'))};
+        const fingerprint = JSON.stringify(settings);
+        if (alertRetry?.fingerprint !== fingerprint || alertRetry?.token !== token) {
+          alertRetry = {fingerprint, token, id: crypto.randomUUID()};
+        }
+        const state = await act('alerts/add', {id: alertRetry.id, settings, confirm: !before.plus.active});
+        if (!state) return;
+        alertRetry = undefined;
+        showState(state);
+        message.textContent = 'Alerte supplémentaire activée.';
+      } catch (error) {
+        if (!dialog.hidden && token === getToken()) message.textContent = error.message || 'Impossible d’activer l’alerte.';
+      } finally {
+        preparingAlert = false;
+        addAlert.disabled = !alertPlaces.length;
+      }
+    });
+
+    const tripPrice = new Intl.NumberFormat('fr-FR', {style: 'currency', currency: 'EUR', minimumFractionDigits: 3, maximumFractionDigits: 3});
+    const tripTotal = new Intl.NumberFormat('fr-FR', {style: 'currency', currency: 'EUR'});
+    const tripDistance = new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 1});
+    const tripReasons = ['Meilleur coût total', 'Meilleur prix au litre', 'Détour le plus court'];
+
+    function tripIcon(name) {
+      const icon = document.createElement('span');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = ic(name, '16px');
+      return icon;
+    }
+
+    function showTripResult(section, result) {
+      section.dispatchEvent(new Event('cr-trip-reset'));
+      const byStation = new Map();
+      result.choices.forEach(({station}, index) => {
+        const id = station.id ?? station.address;
+        if (!byStation.has(id)) byStation.set(id, {station, reasons: []});
+        if (tripReasons[index]) byStation.get(id).reasons.push(tripReasons[index]);
+      });
+      const entries = [...byStation.values()].sort((a, b) => a.station.total - b.station.total);
+      const best = entries[0].station;
+      const highest = entries.at(-1).station;
+
+      const header = document.createElement('div');
+      header.className = 'cr-trip-compare-head';
+      const title = document.createElement('h3');
+      title.textContent = 'Comparaison de ' + result.verified + ' stations vérifiées';
+      header.append(title);
+
+      const mapButton = document.createElement('button');
+      mapButton.type = 'button';
+      mapButton.className = 'cr-trip-map-button';
+      const mapCaption = document.createTextNode(' Voir la carte');
+      mapButton.append(tripIcon('map'), mapCaption);
+      mapButton.setAttribute('aria-expanded', 'false');
+      mapButton.setAttribute('aria-controls', 'crTripCompareMap');
+      const mapped = entries.filter(({station}) => Number.isFinite(station.lat) && Number.isFinite(station.lon));
+      if (mapped.length) header.append(mapButton);
+
+      const cards = document.createElement('div');
+      cards.className = 'cr-trip-compare-grid';
+      const note = document.createElement('p');
+      note.className = 'cr-trip-compare-note';
+      note.textContent = 'Le coût estimé inclut le carburant acheté et celui consommé sur le détour.';
+
+      const mapPanel = document.createElement('section');
+      mapPanel.id = 'crTripCompareMap';
+      mapPanel.hidden = true;
+      mapPanel.setAttribute('aria-label', 'Carte des stations comparées');
+      const mapSurface = document.createElement('div');
+      mapSurface.className = 'cr-trip-compare-map';
+      const mapStatus = document.createElement('p');
+      mapStatus.setAttribute('role', 'status');
+      mapPanel.append(mapStatus, mapSurface);
+      section.replaceChildren(header, cards, note, mapPanel);
+      section.classList.add('cr-trip-compared');
+
+      let stationMap;
+      const markers = new Map();
+      function closeMap() {
+        mapPanel.hidden = true;
+        mapButton.setAttribute('aria-expanded', 'false');
+        mapCaption.textContent = ' Voir la carte';
+        if (stationMap) stationMap.remove();
+        stationMap = null;
+        markers.clear();
+      }
+      section.addEventListener('cr-trip-reset', closeMap, {once: true});
+
+      async function openMap(station) {
+        mapPanel.hidden = false;
+        mapButton.setAttribute('aria-expanded', 'true');
+        mapCaption.textContent = ' Masquer la carte';
+        mapStatus.textContent = stationMap ? '' : 'Chargement de la carte…';
+        mapPanel.scrollIntoView({block: 'nearest'});
+        try {
+          const leaflet = await crLoadLeaflet();
+          if (!mapPanel.isConnected || mapPanel.hidden) return;
+          if (!stationMap) {
+            stationMap = leaflet.map(mapSurface, {scrollWheelZoom: false});
+            crMapTiles(stationMap);
+            const points = [];
+            for (const {station: point} of mapped) {
+              const icon = crStationMapIcon({best: point === best});
+              const position = [point.lat, point.lon];
+              const popup = document.createElement('div');
+              const name = document.createElement('strong');
+              name.textContent = getNames()[point.id] || point.address || point.city || 'Station-service';
+              const price = document.createElement('div');
+              price.textContent = tripPrice.format(point.price) + '/L';
+              popup.append(name, price);
+              const marker = leaflet.marker(position, {icon, title: name.textContent, alt: name.textContent,
+                zIndexOffset: point === best ? 500 : 0})
+                .bindPopup(popup).addTo(stationMap);
+              markers.set(point, marker);
+              points.push(position);
+            }
+            stationMap.fitBounds(points, {padding: [36, 36], maxZoom: 15});
+          }
+          if (station) markers.get(station)?.openPopup();
+          mapStatus.textContent = '';
+        } catch {
+          mapStatus.textContent = 'La carte est indisponible. Réessaie dans un instant.';
+        }
+      }
+      mapButton.addEventListener('click', () => mapPanel.hidden ? openMap() : closeMap());
+
+      for (const {station, reasons} of entries) {
+        const recommended = station === best;
+        const card = document.createElement('article');
+        card.className = 'cr-trip-compare-card' + (recommended ? ' recommended' : '');
+        const heading = document.createElement('div');
+        heading.className = 'cr-trip-station-head';
+        const icon = tripIcon(recommended ? 'star' : 'fuel');
+        const name = document.createElement('h4');
+        name.textContent = getNames()[station.id] || station.address || station.city || 'Station-service';
+        const stationText = document.createElement('div');
+        stationText.append(name);
+        if (station.city && station.city !== name.textContent) {
+          const city = document.createElement('p');
+          city.textContent = station.city;
+          stationText.append(city);
+        }
+        heading.append(icon, stationText);
+        const reason = document.createElement('p');
+        reason.className = 'cr-trip-station-reason';
+        reason.textContent = reasons.join(' · ');
+        card.append(heading);
+        if (reasons.length) card.append(reason);
+
+        const metrics = document.createElement('dl');
+        metrics.className = 'cr-trip-station-metrics';
+        const distance = Number.isFinite(station.km) ? '+' + tripDistance.format(station.km) + ' km' : '—';
+        for (const [label, metric, iconName] of [
+          ['Prix au litre', tripPrice.format(station.price), 'fuel'],
+          ['Distance en plus', distance, 'compass'],
+          ['Temps en plus', '+' + Math.round(station.minutes) + ' min', 'clock'],
+        ]) {
+          const measure = document.createElement('div');
+          const key = document.createElement('dt');
+          key.append(tripIcon(iconName), label);
+          const value = document.createElement('dd');
+          value.textContent = metric;
+          measure.append(key, value);
+          metrics.append(measure);
+        }
+        const footer = document.createElement('div');
+        footer.className = 'cr-trip-station-footer';
+        const cost = document.createElement('div');
+        const costLabel = document.createElement('span');
+        costLabel.textContent = 'Coût total estimé';
+        const amount = document.createElement('strong');
+        amount.textContent = tripTotal.format(station.total);
+        cost.append(costLabel, amount);
+        const difference = document.createElement('p');
+        difference.className = 'cr-trip-station-difference';
+        const delta = Math.round((recommended ? highest.total - best.total : station.total - best.total) * 100) / 100;
+        if (delta > 0) {
+          difference.textContent = recommended
+            ? 'Économie estimée de ' + tripTotal.format(delta) + ' sur l’option la plus chère affichée'
+            : '+' + tripTotal.format(delta) + ' par rapport au meilleur coût';
+          cost.append(difference);
+        } else if (!recommended) {
+          difference.textContent = 'Même coût estimé';
+          cost.append(difference);
+        }
+        footer.append(cost);
+        if (mapped.some(point => point.station === station)) {
+          const pin = document.createElement('button');
+          pin.type = 'button';
+          pin.className = 'cr-trip-map-button';
+          pin.setAttribute('aria-label', 'Sur la carte : ' + name.textContent);
+          pin.append(tripIcon('pin'), ' Sur la carte');
+          pin.addEventListener('click', () => openMap(station));
+          footer.append(pin);
+        }
+        card.append(metrics, footer);
+        cards.append(card);
+      }
+      section.hidden = false;
+    }
+
+    const renderAlternatives = window.crTripRenderAlternatives;
+    window.crTripRenderAlternatives = function (candidates) {
+      document.getElementById('crTripAlternatives')?.dispatchEvent(new Event('cr-trip-reset'));
+      renderAlternatives(candidates);
+      const alternatives = document.getElementById('crTripAlternatives');
+      const token = getToken();
+      const trip = window.crTripVerifiedMeta;
+      document.querySelector('[data-plus-trip-button]')?.remove();
+      if (!alternatives || candidates.length < 2 || !token || !trip) return;
+      if (tripComparison?.run !== crTripRun || tripComparison?.token !== token) {
+        tripComparison = {run: crTripRun, token, id: crypto.randomUUID()};
+      }
+      const comparison = tripComparison;
+      if (comparison.result) return showTripResult(alternatives, comparison.result);
+      alternatives.hidden = true;
+      requestPlus('status', token).then(state => {
+        if (!alternatives.isConnected || comparison.run !== crTripRun || token !== getToken()) return;
+        if (comparison.result) return showTripResult(alternatives, comparison.result);
+        if (!state.trip) {
+          alternatives.hidden = false;
+          return;
+        }
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'add-btn';
+        button.dataset.plusTripButton = '';
+        const stateIsPlus = state.plus.active;
+        const caption = stateIsPlus ? 'Comparer les autres stations · inclus dans Plus' : 'Comparer les autres stations · 1 crédit';
+        button.textContent = caption;
+        alternatives.before(button);
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const before = accountState || state;
+            const allowed = await askCredit(before, 1, 'Comparer les stations du trajet',
+              'Compare le prix au litre, les détours et le coût total des stations vérifiées sur ton trajet.');
+            if (!allowed || token !== getToken() || comparison.run !== crTripRun || !button.isConnected) return;
+            button.textContent = 'Comparaison en cours…';
+            const vehicle = radarVehicleConfig();
+            if (!vehicle) throw new Error('vehicle');
+            const {origin, destination, fuel} = trip;
+            comparison.params ||= {origin: {lat: origin.lat, lon: origin.lon},
+              destination: {lat: destination.lat, lon: destination.lon}, fuel, ...vehicle};
+            const result = await requestPlus('trip', token, {id: comparison.id, confirm: !before.plus.active,
+              params: comparison.params}, 42000);
+            if (token !== getToken() || comparison.run !== crTripRun) return;
+            comparison.result = result.result;
+            showState(result);
+            const currentAlternatives = document.getElementById('crTripAlternatives');
+            if (currentAlternatives) showTripResult(currentAlternatives, result.result);
+            document.querySelector('[data-plus-trip-button]')?.remove();
+            button.remove();
+          } catch (error) {
+            if (!button.isConnected || comparison.run !== crTripRun) return;
+            button.textContent = caption;
+            const notice = document.createElement('p');
+            notice.setAttribute('role', 'status');
+            notice.dataset.plusTripButton = '';
+            notice.textContent = error.message === 'vehicle' ? 'Configure ton véhicule pour comparer.'
+              : errors[error.message] || 'La comparaison est indisponible.';
+            button.before(notice);
+            button.addEventListener('click', () => notice.remove(), {once: true});
+          } finally {
+            button.disabled = false;
+          }
+        });
+      }).catch(() => { alternatives.hidden = false; });
+    };
+    const unlock = document.createElement('button');
+    unlock.type = 'button';
+    unlock.textContent = 'Accéder à l’analyse détaillée · 1 crédit';
+    unlock.hidden = true;
+    dailyNote.after(unlock);
+    function hasDetailedAnalysis() {
+      return analysisState?.token === getToken() &&
+        (analysisState.lifetime || analysisState.expires > Date.now() || analysisState.plusUntil > Date.now());
+    }
+    function showAnalysisError(message) {
+      const target = document.getElementById('analyseLoading');
+      if (target) target.textContent = message;
+    }
+
+    function showAnalysis(result, params) {
+      if (params.stationId === null) afficherResultatZone(result.dates, result.average, params.period);
+      else afficherResultatStation(result.dates, result.prices, result.average, params.period, {rang: null, total: 0});
+    }
+
+    function protectAnalysis(original, args, params, req) {
+      const token = getToken();
+      if (params.period <= 7 || !token) return original(...args);
+      const current = () => token === getToken() && req === analyseReqId;
+      (async () => {
+        try {
+          const state = await requestPlus('status', token);
+          if (!current()) return;
+          if (!state.analysis) return original(...args);
+          showState(state);
+          if (hasDetailedAnalysis()) {
+            const data = await requestPlus('analysis', token, {params}, 35000);
+            if (current()) {
+              showState(data);
+              showAnalysis(data.result, params);
+            }
+            return;
+          }
+          pendingPeriod = {params, token, req};
+          if (dialog.hidden) openMenu('plus');
+          else showState(state);
+        } catch (error) {
+          if (!current()) return;
+          if (analysisState?.token !== token) return original(...args);
+          showAnalysisError(errors[error.message] || 'L’analyse détaillée est indisponible.');
+        }
+      })();
+    }
+    const analyzeZone = window.chargerSerieZone;
+    window.chargerSerieZone = function (lat, lon, radius, period, fuel, req) {
+      return protectAnalysis(analyzeZone, arguments, {center: {lat, lon}, radius, period, fuel, stationId: null}, req);
+    };
+    const analyzeStation = window.chargerSerieStation;
+    window.chargerSerieStation = function (station, period, fuel, req) {
+      return protectAnalysis(analyzeStation, arguments, {center: {lat: station.lat, lon: station.lon}, radius: 5,
+        period, fuel, stationId: String(station.id)}, req);
+    };
+    unlock.addEventListener('click', async () => {
+      const pending = pendingPeriod;
+      if (!pending || pending.token !== getToken() || !accountState || busy) return;
+      const needsCredit = !hasDetailedAnalysis();
+      const allowed = await askCredit(accountState, needsCredit ? 1 : 0, 'Accéder à l’analyse détaillée',
+        'Ouvre les graphiques détaillés sur 30, 90 et 365 jours pendant 24 heures.');
+      if (!allowed || pendingPeriod !== pending || pending.token !== getToken() || pending.req !== analyseReqId) return;
+      const state = await act('analysis', {params: pending.params, confirm: needsCredit});
+      if (!state) return;
+      showState(state);
+      message.textContent = needsCredit ? 'Analyse détaillée accessible pendant 24 h.' : 'Analyse détaillée accessible.';
+      if (pending.req === analyseReqId && pending.token === getToken()) {
+        showAnalysis(state.result, pending.params);
+        pendingPeriod = undefined;
+        closeMenu();
+      }
+    });
+    if (['retour', 'annule', 'gestion'].includes(billingReturn)) {
+      back.searchParams.delete('plus');
+      history.replaceState(history.state, '', back);
+      openMenu('plus');
+    } else refreshHeader(true);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();

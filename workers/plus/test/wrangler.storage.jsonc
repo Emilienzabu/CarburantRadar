@@ -1,0 +1,10 @@
+{
+  "name": "carburant-plus-storage-test",
+  "main": "storage-runtime.mjs",
+  "compatibility_date": "2026-11-26",
+  "workers_dev": false,
+  "durable_objects": {
+    "bindings": [{"name":"STORAGE_CHECK","class_name":"StorageCheck"}]
+  },
+  "migrations": [{"tag":"v1","new_sqlite_classes":["StorageCheck"]}]
+}
