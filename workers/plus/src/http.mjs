@@ -117,8 +117,8 @@ export async function handleRequest(request, ledger, adminToken, now = Date.now(
       case '/alerts/renew':
       case '/alerts/remove':
         if (billingEnv.PLUS_ALERTS_PREVIEW !== '1') throw new LedgerError('extra_alert_unavailable', 503);
-        if (pathname === '/alerts/add') ledger.addAlert(account, data.id, data.settings, now, created);
-        if (pathname === '/alerts/renew') ledger.renewAlert(account, data.id, now, created);
+        if (pathname === '/alerts/add') ledger.addAlert(account, data.id, data.settings, now, created, data.confirm === true);
+        if (pathname === '/alerts/renew') ledger.renewAlert(account, data.id, now, created, data.confirm === true);
         if (pathname === '/alerts/remove') ledger.removeAlert(account, data.id);
         return reply(accountStatus(ledger, billingEnv, account, now, created));
       case '/reward': return reply(ledger.reward(account, data.event, now, created));

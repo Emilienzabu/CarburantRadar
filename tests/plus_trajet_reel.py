@@ -53,6 +53,7 @@ with sync_playwright() as pw:
         result = page.locator("#trajetResult")
         before = comparison_state(context, token)
         assert before["credits"] == 5 and not before["plus"]["active"]
+        expect(page.get_by_role("button", name="Crédits disponibles : 5")).to_be_visible()
 
         expect(gps).to_be_checked()
         expect(departure).to_be_hidden()
@@ -70,10 +71,14 @@ with sync_playwright() as pw:
         expect(compare).to_be_visible()
         with page.expect_response(lambda response: response.url == ORIGIN + "/plus/trip", timeout=55000) as call:
             compare.click()
+            confirmation = page.get_by_role("dialog", name="Comparer les stations du trajet")
+            expect(confirmation.get_by_text("1 crédit nécessaire · 4 crédits restants")).to_be_visible()
+            confirmation.get_by_role("button", name="Utiliser 1 crédit").click()
         response = call.value
         assert response.ok, response.text()
         comparison = response.json()
         assert comparison["credits"] == 4 and comparison["result"]["verified"] >= 2
+        expect(page.get_by_role("button", name="Crédits disponibles : 4")).to_be_visible()
         assert call.value.request.post_data_json["params"]["origin"] == {
             "lat": manual_origin["lat"], "lon": manual_origin["lon"]}
         expect(result.get_by_role("heading", name=pattern(r"Comparaison de \d+ stations vérifiées"))).to_be_visible()
@@ -96,7 +101,14 @@ with sync_playwright() as pw:
         map_button.click()
         map_panel = result.get_by_role("region", name="Carte des stations comparées")
         expect(map_panel.locator(".leaflet-marker-icon")).to_have_count(cards.count(), timeout=15000)
-        expect(map_panel.locator(".leaflet-marker-icon.best")).to_have_count(1)
+        expect(map_panel.locator(".cr-station-marker-face.recommended")).to_have_count(1)
+        assert map_panel.locator(".cr-station-map-marker").evaluate_all("""markers => markers.every(marker => {
+          const bounds = marker.getBoundingClientRect();
+          const icon = marker.querySelector('svg').getBoundingClientRect();
+          return bounds.width === 34 && bounds.height === 34 &&
+            Math.abs(bounds.x + 17 - (icon.x + icon.width / 2)) < 1 &&
+            Math.abs(bounds.y + 17 - (icon.y + icon.height / 2)) < 1;
+        })""")
         recommended.get_by_role("button", name=pattern(r"Sur la carte :")).click()
         expect(map_panel.locator(".leaflet-popup-content")).to_contain_text(recommended.get_by_role("heading").inner_text())
         if folder:

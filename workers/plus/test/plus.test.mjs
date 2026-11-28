@@ -57,6 +57,15 @@ test('cinq crédits une fois et un seul crédit par jour à Paris', () => {
   assert.equal(store.claim('été', summer + 1000, summer).claimed, true);
 });
 
+test('deux demandes simultanées de crédit quotidien ne donnent qu’un crédit', async () => {
+  const store = ledger();
+  const claim = () => handleRequest(request('/claim', {account: 'a', created: start, credits: 100}), store, adminToken, tomorrow);
+  const results = await Promise.all([claim(), claim()].map(async response => (await response).json()));
+  assert.equal(results.filter(result => result.claimed).length, 1);
+  assert.ok(results.every(result => result.credits === 6 && !result.canClaimToday));
+  assert.equal(store.history('a').length, 1);
+});
+
 test('un code temporaire affiche son échéance puis expire sans changer le solde', async () => {
   const store = ledger();
   const today = Date.parse('2026-08-31T12:00:00Z');
@@ -249,7 +258,9 @@ test('les alertes supplémentaires sont privées, renouvelables et expirent apr�
   const invalid = {...fixtureAlert, sub: {...fixtureAlert.sub, endpoint: 'https://unrelated.example.test/'}};
   assert.equal((await endpoint('add', 'a', start, {settings: invalid})).status, 400);
   assert.equal(store.status('a', start).credits, 5);
-  const create = async () => (await endpoint('add', 'a', start, {settings: fixtureAlert})).json();
+  assert.equal((await endpoint('add', 'a', start, {settings: fixtureAlert})).status, 409);
+  assert.equal(store.status('a', start).credits, 5);
+  const create = async () => (await endpoint('add', 'a', start, {settings: fixtureAlert, confirm: true})).json();
   const results = await Promise.all([create(), create()]);
   assert.equal(results[0].alerts.length, 1);
   assert.equal(results[1].credits, 3);
@@ -260,7 +271,9 @@ test('les alertes supplémentaires sont privées, renouvelables et expirent apr�
   assert.equal(ends, start + 7 * 86400000);
   assert.equal(store.alerts('a', ends)[0].active, false);
   assert.equal((await (await endpoint('renew', 'a', ends - 1)).json()).credits, 3);
-  assert.equal((await (await endpoint('renew', 'a', ends)).json()).credits, 1);
+  assert.equal((await endpoint('renew', 'a', ends)).status, 409);
+  assert.equal(store.status('a', ends).credits, 3);
+  assert.equal((await (await endpoint('renew', 'a', ends, {confirm: true})).json()).credits, 1);
   assert.equal((await (await endpoint('renew', 'a', ends)).json()).credits, 1);
   assert.equal((await endpoint('remove', 'b', ends)).status, 200);
   assert.equal((await (await endpoint('remove', 'a', ends)).json()).alerts.length, 0);
@@ -276,7 +289,7 @@ test('les alertes supplémentaires sont privées, renouvelables et expirent apr�
 test('le traitement planifié envoie une fois par jour et transmet la station cible', async () => {
   const store = ledger();
   const id = crypto.randomUUID();
-  store.addAlert('a', id, fixtureAlert, start);
+  store.addAlert('a', id, fixtureAlert, start, null, true);
   let now = start;
   const env = {...alertPreview, PLUS_ADMIN_TOKEN: adminToken,
     PLUS: {fetch: (url, init) => handleRequest(new Request(url, init), store, adminToken, now, alertPreview)}};

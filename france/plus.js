@@ -25,8 +25,8 @@
       <button type="button" data-plus-login hidden>Me connecter</button>
       <p data-plus-message role="status" aria-live="polite"></p>
       <section class="cr-plus-card" data-plus-billing hidden aria-labelledby="crPlusPlansTitle">
-        <h3 id="crPlusPlansTitle">Abonnements</h3>
-        <p class="cr-plus-note">Offres de test Stripe</p>
+        <h3 id="crPlusPlansTitle">Les offres Plus</h3>
+        <p class="cr-plus-note">Toutes les fonctionnalités incluses. Abonnement renouvelable, résiliable depuis ton compte. Offres de test Stripe.</p>
         <div class="cr-plus-offers">
           <article>
             <h4>Mensuel</h4>
@@ -42,10 +42,10 @@
         </div>
       </section>
       <section class="cr-plus-card" data-plus-credits hidden aria-labelledby="crPlusCreditsTitle">
-        <h3 id="crPlusCreditsTitle">Crédits</h3>
+        <h3 id="crPlusCreditsTitle">Crédits disponibles</h3>
         <p data-plus-balance></p>
-        <button type="button" data-plus-claim hidden>Réclamer mon crédit du jour</button>
-        <details data-plus-history hidden><summary>Historique des crédits</summary><ul></ul></details>
+        <button type="button" data-plus-claim hidden>Réclamer mon crédit quotidien</button>
+        <p class="cr-plus-note" data-plus-daily-note></p>
       </section>
       <section class="cr-plus-card" data-plus-alerts hidden aria-labelledby="crExtraAlertsTitle">
         <h3 id="crExtraAlertsTitle">Alertes supplémentaires</h3>
@@ -72,10 +72,15 @@
         <h3 id="crPlusRewardTitle">Publicité récompensée · simulation</h3>
         <p>Regarde une publicité de démonstration pour obtenir 2 crédits simulés.</p>
         <label><input type="checkbox" data-plus-no-ad> Simuler une annonce indisponible</label>
-        <button type="button" data-plus-watch>Préparer la publicité</button>
+        <button type="button" data-plus-watch>Regarder une publicité</button>
         <button type="button" data-plus-start hidden>Regarder</button>
         <button type="button" data-plus-skip hidden>Refuser</button>
         <p data-plus-reward-message role="status"></p>
+      </section>
+      <section class="cr-plus-card" data-plus-guide aria-labelledby="crCreditGuide">
+        <h3 id="crCreditGuide">Comment fonctionnent les crédits ?</h3>
+        <p class="cr-plus-note">Les crédits donnent accès à certaines fonctionnalités. Ils ne représentent pas de l’argent. Tu démarres avec 5 crédits et tu peux obtenir 1 crédit gratuit par jour à partir du lendemain.</p>
+        <details data-plus-history hidden><summary>Historique des crédits</summary><ul></ul></details>
       </section>`;
     const select = selector => dialog.querySelector(selector);
     const form = select('#crPlusCode').form;
@@ -99,6 +104,52 @@
     const startAd = select('[data-plus-start]');
     const skipAd = select('[data-plus-skip]');
     const rewardMessage = select('[data-plus-reward-message]');
+    const dailyNote = select('[data-plus-daily-note]');
+    const headerCredits = document.getElementById('crHeaderCredits');
+    const headerCount = document.getElementById('crHeaderCreditCount');
+    dialog.prepend(creditsCard, rewards, billing, select('[data-plus-guide]'));
+    headerCredits.hidden = false;
+    headerCredits.addEventListener('click', () => openMenu('plus'));
+
+    const creditDialog = document.createElement('dialog');
+    creditDialog.className = 'cr-credit-confirm';
+    creditDialog.setAttribute('aria-labelledby', 'crCreditConfirmTitle');
+    creditDialog.setAttribute('aria-describedby', 'crCreditConfirmDetail crCreditConfirmMoney');
+    creditDialog.innerHTML = `
+      <form method="dialog">
+        <h2 id="crCreditConfirmTitle"></h2>
+        <p id="crCreditConfirmDetail"></p>
+        <p class="cr-credit-summary" data-credit-summary></p>
+        <p id="crCreditConfirmMoney">Aucun paiement réel n’est effectué.</p>
+        <div class="cr-credit-actions">
+          <button type="submit" value="later" autofocus>Plus tard</button>
+          <button type="submit" value="use"></button>
+        </div>
+      </form>`;
+    document.body.append(creditDialog);
+    let creditAnswer;
+    creditDialog.addEventListener('close', () => {
+      const answer = creditAnswer;
+      creditAnswer = undefined;
+      answer?.(creditDialog.returnValue === 'use');
+    });
+    function askCredit(state, count, title, detail) {
+      if (state.plus.active || count === 0) return Promise.resolve(true);
+      if (creditAnswer) return Promise.resolve(false);
+      const remaining = state.credits - count;
+      creditDialog.querySelector('h2').textContent = title;
+      creditDialog.querySelector('#crCreditConfirmDetail').textContent = detail;
+      creditDialog.querySelector('[data-credit-summary]').textContent = remaining < 0
+        ? count + (count === 1 ? ' crédit nécessaire' : ' crédits nécessaires') + ' · Solde : ' + state.credits
+        : count + (count === 1 ? ' crédit nécessaire' : ' crédits nécessaires') + ' · ' +
+          remaining + (remaining === 1 ? ' crédit restant' : ' crédits restants');
+      const use = creditDialog.querySelector('[value="use"]');
+      use.textContent = 'Utiliser ' + count + (count === 1 ? ' crédit' : ' crédits');
+      use.disabled = remaining < 0;
+      creditDialog.returnValue = '';
+      creditDialog.showModal();
+      return new Promise(resolve => { creditAnswer = resolve; });
+    }
     let stopAd;
     let rewardRun = 0;
     const creditReasons = {daily: 'Crédit du jour', reward: 'Publicité', analysis: 'Analyse détaillée',
@@ -126,7 +177,8 @@
       plus_already_active: 'Ton accès Plus est déjà actif.',
       stripe_subscription_pending: 'Stripe a déjà un abonnement pour ce compte. Vérification en cours.',
       checkout_other_plan_pending: 'Un autre paiement de test est déjà en cours. Tu peux reprendre la même offre.',
-      credits_insufficient: 'Il te faut 1 crédit pour débloquer cette analyse.',
+      credits_insufficient: 'Ton solde de crédits est insuffisant.',
+      confirmation_required: 'Ton accès a changé. Relance l’action pour vérifier les crédits nécessaires.',
       analysis_unavailable: 'L’analyse détaillée est indisponible pour le moment.',
       extra_alert_invalid: 'Choisis un repère valide et un appareil compatible avec les notifications.',
       extra_alert_limit: 'Ton compte a atteint la limite d’alertes supplémentaires.',
@@ -158,7 +210,10 @@
       }
       balance.textContent = credits + (credits === 1 ? ' crédit disponible' : ' crédits disponibles');
       creditsCard.hidden = false;
-      claim.hidden = !canClaimToday;
+      claim.hidden = false;
+      claim.disabled = !canClaimToday;
+      dailyNote.textContent = canClaimToday ? '1 crédit gratuit à réclamer aujourd’hui.'
+        : 'Crédit quotidien indisponible jusqu’à demain (heure de Paris).';
       creditHistory.hidden = !data.history?.length;
       creditHistory.querySelector('ul').replaceChildren(...(data.history || []).map(entry => {
         const row = document.createElement('li');
@@ -172,7 +227,7 @@
       analysisState = data.analysis ? {token: getToken(), expires: data.analysis.expires,
         plusUntil: plus.until, lifetime: plus.lifetime} : null;
       unlock.hidden = !pendingPeriod || !analysisState;
-      unlock.textContent = hasDetailedAnalysis() ? 'Afficher l’analyse détaillée' : 'Débloquer l’analyse détaillée pour 24 h · 1 crédit';
+      unlock.textContent = hasDetailedAnalysis() ? 'Afficher l’analyse détaillée' : 'Accéder à l’analyse détaillée · 1 crédit';
       alertSection.hidden = !Array.isArray(data.alerts);
       if (!alertSection.hidden) renderAlerts(data.alerts, plus.active);
     }
@@ -181,17 +236,55 @@
       return new Intl.DateTimeFormat('fr-FR', {dateStyle: 'long', timeZone: 'Europe/Paris'}).format(timestamp);
     }
 
+    let observedToken;
+    let accountState;
+    let balanceRevision = 0;
+    let headerRefresh;
+    function showHeader(credits) {
+      headerCount.textContent = Number.isSafeInteger(credits) ? String(credits) : '—';
+      headerCredits.setAttribute('aria-label', Number.isSafeInteger(credits)
+        ? 'Crédits disponibles : ' + credits : 'Ouvrir les crédits');
+    }
     async function requestPlus(action, token, data = {}, timeout = 10000) {
-        const response = await fetch(PROXY + '/plus/' + action, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token},
-          body: JSON.stringify(data),
+      const revision = balanceRevision;
+      const response = await fetch(PROXY + '/plus/' + action, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token},
+        body: JSON.stringify(data),
         signal: AbortSignal.timeout(timeout),
-        });
-        const payload = await response.json();
+      });
+      const payload = await response.json();
       if (!response.ok) throw Object.assign(new Error(payload.error), {status: response.status});
+      if (token === getToken() && Number.isSafeInteger(payload.credits) && payload.plus) {
+        if (action !== 'status') balanceRevision++;
+        if (action !== 'status' || revision === balanceRevision) {
+          accountState = payload;
+          showHeader(payload.credits);
+        } else if (accountState) return accountState;
+      }
       return payload;
     }
+
+    function refreshHeader(force = false) {
+      const token = getToken();
+      if (token !== observedToken) {
+        observedToken = token;
+        accountState = undefined;
+        balanceRevision++;
+        showHeader();
+        if (creditDialog.open) creditDialog.close('later');
+      }
+      if (!token || !force || headerRefresh?.token === token) return;
+      const task = {token};
+      headerRefresh = task;
+      void requestPlus('status', token).catch(error => {
+        if (error.status === 401 && token === getToken()) showHeader();
+      }).finally(() => { if (headerRefresh === task) headerRefresh = undefined; });
+    }
+    window.addEventListener('cr-account-updated', () => refreshHeader(getToken() !== observedToken));
+    window.addEventListener('storage', event => {
+      if (event.key === CR_TOKEN_KEY) refreshHeader(true);
+    });
 
     async function act(action, data = {}) {
       if (busy) return null;
@@ -299,8 +392,13 @@
       openMenu('compte');
     });
     claim.addEventListener('click', async () => {
+      if (busy) return;
+      claim.disabled = true;
       const data = await act('claim');
-      if (!data) return;
+      if (!data) {
+        claim.disabled = accountState?.canClaimToday !== true;
+        return;
+      }
       showState(data);
       message.textContent = data.claimed ? 'Ton crédit du jour a été ajouté.' : 'Ton crédit du jour a déjà été réclamé.';
     });
@@ -410,7 +508,9 @@
     }
     window.crRegisterPlus(dialog, openPanel, closePanel);
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && !dialog.hidden && !busy) void refreshStatus('gestion');
+      if (document.hidden || busy) return;
+      if (dialog.hidden) refreshHeader(true);
+      else void refreshStatus('gestion');
     });
     function renderAlerts(alerts, hasPlus) {
       alertList.replaceChildren();
@@ -426,7 +526,11 @@
           button.type = 'button';
           button.textContent = caption;
           button.addEventListener('click', async () => {
-            const state = await act('alerts/' + action, {id: item.id});
+            const before = accountState;
+            if (action === 'renew' && (!before || !await askCredit(before, 2, 'Renouveler l’alerte',
+              'Reçois les alertes de prix pour « ' + item.name + ' » pendant 7 jours.'))) return;
+            if (!button.isConnected) return;
+            const state = await act('alerts/' + action, {id: item.id, confirm: action === 'renew' && !before?.plus.active});
             if (state) showState(state);
           });
           row.append(button);
@@ -455,6 +559,10 @@
       preparingAlert = true;
       addAlert.disabled = true;
       try {
+        const before = accountState;
+        if (!before || !await askCredit(before, 2, 'Activer une alerte supplémentaire',
+          'Reçois les alertes de prix pour « ' + place.name + ' » pendant 7 jours.')) return;
+        if (token !== getToken() || dialog.hidden) return;
         if (!('Notification' in window) || !navigator.serviceWorker || !('PushManager' in window)) {
           throw new Error('Cet appareil ne prend pas en charge les notifications.');
         }
@@ -472,7 +580,7 @@
         if (alertRetry?.fingerprint !== fingerprint || alertRetry?.token !== token) {
           alertRetry = {fingerprint, token, id: crypto.randomUUID()};
         }
-        const state = await act('alerts/add', {id: alertRetry.id, settings});
+        const state = await act('alerts/add', {id: alertRetry.id, settings, confirm: !before.plus.active});
         if (!state) return;
         alertRetry = undefined;
         showState(state);
@@ -569,8 +677,7 @@
             crMapTiles(stationMap);
             const points = [];
             for (const {station: point} of mapped) {
-              const icon = leaflet.divIcon({className: 'cr-trip-map-pin' + (point === best ? ' best' : ''),
-                html: ic(point === best ? 'star' : 'fuel', '16px'), iconSize: [30, 30], iconAnchor: [15, 15]});
+              const icon = crStationMapIcon({best: point === best});
               const position = [point.lat, point.lon];
               const popup = document.createElement('div');
               const name = document.createElement('strong');
@@ -578,7 +685,8 @@
               const price = document.createElement('div');
               price.textContent = tripPrice.format(point.price) + '/L';
               popup.append(name, price);
-              const marker = leaflet.marker(position, {icon, title: name.textContent, alt: name.textContent})
+              const marker = leaflet.marker(position, {icon, title: name.textContent, alt: name.textContent,
+                zIndexOffset: point === best ? 500 : 0})
                 .bindPopup(popup).addTo(stationMap);
               markers.set(point, marker);
               points.push(position);
@@ -700,20 +808,24 @@
         alternatives.before(button);
         button.addEventListener('click', async () => {
           button.disabled = true;
-          button.textContent = 'Comparaison en cours…';
           try {
+            const before = accountState || state;
+            const allowed = await askCredit(before, 1, 'Comparer les stations du trajet',
+              'Compare le prix au litre, les détours et le coût total des stations vérifiées sur ton trajet.');
+            if (!allowed || token !== getToken() || comparison.run !== crTripRun || !button.isConnected) return;
+            button.textContent = 'Comparaison en cours…';
             const vehicle = radarVehicleConfig();
             if (!vehicle) throw new Error('vehicle');
             const {origin, destination, fuel} = trip;
             comparison.params ||= {origin: {lat: origin.lat, lon: origin.lon},
               destination: {lat: destination.lat, lon: destination.lon}, fuel, ...vehicle};
-            const state = await requestPlus('trip', token, {id: comparison.id, confirm: !stateIsPlus,
+            const result = await requestPlus('trip', token, {id: comparison.id, confirm: !before.plus.active,
               params: comparison.params}, 42000);
             if (token !== getToken() || comparison.run !== crTripRun) return;
-            comparison.result = state.result;
-            showState(state);
+            comparison.result = result.result;
+            showState(result);
             const currentAlternatives = document.getElementById('crTripAlternatives');
-            if (currentAlternatives) showTripResult(currentAlternatives, state.result);
+            if (currentAlternatives) showTripResult(currentAlternatives, result.result);
             document.querySelector('[data-plus-trip-button]')?.remove();
             button.remove();
           } catch (error) {
@@ -726,6 +838,7 @@
               : errors[error.message] || 'La comparaison est indisponible.';
             button.before(notice);
             button.addEventListener('click', () => notice.remove(), {once: true});
+          } finally {
             button.disabled = false;
           }
         });
@@ -733,9 +846,9 @@
     };
     const unlock = document.createElement('button');
     unlock.type = 'button';
-    unlock.textContent = 'Débloquer l’analyse détaillée pour 24 h · 1 crédit';
+    unlock.textContent = 'Accéder à l’analyse détaillée · 1 crédit';
     unlock.hidden = true;
-    claim.after(unlock);
+    dailyNote.after(unlock);
     function hasDetailedAnalysis() {
       return analysisState?.token === getToken() &&
         (analysisState.lifetime || analysisState.expires > Date.now() || analysisState.plusUntil > Date.now());
@@ -762,7 +875,10 @@
           showState(state);
           if (hasDetailedAnalysis()) {
             const data = await requestPlus('analysis', token, {params}, 35000);
-            if (current()) showAnalysis(data.result, params);
+            if (current()) {
+              showState(data);
+              showAnalysis(data.result, params);
+            }
             return;
           }
           pendingPeriod = {params, token, req};
@@ -786,11 +902,15 @@
     };
     unlock.addEventListener('click', async () => {
       const pending = pendingPeriod;
-      if (!pending || pending.token !== getToken()) return;
-      const state = await act('analysis', {params: pending.params, confirm: !hasDetailedAnalysis()});
+      if (!pending || pending.token !== getToken() || !accountState || busy) return;
+      const needsCredit = !hasDetailedAnalysis();
+      const allowed = await askCredit(accountState, needsCredit ? 1 : 0, 'Accéder à l’analyse détaillée',
+        'Ouvre les graphiques détaillés sur 30, 90 et 365 jours pendant 24 heures.');
+      if (!allowed || pendingPeriod !== pending || pending.token !== getToken() || pending.req !== analyseReqId) return;
+      const state = await act('analysis', {params: pending.params, confirm: needsCredit});
       if (!state) return;
       showState(state);
-      message.textContent = 'Analyse détaillée débloquée pour 24 h.';
+      message.textContent = needsCredit ? 'Analyse détaillée accessible pendant 24 h.' : 'Analyse détaillée accessible.';
       if (pending.req === analyseReqId && pending.token === getToken()) {
         showAnalysis(state.result, pending.params);
         pendingPeriod = undefined;
@@ -801,7 +921,7 @@
       back.searchParams.delete('plus');
       history.replaceState(history.state, '', back);
       openMenu('plus');
-    }
+    } else refreshHeader(true);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();

@@ -13,10 +13,12 @@ calls = []
 analysis_unlocked = False
 extra_alerts = []
 trip_charges = []
+claimed_today = False
+credits = 5
 
 
 def respond(route):
-    global analysis_unlocked
+    global analysis_unlocked, claimed_today, credits
     request = route.request
     cors = {"access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type",
             "access-control-allow-methods": "GET,POST,OPTIONS"}
@@ -37,12 +39,19 @@ def respond(route):
             route.fulfill(json={"url": "https://checkout.stripe.com.example.test/invalid"}, headers=cors)
         else:
             result = None
+            if action == "claim" and not claimed_today:
+                claimed_today = True
+                credits += 1
             if action == "analysis":
                 assert request.post_data_json["confirm"] is True
                 assert request.post_data_json["params"]["period"] == 30
+                if not analysis_unlocked:
+                    credits -= 1
                 analysis_unlocked = True
                 result = {"dates": ["2026-11-25", "2026-11-26"], "average": [1.8, 1.7], "prices": [None, None]}
             if action == "add":
+                assert request.post_data_json["confirm"] is True
+                credits -= 2
                 settings = request.post_data_json["settings"]
                 assert settings["name"] == "Travail"
                 assert settings["carburant"] == "E10"
@@ -57,6 +66,7 @@ def respond(route):
                 assert request.post_data_json["confirm"] is True
                 assert request.post_data_json["params"]["destination"]["lat"] == 48.9
                 trip_charges.append(request.post_data_json["id"])
+                credits -= 1
                 best = {"id": "1", "address": "Station vérifiée côté serveur", "city": "Vincennes",
                         "lat": 48.84, "lon": 2.44, "price": 1.7, "total": 29, "minutes": 2, "km": 1.2}
                 other = {"id": "2", "address": "Station avec détour court", "city": "Paris",
@@ -66,11 +76,8 @@ def respond(route):
                     {"label": "Prix au litre le plus bas", "station": best},
                     {"label": "Détour le plus court", "station": other},
                 ]}
-            credits = 5 if action == "status" or analysis_unlocked else 6
-            if extra_alerts:
-                credits -= 2
             route.fulfill(json={"credits": credits, "claimed": action == "claim",
-                                "canClaimToday": action == "status",
+                                "canClaimToday": not claimed_today,
                                 "analysis": {"unlocked": analysis_unlocked,
                                              "expires": 4102444800000 if analysis_unlocked else None},
                                 "billing": {"test": True, "hasCustomer": False, "canCheckout": True},
@@ -110,21 +117,22 @@ with sync_playwright() as pw:
     """)
     page.goto(ORIGIN + "/france/")
     expect(page.locator("#splash")).to_be_hidden()
-    page.locator(".menu-btn").click()
-    page.get_by_role("button", name="CarburantRadar Plus").click()
+    page.get_by_role("button", name="Crédits disponibles : 5").click()
     panel = page.get_by_role("region", name="CarburantRadar Plus")
     expect(panel).to_be_visible()
     expect(panel.get_by_text("5 crédits disponibles")).to_be_visible()
-    panel.get_by_role("button", name="Réclamer mon crédit du jour").click()
+    panel.get_by_role("button", name="Réclamer mon crédit quotidien").click()
     expect(panel.get_by_text("6 crédits disponibles")).to_be_visible()
+    expect(page.locator("#crHeaderCreditCount")).to_have_text("6")
     panel.get_by_text("Historique des crédits").click()
     expect(panel.locator("[data-plus-history] li")).to_contain_text("Crédit du jour")
-    expect(panel.get_by_role("button", name="Réclamer mon crédit du jour")).to_be_hidden()
+    expect(panel.get_by_role("button", name="Réclamer mon crédit quotidien")).to_be_disabled()
+    expect(panel.get_by_text("Crédit quotidien indisponible jusqu’à demain", exact=False)).to_be_visible()
     expect(panel.get_by_role("button", name="Tester à 1 €/mois")).to_be_visible()
     panel.get_by_role("button", name="Tester à 10 €/an").click()
     expect(panel.get_by_text("Le lien Stripe est indisponible.")).to_be_visible()
     assert page.url == ORIGIN + "/france/"
-    prepare_ad = panel.get_by_role("button", name="Préparer la publicité")
+    prepare_ad = panel.get_by_role("button", name="Regarder une publicité")
     prepare_ad.click()
     panel.get_by_role("button", name="Refuser").click()
     expect(panel.get_by_text("Publicité passée. Aucun crédit simulé.")).to_be_visible()
@@ -140,7 +148,7 @@ with sync_playwright() as pw:
     panel.get_by_role("button", name="Regarder", exact=True).click()
     expect(panel.get_by_text("2 crédits simulés obtenus.")).to_be_visible()
     expect(panel.get_by_text("6 crédits disponibles")).to_be_visible()
-    assert calls == ["status", "claim", "checkout"]
+    assert [call for call in calls if call != "status"] == ["claim", "checkout"]
     page.locator("#crV07Close").click()
     page.locator("#nav-analyse").click()
     page.evaluate("""() => {
@@ -149,14 +157,24 @@ with sync_playwright() as pw:
       document.getElementById('analyseList').insertAdjacentHTML('beforeend', '<div id="analyseGraphContainer"></div>');
       chargerSerieZone(48.8, 2.3, 5, 30, 'E10', ++analyseReqId);
     }""")
-    panel.get_by_role("button", name="Débloquer l’analyse détaillée pour 24 h", exact=False).click()
+    panel.get_by_role("button", name="Accéder à l’analyse détaillée · 1 crédit").click()
+    confirmation = page.get_by_role("dialog")
+    expect(confirmation.get_by_text("1 crédit nécessaire · 5 crédits restants")).to_be_visible()
+    expect(confirmation.get_by_text("Aucun paiement réel n’est effectué.")).to_be_visible()
+    confirmation.get_by_role("button", name="Plus tard").click()
+    assert "analysis" not in calls
+    expect(page.locator("#crHeaderCreditCount")).to_have_text("6")
+    panel.get_by_role("button", name="Accéder à l’analyse détaillée · 1 crédit").click()
+    confirmation.get_by_role("button", name="Utiliser 1 crédit").click()
     page.wait_for_function("window.receivedAnalysis?.series[1] === 1.7")
     expect(panel).to_be_hidden()
     page.locator(".menu-btn").click()
     page.get_by_role("button", name="CarburantRadar Plus").click()
     expect(panel.get_by_text("5 crédits disponibles")).to_be_visible()
-    panel.get_by_label("Carburant").select_option("E10")
+    panel.get_by_label("Carburant", exact=True).select_option("E10")
     panel.get_by_role("button", name="Activer 7 jours", exact=False).click()
+    expect(confirmation.get_by_text("2 crédits nécessaires · 3 crédits restants")).to_be_visible()
+    confirmation.get_by_role("button", name="Utiliser 2 crédits").click()
     expect(panel.get_by_text("Travail · E10", exact=False)).to_be_visible()
     expect(panel.get_by_text("3 crédits disponibles")).to_be_visible()
     panel.get_by_role("button", name="Supprimer").click()
@@ -166,7 +184,7 @@ with sync_playwright() as pw:
     code.fill("1234-5678-90AB-CDEF-1234-5678")
     panel.get_by_role("button", name="Vérifier le code").click()
     expect(panel.get_by_text("Ce code ajoute 6 mois de Plus", exact=False)).to_be_visible()
-    assert calls == ["status", "claim", "checkout", "status", "status", "analysis", "status", "add", "remove", "preview"]
+    assert [call for call in calls if call != "status"] == ["claim", "checkout", "analysis", "add", "remove", "preview"]
     panel.get_by_role("button", name="Activer le code").click()
     expect(panel.get_by_text("Ton accès Plus est activé.")).to_be_visible()
     expect(panel.get_by_text("Ton accès Plus est actif jusqu’au", exact=False)).to_be_visible()
@@ -187,6 +205,10 @@ with sync_playwright() as pw:
     expect(comparison).to_be_visible()
     expect(page.locator("#crTripAlternatives")).to_be_hidden()
     comparison.click()
+    confirmation.get_by_role("button", name="Plus tard").click()
+    assert not trip_charges
+    comparison.click()
+    confirmation.get_by_role("button", name="Utiliser 1 crédit").click()
     expect(page.locator("#crTripAlternatives")).to_be_visible()
     expect(page.get_by_text("Station vérifiée côté serveur", exact=False)).to_be_visible()
     expect(page.locator(".cr-trip-compare-card")).to_have_count(2)
@@ -203,11 +225,12 @@ with sync_playwright() as pw:
                                      has_touch=touch, service_workers="block", locale="fr-FR")
         page = screen.new_page()
         attempts = [0]
+        return_from_stripe = [False]
 
         def billing_response(route):
             request = route.request
             if request.method == "POST" and request.url.endswith("/plus/status"):
-                returning = bool(request.post_data_json.get("refresh"))
+                returning = return_from_stripe[0] and request.post_data_json.get("refresh") is True
                 attempts[0] += 1
                 active = returning and attempts[0] >= 2
                 expiry = 4102444800000 if active else None
@@ -227,16 +250,16 @@ with sync_playwright() as pw:
             localStorage.setItem('cr_account_token', 'session-fixture');""")
         page.goto(ORIGIN + "/france/")
         expect(page.locator("#splash")).to_be_hidden()
-        page.locator(".menu-btn").click()
-        page.get_by_role("button", name="CarburantRadar Plus").click()
+        page.get_by_role("button", name="Crédits disponibles : 5").click()
         plus = page.get_by_role("region", name="CarburantRadar Plus")
         expect(plus.get_by_text("−16,67 %")).to_be_visible()
-        expect(plus.get_by_role("heading", name="Crédits", exact=True)).to_be_visible()
+        expect(plus.get_by_role("heading", name="Crédits disponibles", exact=True)).to_be_visible()
         assert page.locator("#crV07Close").bounding_box()["width"] <= 40
         assert plus.evaluate("element => element.closest('#crV07Detail').scrollWidth <= element.closest('#crV07Detail').clientWidth")
         page.wait_for_function("Math.abs(document.getElementById('sideMenu').getBoundingClientRect().right - innerWidth) <= 1")
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
         attempts[0] = 0
+        return_from_stripe[0] = True
         page.goto(ORIGIN + "/france/?plus=retour")
         expect(plus.get_by_text("Vérification de ton abonnement…")).to_be_visible()
         expect(plus.get_by_text("Abonnement de test confirmé.")).to_be_visible(timeout=12000)

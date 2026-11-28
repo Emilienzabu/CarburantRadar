@@ -445,8 +445,9 @@ body:has(#page-map.active){padding-bottom:0!important}
 </div>
 <header>
   <div class="ico" style="background:none;padding:0"><img src="../icons/icon-96.png" alt="" width="36" height="36" style="border-radius:10px" onerror="this.parentElement.setAttribute('data-icon','fuel');this.remove();hydraterIcones();"></div>
-  <div><div class="h1">Carburant<span>Radar</span></div><div class="sub">PRIX DÉCLARÉS PAR LES STATIONS</div></div>
-  <button class="menu-btn" onclick="openMenu()"><span data-icon="menu" data-icon-taille="20px"></span></button>
+  <div class="cr-header-brand"><div class="h1">Carburant<span>Radar</span></div><div class="sub">PRIX DÉCLARÉS PAR LES STATIONS</div></div>
+  <button type="button" id="crHeaderCredits" class="cr-header-credits" aria-label="Ouvrir les crédits" aria-controls="sideMenu" hidden><span data-icon="coins" data-icon-taille="17px" aria-hidden="true"></span><span id="crHeaderCreditCount" aria-live="polite" aria-atomic="true">—</span></button>
+  <button class="menu-btn" aria-label="Menu" onclick="openMenu()"><span data-icon="menu" data-icon-taille="20px"></span></button>
 </header>
 <div class="nav-bar">
   <button class="nav-btn" id="nav-map" onclick="showPage('map')"><span data-icon="map" data-icon-taille="20px"></span>Carte</button>
@@ -1373,6 +1374,18 @@ function crMapColor(price,min,max){
   var ratio=(price-min)/(max-min);
   return ratio<=0.34?'var(--success)':ratio>=0.67?'var(--danger)':'var(--accent)';
 }
+function crStationMapIcon(options){
+  var price=options.price;
+  return L.divIcon({
+    className:'cr-station-map-marker',
+    html:'<span class="cr-station-marker-face'+(options.best?' recommended':'')+(price?' with-price':'')+'"'+
+      (options.color?' style="--cr-station-color:'+options.color+'"':'')+'>'+
+      ic(options.best?'star':'fuel','16px')+(price?'<span>'+echapperHTML(price)+'</span>':'')+'</span>',
+    iconSize:[34,34],
+    iconAnchor:[17,17],
+    popupAnchor:[0,-18]
+  });
+}
 function updateMapMarkers(){
   if(!map)return;
   stationMarkers.forEach(function(m){m.remove();});stationMarkers=[];
@@ -1386,7 +1399,7 @@ function updateMapMarkers(){
   st.forEach(function(s){
     if(!Number.isFinite(Number(s.lat))||!Number.isFinite(Number(s.lon)))return;
     var nom=names[String(s.id)]||s.adresse,px=Number(s.prix)>0?(Number(s.prix).toFixed(3)+' €'):'Prix indisponible',color=crMapColor(Number(s.prix),minPrice,maxPrice);
-    var icon=L.divIcon({html:'<div style="background:'+color+';color:#000;border-radius:8px;padding:2px 5px;font-size:10px;font-weight:700;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)">'+px+'</div>',iconSize:[null,null],iconAnchor:[0,0],className:''});
+    var icon=crStationMapIcon({price:px,color:color});
     var navUrl = getNavigationUrl(s.lat, s.lon);
     var cost=Number.isFinite(s.coutTotal)?'<div style="font-size:12px;margin:5px 0">Coût total estimé : <strong>'+s.coutTotal.toFixed(2)+' €</strong></div>':'';
     var note='<div style="font-size:10px;color:var(--text-muted)">Couleur relative aux prix des stations affichées</div>';
@@ -1403,6 +1416,7 @@ function ic(nom,taille){
     compass:'<circle cx="12" cy="12" r="9"/><polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88" fill="currentColor" stroke="none"/>',
     chart:'<line x1="4" y1="20" x2="20" y2="20"/><rect x="6" y="13" width="3" height="7"/><rect x="11" y="9" width="3" height="11"/><rect x="16" y="5" width="3" height="15"/>',
     clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    coins:'<ellipse cx="9" cy="6" rx="6" ry="3"/><path d="M3 6v5c0 1.7 2.7 3 6 3 .7 0 1.4-.1 2-.2M3 11v5c0 1.7 2.7 3 6 3 .7 0 1.4-.1 2-.2"/><ellipse cx="16.5" cy="12" rx="4.5" ry="2.5"/><path d="M12 12v5c0 1.4 2 2.5 4.5 2.5S21 18.4 21 17v-5"/>',
     pin:'<path d="M12 21s7-6.5 7-11a7 7 0 1 0-14 0c0 4.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
     star:'<polygon points="12 2 15 9 22 9.5 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9.5 9 9"/>',
     bell:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/>',
@@ -1558,6 +1572,7 @@ function updateCompteUI(){
   document.getElementById('compteFormulaire').style.display=connecte?'none':'block';
   if(connecte)document.getElementById('compteEmailAffiche').textContent=localStorage.getItem(CR_EMAIL_KEY)||'';
   else basculerModeCompte('login');
+  window.dispatchEvent(new Event('cr-account-updated'));
 }
 function afficherErreurCompte(msg){
   var el=document.getElementById('compteErreur');el.textContent=msg;el.style.display='block';

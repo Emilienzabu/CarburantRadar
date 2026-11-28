@@ -191,7 +191,7 @@ export class PlusLedger {
       });
   }
 
-  addAlert(account, id, value, now, created) {
+  addAlert(account, id, value, now, created, confirmed) {
     operationId(id);
     const settings = extraAlert(value);
     return this.transaction(() => {
@@ -205,19 +205,23 @@ export class PlusLedger {
         const other = JSON.parse(row.data);
         return ['lat', 'lon', 'carburant', 'rayon', 'seuil'].every(key => other[key] === settings[key]);
       })) throw new LedgerError('extra_alert_duplicate', 409);
-      if (!state.plus.active) this.debit(state, account, 2, 'alert', now);
+      if (!state.plus.active) {
+        if (!confirmed) throw new LedgerError('confirmation_required', 409);
+        this.debit(state, account, 2, 'alert', now);
+      }
       this.sql.exec('INSERT INTO extra_alert(account, id, data, until) VALUES (?, ?, ?, ?)',
         account, id, JSON.stringify(settings), state.plus.active ? null : now + EXTRA_ALERT_WEEK);
     });
   }
 
-  renewAlert(account, id, now, created) {
+  renewAlert(account, id, now, created, confirmed) {
     operationId(id);
     return this.transaction(() => {
       const alert = this.row('SELECT until FROM extra_alert WHERE account = ? AND id = ? AND removed = 0', account, id);
       if (!alert) throw new LedgerError('extra_alert_missing', 404);
       const state = this.status(account, now, created);
       if (state.plus.active || alert.until > now) return;
+      if (!confirmed) throw new LedgerError('confirmation_required', 409);
       this.debit(state, account, 2, 'alert', now);
       this.sql.exec('UPDATE extra_alert SET until = ? WHERE account = ? AND id = ?', now + EXTRA_ALERT_WEEK, account, id);
     });

@@ -56,6 +56,7 @@ export async function forwardPlus(request, env, headers, authenticate, isAdmin) 
         if (!params || JSON.stringify(params).length > 512) return fail('advanced_input_invalid', 400);
         payload.params = params;
       }
+      if (action === '/alerts/add' || action === '/alerts/renew') payload.confirm = body?.confirm === true;
       if (action === '/alerts/add') payload.settings = body.settings;
     }
   }
