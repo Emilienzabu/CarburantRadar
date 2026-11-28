@@ -1,5 +1,6 @@
 from os import environ
 from pathlib import Path
+from re import compile as pattern
 from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
@@ -37,6 +38,11 @@ with sync_playwright() as pw:
           localStorage.setItem('cr_account_email', '{email}');
         """)
         page = context.new_page()
+        page.on("response", lambda response: print("Source HTTP", response.status,
+                response.url.split("?")[0], flush=True)
+                if response.status >= 400 and (
+                    response.url.startswith("https://data.geopf.fr/") or
+                    response.url.startswith(ORIGIN + "/?") or response.url == ORIGIN + "/plus/trip") else None)
         page.goto(ORIGIN + "/france/", wait_until="domcontentloaded")
         page.locator("#nav-trajet").click()
         manual = page.get_by_role("radio", name="Saisir une adresse")
@@ -87,7 +93,7 @@ with sync_playwright() as pw:
         gps_origin = page.evaluate("window.crTripVerifiedMeta.origin")
         assert gps_origin == {"lat": PARIS["latitude"], "lon": PARIS["longitude"]}
         expect(result.locator("a.go")).to_have_attribute("href",
-            __import__("re").compile(r"origin=48\.8566(?:%2C|,)2\.3522"))
+            pattern(r"origin=48\.8566(?:%2C|,)2\.3522"))
         assert comparison_state(context, token)["credits"] == 4
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         print(f"{label}: départ manuel et GPS, {comparison['result']['verified']} détours, crédits 5 → 4", flush=True)
