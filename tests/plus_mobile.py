@@ -231,7 +231,8 @@ with sync_playwright() as pw:
             request = route.request
             if request.method == "POST" and request.url.endswith("/plus/status"):
                 returning = return_from_stripe[0] and request.post_data_json.get("refresh") is True
-                attempts[0] += 1
+                if returning:
+                    attempts[0] += 1
                 active = returning and attempts[0] >= 2
                 expiry = 4102444800000 if active else None
                 route.fulfill(json={
