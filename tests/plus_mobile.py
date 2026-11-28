@@ -173,7 +173,7 @@ with sync_playwright() as pw:
         {id:'2', adresse:'Station B', prix:1.79, crTotal:30, detour:120}
       ];
       crTripRun += 1;
-      la = 48.8; lo = 2.3; trajetDestLat = 48.9; trajetDestLon = 2.4;
+      window.crTripVerifiedMeta = {origin:{lat:48.8,lon:2.3}, destination:{lat:48.9,lon:2.4}, fuel:'Gazole'};
       crTripRenderAlternatives(window.comparisonFixture);
     }""")
     comparison = page.get_by_role("button", name="Comparer les autres stations · 1 crédit")

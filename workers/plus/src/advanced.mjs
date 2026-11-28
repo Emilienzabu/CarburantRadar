@@ -3,7 +3,7 @@ import { LedgerError } from './features.mjs';
 const dayMs = 86400000;
 const live = 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records';
 const history = 'https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/prix-des-carburants-j-1/records';
-const demoRoute = 'https://router.project-osrm.org/route/v1/driving/';
+const ignRoute = 'https://data.geopf.fr/navigation/itineraire';
 const fuels = {Gazole: 'gazole', SP95: 'sp95', SP98: 'sp98', E10: 'e10', E85: 'e85', GPLc: 'gplc'};
 
 function between(value, min, max) {
@@ -88,16 +88,26 @@ export async function detailedAnalysis(params, now, load = fetch) {
 }
 
 async function road(points, geometry, load, route) {
-  const coordinates = points.map(p => p.lon + ',' + p.lat).join(';');
-  const result = await get(route + coordinates + (geometry ? '?overview=simplified&geometries=geojson' : '?overview=false'), load);
-  const best = result.routes?.[0];
-  if (!best || !between(best.distance, 0, 3000000) || !between(best.duration, 0, 172800)) {
+  const coordinates = points.map(p => p.lon + ',' + p.lat);
+  let result;
+  if (route) {
+    const url = route + coordinates.join(';') + (geometry ? '?overview=simplified&geometries=geojson' : '?overview=false');
+    result = (await get(url, load)).routes?.[0];
+  } else {
+    const url = new URL(ignRoute);
+    url.search = new URLSearchParams({resource: 'bdtopo-osrm', profile: 'car', optimization: 'fastest',
+      start: coordinates[0], end: coordinates.at(-1), distanceUnit: 'meter', timeUnit: 'second',
+      geometryFormat: geometry ? 'geojson' : 'polyline', getSteps: 'false'});
+    if (coordinates.length === 3) url.searchParams.set('intermediates', coordinates[1]);
+    result = await get(url, load);
+  }
+  if (!result || !between(result.distance, 0, 3000000) || !between(result.duration, 0, 172800)) {
     throw new LedgerError('advanced_service_unavailable', 503);
   }
-  return best;
+  return result;
 }
 
-export async function detailedTrip(params, route = demoRoute, load = fetch) {
+export async function detailedTrip(params, route, load = fetch) {
   const {origin, destination, fuel, liters, consumption} = params || {};
   const field = fuelField(fuel) + '_prix';
   if (!location(origin) || !location(destination) || !between(liters, 0, 500) || !between(consumption, 0.1, 100)) {
@@ -110,10 +120,26 @@ export async function detailedTrip(params, route = demoRoute, load = fetch) {
     throw new LedgerError('advanced_service_unavailable', 503);
   }
   const count = Math.min(7, Math.max(2, Math.ceil(direct.distance / 20000) + 1));
-  const points = Array.from({length: count}, (_, i) =>
-    line[Math.round(i * (line.length - 1) / (count - 1))]);
+  const points = new Map();
+  let traveled = 0, next = 0;
+  // Mesurer le long de la route pour ne pas concentrer les recherches dans les villes.
+  const segments = line.slice(1).map(([lon, lat], i) => {
+    const [previousLon, previousLat] = line[i];
+    return Math.hypot(lat - previousLat, (lon - previousLon) * Math.cos(lat * Math.PI / 180));
+  });
+  const length = segments.reduce((total, segment) => total + segment, 0);
+  for (let i = 0; i < line.length && next < count; i++) {
+    traveled += segments[i - 1] ?? 0;
+    if (traveled < length * next / (count - 1) && i < line.length - 1) continue;
+    const [lon, lat] = line[i];
+    points.set(lon.toFixed(4) + ',' + lat.toFixed(4), [lon, lat]);
+    next++;
+  }
   function cost(price, km) { return price * (liters + km * consumption / 100); }
-  const responses = await Promise.allSettled(points.map(([lon, lat]) => nearby({lat, lon}, 9, load)));
+  const responses = await Promise.allSettled([...points.values()].map(([lon, lat]) => nearby({lat, lon}, 9, load)));
+  if (responses.every(response => response.status === 'rejected')) {
+    throw new LedgerError('advanced_service_unavailable', 503);
+  }
   const candidates = new Map();
   for (const response of responses) {
     if (response.status !== 'fulfilled') continue;
@@ -128,7 +154,9 @@ export async function detailedTrip(params, route = demoRoute, load = fetch) {
   const verified = [];
   const selected = [...candidates.values()].sort((a, b) => a.price - b.price).slice(0, 12);
   for (let offset = 0; offset < selected.length; offset += 4) {
-    const results = await Promise.allSettled(selected.slice(offset, offset + 4).map(async station => {
+    const results = await Promise.allSettled(selected.slice(offset, offset + 4).map(async (station, index) => {
+      // L’IGN autorise cinq départs de requêtes par seconde et par adresse IP.
+      if (!route) await new Promise(resolve => setTimeout(resolve, index * 260 + (offset === 0 ? 260 : 0)));
       const detour = await road([origin, station, destination], false, load, route);
       const km = Math.max(0, (detour.distance - direct.distance) / 1000);
       return {...station, km, minutes: Math.max(0, (detour.duration - direct.duration) / 60),
@@ -136,6 +164,7 @@ export async function detailedTrip(params, route = demoRoute, load = fetch) {
     }));
     verified.push(...results.filter(result => result.status === 'fulfilled').map(result => result.value));
   }
+  if (selected.length >= 2 && !verified.length) throw new LedgerError('advanced_service_unavailable', 503);
   if (verified.length < 2) throw new LedgerError('advanced_no_data', 422);
   const choices = [
     {label: 'Coût total le plus bas', station: [...verified].sort((a, b) => a.total - b.total)[0]},

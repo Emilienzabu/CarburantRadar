@@ -504,8 +504,9 @@
       renderAlternatives(candidates);
       const alternatives = document.getElementById('crTripAlternatives');
       const token = getToken();
+      const trip = window.crTripVerifiedMeta;
       document.querySelector('[data-plus-trip-button]')?.remove();
-      if (!alternatives || candidates.length < 2 || !token) return;
+      if (!alternatives || candidates.length < 2 || !token || !trip) return;
       if (tripComparison?.run !== crTripRun || tripComparison?.token !== token) {
         tripComparison = {run: crTripRun, token, id: crypto.randomUUID()};
       }
@@ -533,17 +534,20 @@
           try {
             const vehicle = radarVehicleConfig();
             if (!vehicle) throw new Error('vehicle');
-            comparison.params ||= {origin: {lat: la, lon: lo},
-              destination: {lat: trajetDestLat, lon: trajetDestLon}, fuel: crFuelForActive(), ...vehicle};
+            const {origin, destination, fuel} = trip;
+            comparison.params ||= {origin: {lat: origin.lat, lon: origin.lon},
+              destination: {lat: destination.lat, lon: destination.lon}, fuel, ...vehicle};
             const state = await requestPlus('trip', token, {id: comparison.id, confirm: !stateIsPlus,
               params: comparison.params}, 42000);
             if (token !== getToken() || comparison.run !== crTripRun) return;
             comparison.result = state.result;
+            showState(state);
             const currentAlternatives = document.getElementById('crTripAlternatives');
             if (currentAlternatives) showTripResult(currentAlternatives, state.result);
             document.querySelector('[data-plus-trip-button]')?.remove();
             button.remove();
           } catch (error) {
+            if (!button.isConnected || comparison.run !== crTripRun) return;
             button.textContent = caption;
             const notice = document.createElement('p');
             notice.setAttribute('role', 'status');

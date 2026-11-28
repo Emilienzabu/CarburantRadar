@@ -195,17 +195,24 @@ test('le serveur vérifie les détours, garde le résultat et refuse de débiter
   const params = {origin: {lat: 48.8, lon: 2.3}, destination: {lat: 48.9, lon: 2.4},
     fuel: 'E10', liters: 42, consumption: 6};
   let upstream = [];
+  let routable = true;
+  const roads = [];
   t.mock.method(globalThis, 'fetch', async url => {
     const target = new URL(url);
     if (target.hostname === 'data.economie.gouv.fr') return Response.json({results: upstream});
-    return Response.json({routes: [{distance: 5000, duration: 600, geometry: {
-      coordinates: [[2.3, 48.8], [2.4, 48.9]],
-    }}]});
+    roads.push(target);
+    if (!routable) return Response.json({}, {status: 503});
+    const best = {distance: 5000, duration: 600, geometry: {coordinates: [[2.3, 48.8], [2.4, 48.9]]}};
+    return Response.json(target.hostname === 'data.geopf.fr' ? best : {routes: [best]});
   });
   const call = (account, operation, env = {PLUS_TRIP_PREVIEW: '1'}, values = {}) =>
     handleRequest(request('/trip', {account, id: operation, confirm: true, params, ...values}), store, adminToken, start, env);
   assert.equal((await call('a', id, {})).status, 503);
   assert.equal((await call('a', 'unknown')).status, 400);
+  routable = false;
+  assert.equal((await call('a', id)).status, 503);
+  assert.equal(store.status('a', start).credits, 5);
+  routable = true;
   assert.equal((await call('a', id)).status, 422);
   assert.equal(store.status('a', start).credits, 5);
   upstream = [
@@ -217,11 +224,18 @@ test('le serveur vérifie les détours, garde le résultat et refuse de débiter
   assert.equal(completed.credits, 4);
   assert.equal(completed.result.verified, 2);
   assert.equal(completed.result.choices[0].station.id, '1');
+  assert.equal(roads[0].origin, 'https://data.geopf.fr');
+  assert.equal(roads[0].searchParams.get('start'), '2.3,48.8');
+  assert.equal(roads[0].searchParams.get('end'), '2.4,48.9');
+  assert.equal(roads[0].searchParams.get('timeUnit'), 'second');
+  assert.ok(roads.some(url => url.searchParams.get('intermediates') === '2.31,48.81'));
   assert.deepEqual(await (await call('a', id, undefined, {confirm: false})).json(), completed);
   assert.equal((await call('a', id, undefined, {params: {...params, liters: 43}})).status, 409);
   store.saveStripeSubscription('sub_Trip', 'b', {plan: 'year', status: 'active',
     until: start + 86400000, periodEnd: start + 86400000, cancelAtPeriodEnd: false}, null, start);
-  assert.equal((await call('b', id, undefined, {confirm: false})).status, 200);
+  const configured = {PLUS_TRIP_PREVIEW: '1', PLUS_OSRM_URL: 'https://routes.example/route/v1/driving/'};
+  assert.equal((await call('b', id, configured, {confirm: false})).status, 200);
+  assert.ok(roads.some(url => url.hostname === 'routes.example' && url.pathname.includes('2.31,48.81')));
   assert.equal(store.status('b', start).credits, 5);
 });
 

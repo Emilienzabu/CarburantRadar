@@ -7,6 +7,7 @@ on:
       - 'france/plus*'
       - 'france/index.html'
       - 'tests/plus_mobile.py'
+      - 'tests/plus_trajet_reel.py'
       - '.github/workflows/test-plus.yml'
 
 permissions:
@@ -46,6 +47,16 @@ jobs:
       - run: python tests/plus_mobile.py
         env:
           PLUS_SCREENSHOTS_DIR: ${{ runner.temp }}/plus-screenshots
+      - name: Tester les trajets réels sur trois tailles d’écran
+        env:
+          PLUS_SCREENSHOTS_DIR: ${{ runner.temp }}/plus-screenshots
+          PLUS_TRAJET_PASSWORD: local-fixture-never-used-elsewhere
+        run: |
+          npx --yes wrangler@4 dev --local --config workers/plus/wrangler.preprod.jsonc --port 8789 \
+            --var "PREVIEW_LOGIN_PASSWORD:$PLUS_TRAJET_PASSWORD" > /tmp/plus-trip-worker.log 2>&1 &
+          trap 'kill "$!" 2>/dev/null || true' EXIT
+          curl --no-progress-meter --fail --retry 20 --retry-delay 1 --retry-connrefused http://127.0.0.1:8789/france/ -o /dev/null
+          python tests/plus_trajet_reel.py || { cat /tmp/plus-trip-worker.log; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: apercus-carburant-plus
