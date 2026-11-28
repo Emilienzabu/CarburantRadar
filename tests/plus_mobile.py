@@ -57,8 +57,15 @@ def respond(route):
                 assert request.post_data_json["confirm"] is True
                 assert request.post_data_json["params"]["destination"]["lat"] == 48.9
                 trip_charges.append(request.post_data_json["id"])
-                result = {"verified": 2, "choices": [{"label": "Coût total le plus bas",
-                          "station": {"address": "Station vérifiée côté serveur", "price": 1.7, "total": 29, "minutes": 2}}]}
+                best = {"id": "1", "address": "Station vérifiée côté serveur", "city": "Vincennes",
+                        "lat": 48.84, "lon": 2.44, "price": 1.7, "total": 29, "minutes": 2, "km": 1.2}
+                other = {"id": "2", "address": "Station avec détour court", "city": "Paris",
+                         "lat": 48.86, "lon": 2.35, "price": 1.73, "total": 30, "minutes": 1, "km": 0.5}
+                result = {"verified": 2, "choices": [
+                    {"label": "Coût total le plus bas", "station": best},
+                    {"label": "Prix au litre le plus bas", "station": best},
+                    {"label": "Détour le plus court", "station": other},
+                ]}
             credits = 5 if action == "status" or analysis_unlocked else 6
             if extra_alerts:
                 credits -= 2
@@ -182,6 +189,9 @@ with sync_playwright() as pw:
     comparison.click()
     expect(page.locator("#crTripAlternatives")).to_be_visible()
     expect(page.get_by_text("Station vérifiée côté serveur", exact=False)).to_be_visible()
+    expect(page.locator(".cr-trip-compare-card")).to_have_count(2)
+    expect(page.locator(".cr-trip-compare-card.recommended").get_by_text("Meilleur coût total", exact=False)).to_be_visible()
+    expect(page.locator(".cr-trip-station-difference").first).to_contain_text("1,00")
     page.evaluate("crTripRenderAlternatives(window.comparisonFixture)")
     expect(page.locator("#crTripAlternatives")).to_be_visible()
     expect(comparison).to_be_hidden()

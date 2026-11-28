@@ -166,10 +166,14 @@ export async function detailedTrip(params, route, load = fetch) {
   }
   if (selected.length >= 2 && !verified.length) throw new LedgerError('advanced_service_unavailable', 503);
   if (verified.length < 2) throw new LedgerError('advanced_no_data', 422);
+  const byCost = [...verified].sort((a, b) => a.total - b.total);
   const choices = [
-    {label: 'Coût total le plus bas', station: [...verified].sort((a, b) => a.total - b.total)[0]},
+    {label: 'Coût total le plus bas', station: byCost[0]},
     {label: 'Prix au litre le plus bas', station: [...verified].sort((a, b) => a.price - b.price)[0]},
     {label: 'Détour le plus court', station: [...verified].sort((a, b) => a.minutes - b.minutes || a.km - b.km)[0]},
   ];
+  if (choices.every(choice => choice.station.id === byCost[0].id)) {
+    choices.push({label: 'Autre option vérifiée', station: byCost[1]});
+  }
   return {choices, verified: verified.length};
 }

@@ -77,13 +77,32 @@ with sync_playwright() as pw:
         assert call.value.request.post_data_json["params"]["origin"] == {
             "lat": manual_origin["lat"], "lon": manual_origin["lon"]}
         expect(result.get_by_role("heading", name=pattern(r"Comparaison de \d+ stations vérifiées"))).to_be_visible()
-        expect(result.get_by_text(pattern(r"^Coût total le plus bas · "))).to_be_visible()
+        cards = result.get_by_role("article")
+        assert cards.count() >= 2
+        recommended = result.locator(".cr-trip-compare-card.recommended")
+        expect(recommended.get_by_text("Meilleur coût total", exact=False)).to_be_visible()
+        for metric in ("Prix au litre", "Distance en plus", "Temps en plus", "Coût total estimé"):
+            expect(recommended.get_by_text(metric, exact=True)).to_be_visible()
+        assert gps.evaluate("(node) => getComputedStyle(node).accentColor") == page.locator("#trajetBtn").evaluate(
+            "(node) => getComputedStyle(node).backgroundColor")
         retry = context.request.post(ORIGIN + "/plus/trip", data=response.request.post_data_json,
                                      headers={"Authorization": f"Bearer {token}"})
         assert retry.ok and retry.json()["credits"] == 4
         if folder := environ.get("PLUS_SCREENSHOTS_DIR"):
             Path(folder).mkdir(parents=True, exist_ok=True)
             page.screenshot(path=Path(folder, f"trajet-{label}.png"), full_page=True)
+
+        map_button = result.get_by_role("button", name="Voir la carte")
+        map_button.click()
+        map_panel = result.get_by_role("region", name="Carte des stations comparées")
+        expect(map_panel.locator(".leaflet-marker-icon")).to_have_count(cards.count(), timeout=15000)
+        expect(map_panel.locator(".leaflet-marker-icon.best")).to_have_count(1)
+        recommended.get_by_role("button", name=pattern(r"Sur la carte :")).click()
+        expect(map_panel.locator(".leaflet-popup-content")).to_contain_text(recommended.get_by_role("heading").inner_text())
+        if folder:
+            page.screenshot(path=Path(folder, f"trajet-carte-{label}.png"), full_page=True)
+        result.get_by_role("button", name="Masquer la carte").click()
+        expect(map_panel).to_be_hidden()
 
         context.grant_permissions(["geolocation"], origin=ORIGIN)
         gps.check()

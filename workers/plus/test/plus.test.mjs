@@ -224,6 +224,7 @@ test('le serveur vérifie les détours, garde le résultat et refuse de débiter
   assert.equal(completed.credits, 4);
   assert.equal(completed.result.verified, 2);
   assert.equal(completed.result.choices[0].station.id, '1');
+  assert.equal(completed.result.choices.at(-1).station.id, '2');
   assert.equal(roads[0].origin, 'https://data.geopf.fr');
   assert.equal(roads[0].searchParams.get('start'), '2.3,48.8');
   assert.equal(roads[0].searchParams.get('end'), '2.4,48.9');

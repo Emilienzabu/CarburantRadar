@@ -485,22 +485,192 @@
       }
     });
 
+    const tripPrice = new Intl.NumberFormat('fr-FR', {style: 'currency', currency: 'EUR', minimumFractionDigits: 3, maximumFractionDigits: 3});
+    const tripTotal = new Intl.NumberFormat('fr-FR', {style: 'currency', currency: 'EUR'});
+    const tripDistance = new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 1});
+    const tripReasons = ['Meilleur coût total', 'Meilleur prix au litre', 'Détour le plus court'];
+
+    function tripIcon(name) {
+      const icon = document.createElement('span');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = ic(name, '16px');
+      return icon;
+    }
+
     function showTripResult(section, result) {
+      section.dispatchEvent(new Event('cr-trip-reset'));
+      const byStation = new Map();
+      result.choices.forEach(({station}, index) => {
+        const id = station.id ?? station.address;
+        if (!byStation.has(id)) byStation.set(id, {station, reasons: []});
+        if (tripReasons[index]) byStation.get(id).reasons.push(tripReasons[index]);
+      });
+      const entries = [...byStation.values()].sort((a, b) => a.station.total - b.station.total);
+      const best = entries[0].station;
+      const highest = entries.at(-1).station;
+
+      const header = document.createElement('div');
+      header.className = 'cr-trip-compare-head';
       const title = document.createElement('h3');
       title.textContent = 'Comparaison de ' + result.verified + ' stations vérifiées';
-      section.replaceChildren(title);
-      for (const {label, station} of result.choices) {
-        const row = document.createElement('p');
-        row.textContent = label + ' · ' + (station.address || station.city) + ' · ' +
-          station.total.toFixed(2) + ' € au total · ' + station.price.toFixed(3) + ' €/L · +' +
-          Math.round(station.minutes) + ' min';
-        section.append(row);
+      header.append(title);
+
+      const mapButton = document.createElement('button');
+      mapButton.type = 'button';
+      mapButton.className = 'cr-trip-map-button';
+      const mapCaption = document.createTextNode(' Voir la carte');
+      mapButton.append(tripIcon('map'), mapCaption);
+      mapButton.setAttribute('aria-expanded', 'false');
+      mapButton.setAttribute('aria-controls', 'crTripCompareMap');
+      const mapped = entries.filter(({station}) => Number.isFinite(station.lat) && Number.isFinite(station.lon));
+      if (mapped.length) header.append(mapButton);
+
+      const cards = document.createElement('div');
+      cards.className = 'cr-trip-compare-grid';
+      const note = document.createElement('p');
+      note.className = 'cr-trip-compare-note';
+      note.textContent = 'Le coût estimé inclut le carburant acheté et celui consommé sur le détour.';
+
+      const mapPanel = document.createElement('section');
+      mapPanel.id = 'crTripCompareMap';
+      mapPanel.hidden = true;
+      mapPanel.setAttribute('aria-label', 'Carte des stations comparées');
+      const mapSurface = document.createElement('div');
+      mapSurface.className = 'cr-trip-compare-map';
+      const mapStatus = document.createElement('p');
+      mapStatus.setAttribute('role', 'status');
+      mapPanel.append(mapStatus, mapSurface);
+      section.replaceChildren(header, cards, note, mapPanel);
+      section.classList.add('cr-trip-compared');
+
+      let stationMap;
+      const markers = new Map();
+      function closeMap() {
+        mapPanel.hidden = true;
+        mapButton.setAttribute('aria-expanded', 'false');
+        mapCaption.textContent = ' Voir la carte';
+        if (stationMap) stationMap.remove();
+        stationMap = null;
+        markers.clear();
+      }
+      section.addEventListener('cr-trip-reset', closeMap, {once: true});
+
+      async function openMap(station) {
+        mapPanel.hidden = false;
+        mapButton.setAttribute('aria-expanded', 'true');
+        mapCaption.textContent = ' Masquer la carte';
+        mapStatus.textContent = stationMap ? '' : 'Chargement de la carte…';
+        mapPanel.scrollIntoView({block: 'nearest'});
+        try {
+          const leaflet = await crLoadLeaflet();
+          if (!mapPanel.isConnected || mapPanel.hidden) return;
+          if (!stationMap) {
+            stationMap = leaflet.map(mapSurface, {scrollWheelZoom: false});
+            crMapTiles(stationMap);
+            const points = [];
+            for (const {station: point} of mapped) {
+              const icon = leaflet.divIcon({className: 'cr-trip-map-pin' + (point === best ? ' best' : ''),
+                html: ic(point === best ? 'star' : 'fuel', '16px'), iconSize: [30, 30], iconAnchor: [15, 15]});
+              const position = [point.lat, point.lon];
+              const popup = document.createElement('div');
+              const name = document.createElement('strong');
+              name.textContent = getNames()[point.id] || point.address || point.city || 'Station-service';
+              const price = document.createElement('div');
+              price.textContent = tripPrice.format(point.price) + '/L';
+              popup.append(name, price);
+              const marker = leaflet.marker(position, {icon, title: name.textContent, alt: name.textContent})
+                .bindPopup(popup).addTo(stationMap);
+              markers.set(point, marker);
+              points.push(position);
+            }
+            stationMap.fitBounds(points, {padding: [36, 36], maxZoom: 15});
+          }
+          if (station) markers.get(station)?.openPopup();
+          mapStatus.textContent = '';
+        } catch {
+          mapStatus.textContent = 'La carte est indisponible. Réessaie dans un instant.';
+        }
+      }
+      mapButton.addEventListener('click', () => mapPanel.hidden ? openMap() : closeMap());
+
+      for (const {station, reasons} of entries) {
+        const recommended = station === best;
+        const card = document.createElement('article');
+        card.className = 'cr-trip-compare-card' + (recommended ? ' recommended' : '');
+        const heading = document.createElement('div');
+        heading.className = 'cr-trip-station-head';
+        const icon = tripIcon(recommended ? 'star' : 'fuel');
+        const name = document.createElement('h4');
+        name.textContent = getNames()[station.id] || station.address || station.city || 'Station-service';
+        const stationText = document.createElement('div');
+        stationText.append(name);
+        if (station.city && station.city !== name.textContent) {
+          const city = document.createElement('p');
+          city.textContent = station.city;
+          stationText.append(city);
+        }
+        heading.append(icon, stationText);
+        const reason = document.createElement('p');
+        reason.className = 'cr-trip-station-reason';
+        reason.textContent = reasons.join(' · ');
+        card.append(heading);
+        if (reasons.length) card.append(reason);
+
+        const metrics = document.createElement('dl');
+        metrics.className = 'cr-trip-station-metrics';
+        const distance = Number.isFinite(station.km) ? '+' + tripDistance.format(station.km) + ' km' : '—';
+        for (const [label, metric, iconName] of [
+          ['Prix au litre', tripPrice.format(station.price), 'fuel'],
+          ['Distance en plus', distance, 'compass'],
+          ['Temps en plus', '+' + Math.round(station.minutes) + ' min', 'clock'],
+        ]) {
+          const measure = document.createElement('div');
+          const key = document.createElement('dt');
+          key.append(tripIcon(iconName), label);
+          const value = document.createElement('dd');
+          value.textContent = metric;
+          measure.append(key, value);
+          metrics.append(measure);
+        }
+        const footer = document.createElement('div');
+        footer.className = 'cr-trip-station-footer';
+        const cost = document.createElement('div');
+        const costLabel = document.createElement('span');
+        costLabel.textContent = 'Coût total estimé';
+        const amount = document.createElement('strong');
+        amount.textContent = tripTotal.format(station.total);
+        cost.append(costLabel, amount);
+        const difference = document.createElement('p');
+        difference.className = 'cr-trip-station-difference';
+        const delta = Math.round((recommended ? highest.total - best.total : station.total - best.total) * 100) / 100;
+        if (delta > 0) {
+          difference.textContent = recommended
+            ? 'Économie estimée de ' + tripTotal.format(delta) + ' sur l’option la plus chère affichée'
+            : '+' + tripTotal.format(delta) + ' par rapport au meilleur coût';
+          cost.append(difference);
+        } else if (!recommended) {
+          difference.textContent = 'Même coût estimé';
+          cost.append(difference);
+        }
+        footer.append(cost);
+        if (mapped.some(point => point.station === station)) {
+          const pin = document.createElement('button');
+          pin.type = 'button';
+          pin.className = 'cr-trip-map-button';
+          pin.setAttribute('aria-label', 'Sur la carte : ' + name.textContent);
+          pin.append(tripIcon('pin'), ' Sur la carte');
+          pin.addEventListener('click', () => openMap(station));
+          footer.append(pin);
+        }
+        card.append(metrics, footer);
+        cards.append(card);
       }
       section.hidden = false;
     }
 
     const renderAlternatives = window.crTripRenderAlternatives;
     window.crTripRenderAlternatives = function (candidates) {
+      document.getElementById('crTripAlternatives')?.dispatchEvent(new Event('cr-trip-reset'));
       renderAlternatives(candidates);
       const alternatives = document.getElementById('crTripAlternatives');
       const token = getToken();

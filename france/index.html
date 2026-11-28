@@ -331,6 +331,7 @@ button:active{transform:scale(.97)}
 .cr-trip-choice span:first-child{font-weight:700}.cr-trip-choice span:last-child{font-size:12px;color:var(--text-muted)}
 .cr-trip-choice.selected{border-color:var(--accent);background:var(--bg-sunken)}
 .cr-trip-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#page-trajet input[name="trajetDepart"]{accent-color:var(--accent)}
 
 /* Ergonomie préversion 03 : carte et analyse */
 .cr-map-wrap{position:relative;width:100%;height:calc(100vh - 190px)}.cr-map-wrap #map{height:100%;width:100%}
@@ -1331,17 +1332,27 @@ function initPagesInfo(){
 
 function initMap(){
   if(mapInit){if(la&&map)map.setView([la,lo],13);updateMapMarkers();return;}
-  if(!window.L){
+  crLoadLeaflet().then(function(){if(!mapInit)initMapCore();}).catch(function(){});
+}
+var crLeafletLoad;
+function crLoadLeaflet(){
+  if(window.L)return Promise.resolve(window.L);
+  if(!crLeafletLoad)crLeafletLoad=new Promise(function(resolve,reject){
     var link=document.createElement('link');link.rel='stylesheet';link.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(link);
     var script=document.createElement('script');script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload=function(){initMapCore();};document.head.appendChild(script);return;
-  }
-  initMapCore();
+    script.onload=function(){resolve(window.L);};
+    script.onerror=function(){script.remove();link.remove();crLeafletLoad=null;reject(Error('map'));};
+    document.head.appendChild(script);
+  });
+  return crLeafletLoad;
+}
+function crMapTiles(target){
+  return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(target);
 }
 function initMapCore(){
   mapInit=true;
   map=L.map('map').setView([46.6,2.3],6);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
+  crMapTiles(map);
   if(la){map.setView([la,lo],13);addUserMarker();}
   updateMapMarkers();
   map.on('click',gererClicCarte);
@@ -1391,6 +1402,7 @@ function ic(nom,taille){
     map:'<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
     compass:'<circle cx="12" cy="12" r="9"/><polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88" fill="currentColor" stroke="none"/>',
     chart:'<line x1="4" y1="20" x2="20" y2="20"/><rect x="6" y="13" width="3" height="7"/><rect x="11" y="9" width="3" height="11"/><rect x="16" y="5" width="3" height="15"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     pin:'<path d="M12 21s7-6.5 7-11a7 7 0 1 0-14 0c0 4.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
     star:'<polygon points="12 2 15 9 22 9.5 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9.5 9 9"/>',
     bell:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/>',
@@ -2396,6 +2408,7 @@ function crTripInvalidate(){
   window.crTripVerifiedMeta=null;
   trajetDestLat=null;
   trajetDestLon=null;
+  document.getElementById('crTripAlternatives')?.dispatchEvent(new Event('cr-trip-reset'));
   var result=document.getElementById('trajetResult');
   if(result){result.textContent='';result.setAttribute('aria-busy','false');}
   crTripFinish();
