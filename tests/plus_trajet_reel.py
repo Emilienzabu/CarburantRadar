@@ -76,7 +76,8 @@ with sync_playwright() as pw:
         assert comparison["credits"] == 4 and comparison["result"]["verified"] >= 2
         assert call.value.request.post_data_json["params"]["origin"] == {
             "lat": manual_origin["lat"], "lon": manual_origin["lon"]}
-        expect(result.get_by_text("Coût total le plus bas", exact=True)).to_be_visible()
+        expect(result.get_by_role("heading", name=pattern(r"Comparaison de \d+ stations vérifiées"))).to_be_visible()
+        expect(result.get_by_text(pattern(r"^Coût total le plus bas · "))).to_be_visible()
         retry = context.request.post(ORIGIN + "/plus/trip", data=response.request.post_data_json,
                                      headers={"Authorization": f"Bearer {token}"})
         assert retry.ok and retry.json()["credits"] == 4
